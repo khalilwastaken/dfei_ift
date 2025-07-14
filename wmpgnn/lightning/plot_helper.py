@@ -172,6 +172,7 @@ def plot_ft_nodes(df, nlayers, version, ref_signal):
     outdir = f"lightning_logs/version_{version}/plots_{ref_signal}"
     os.makedirs(outdir, exist_ok=True)
 
+    # plotting confusion matrix
     labels = df["ft_y"]
     for i in range(nlayers):
         try:  # TODO implement w/o try
@@ -191,3 +192,70 @@ def plot_ft_nodes(df, nlayers, version, ref_signal):
         plt.savefig(f"{outdir}/ft_conf_layer_{i}.pdf")
         plt.savefig(f"{outdir}/ft_conf_layer_{i}.png")
         plt.close()
+
+        # plotting the predicted values
+        bbar_score = df[f"sig_bbar_ft_score_{i}"].T
+        bkg_score = df[f"bkg_ft_score_{i}"].T
+        b_score = df[f"sig_b_ft_score_{i}"].T
+
+        # bbar´
+        f, ax = plt.subplots(figsize=(9, 6))
+        ax.hist(bbar_score[0], bins=100, range=[0, 1], alpha=.7, label="bbar prediction", color='#B22222')
+        ax.hist(bbar_score[1], bins=100, range=[0, 1], alpha=.7, label="no flavour prediction", color='#D3D3D3')
+        ax.hist(bbar_score[2], bins=100, range=[0, 1], alpha=.7, label="b prediction", color='#4169E1')
+        ax.set_title("bbar predictions")
+        ax.set_xlabel("NN weights [a.u.]")
+        ax.set_ylabel("Entries [a.u.]")
+        ax.legend()
+        ax.set_yscale("log")
+        plt.savefig(f"{outdir}/bbar_confidence_layer_{i}.pdf")
+        plt.savefig(f"{outdir}/bbar_confidence_layer_{i}.png")
+        plt.close()
+
+        # no flavour
+        f, ax = plt.subplots(figsize=(9, 6))
+        ax.hist(bkg_score[0], bins=100, range=[0, 1], alpha=.7, label="bar prediction", color='#B22222')
+        ax.hist(bkg_score[1], bins=100, range=[0, 1], alpha=.7, label="no flavour prediction", color='#D3D3D3')
+        ax.hist(bkg_score[2], bins=100, range=[0, 1], alpha=.7, label="b prediction", color='#4169E1')
+        ax.set_title("no flavour predictions")
+        ax.set_xlabel("NN weights [a.u.]")
+        ax.set_ylabel("Entries [a.u.]")
+        ax.legend()
+        ax.set_yscale("log")
+        plt.savefig(f"{outdir}/no_flavour_confidence_layer_{i}.pdf")
+        plt.savefig(f"{outdir}/no_flavour_confidence_layer_{i}.png")
+        plt.close()
+
+        # b
+        f, ax = plt.subplots(figsize=(9, 6))
+        ax.hist(b_score[0], bins=100, range=[0, 1], alpha=.7, label="bbar prediction", color='#B22222')
+        ax.hist(b_score[1], bins=100, range=[0, 1], alpha=.7, label="no flavour prediction", color='#D3D3D3')
+        ax.hist(b_score[2], bins=100, range=[0, 1], alpha=.7, label="b prediction", color='#4169E1')
+        ax.set_title("b predictions")
+        ax.set_xlabel("NN weights [a.u.]")
+        ax.set_ylabel("Entries [a.u.]")
+        ax.legend()
+        ax.set_yscale("log")
+        plt.savefig(f"{outdir}/b_confidence_layer_{i}.pdf")
+        plt.savefig(f"{outdir}/b_confidence_layer_{i}.png")
+        plt.close()
+
+        # collapse into one plot
+        bbar_pred_power = 1-bbar_score[0]  # bbar score being bbar -> peak at 1
+        b_pred_power = b_score[-1]  # b_score being b_score -> peak at 0
+
+        bbar_weights = np.ones_like(bbar_pred_power) / bbar_pred_power.shape[0]
+        b_weights = np.ones_like(b_pred_power) / b_pred_power.shape[0]
+        
+        f, ax = plt.subplots(figsize=(9, 6))
+        ax.hist(bbar_pred_power, bins=100, range=[0, 1], alpha=.7, label="bbar prediction", color='#B22222', weights=bbar_weights)
+        ax.hist(b_pred_power, bins=100, range=[0, 1], alpha=.7, label="b prediction", color='#4169E1', weights=b_weights)
+
+        ax.set_xlabel("NN weights [a.u.]")
+        ax.set_ylabel("Entries [a.u.]")
+        ax.legend()
+        ax.set_yscale("log")
+        plt.savefig(f"{outdir}/b_bbar_pred_power_{i}.pdf")
+        plt.savefig(f"{outdir}/b_bbar_pred_power_{i}.png")
+        plt.close()
+        

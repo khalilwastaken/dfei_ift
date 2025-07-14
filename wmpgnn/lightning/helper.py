@@ -83,16 +83,19 @@ def lca_truth_matrix(graph):
     return truth_lca
 
 
-def get_pred_ft(graph, cluster, ft_score):  # node weights
-    ft_score = ft_score.cpu()
-
+def get_pred_ft(graph, cluster, ft_score, node_score):  # node weights
     cluster_keys = cluster['node_keys']
     keys = graph['final_keys']
-
     b_daugthers_mask = np.isin(keys, cluster_keys)
-    ft_bbar_score, ft_no_score, ft_b_score = ft_score[b_daugthers_mask].mean(dim=0)
-    # here we want to pass the node weights [0, 1] and weight them for FT decision
-    return ft_bbar_score, ft_no_score, ft_b_score
+
+    ft_score = ft_score[b_daugthers_mask].cpu()
+    node_score = node_score[b_daugthers_mask].cpu()
+    
+    weighted_mean = (ft_score * node_score).sum(dim=0) / node_score.sum()
+    # Get the probabillity with softmax
+    ft_bbar_score, ft_no_score, ft_b_score = torch.softmax(weighted_mean, dim=0)
+
+    return ft_bbar_score.item(), ft_no_score.item(), ft_b_score.item()
 
 
 def get_b_cand_pv(graph, cluster, true_cluster, pv_score):
@@ -123,7 +126,7 @@ def get_b_cand_pv(graph, cluster, true_cluster, pv_score):
     return reco_pv_idx, true_pv_idx
 
 
-def eval_reco_performance(output, graph, event, signal_df, event_df, ft_score, pv_score, ref_signal):
+def eval_reco_performance(output, graph, event, signal_df, event_df, ft_score, pv_score, node_score, ref_signal):
     ref_signal = get_ref_signal(ref_signal)
 
     # do the eval on cpu
@@ -242,14 +245,14 @@ def eval_reco_performance(output, graph, event, signal_df, event_df, ft_score, p
                         perfect_reco = 1
 
                     # Get the flavour
-                    ft_bbar_score, ft_no_score, ft_b_score = get_pred_ft(output, cluster, ft_score)
+                    ft_bbar_score, ft_no_score, ft_b_score = get_pred_ft(output, cluster, ft_score, node_score)
                     # Add PV reco and true PV
                     reco_pv_idx, true_pv_idx = get_b_cand_pv(output, cluster, true_cluster, pv_score)
                     break
                 elif true_in_reco == 1 and len(cluster['node_keys']) > len(true_cluster['node_keys']):
                     none_iso = 1  # background tracks in signal
 
-                    ft_bbar_score, ft_no_score, ft_b_score = get_pred_ft(output, cluster, ft_score)
+                    ft_bbar_score, ft_no_score, ft_b_score = get_pred_ft(output, cluster, ft_score, node_score)
                     none_iso_n_bkg = len(cluster['node_keys']) - len(
                         true_cluster['node_keys'])  # 'purity of bkg in non iso'
                     # Add PV reco and true PV
@@ -258,7 +261,7 @@ def eval_reco_performance(output, graph, event, signal_df, event_df, ft_score, p
                 elif true_in_reco >= 0.2 and true_in_reco < 1:
                     part_reco = 1
 
-                    ft_bbar_score, ft_no_score, ft_b_score = get_pred_ft(output, cluster, ft_score)
+                    ft_bbar_score, ft_no_score, ft_b_score = get_pred_ft(output, cluster, ft_score, node_score)
                     none_iso_n_bkg = len(cluster['node_keys']) - len(true_cluster['node_keys'])
                     # Add PV reco and true PV
                     reco_pv_idx, true_pv_idx = get_b_cand_pv(output, cluster, true_cluster, pv_score)
@@ -289,9 +292,9 @@ def eval_reco_performance(output, graph, event, signal_df, event_df, ft_score, p
                                            'PartReco': part_reco,
                                            'NotFound': none_associated,
                                            'SigMatch': signal_match,
-                                           'Pred_FT_bbar_score': ft_bbar_score.item(),
-                                           'Pred_FT_no_scrore': ft_no_score.item(),
-                                           'Pred_FT_b_score': ft_b_score.item(),
+                                           'Pred_FT_bbar_score': ft_bbar_score,
+                                           'Pred_FT_no_scrore': ft_no_score,
+                                           'Pred_FT_b_score': ft_b_score,
                                            'B_id': origin_B_id,
                                            'reco_pv_idx': reco_pv_idx,
                                            'true_pv_idx': true_pv_idx
