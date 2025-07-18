@@ -90,7 +90,7 @@ def get_pred_ft(graph, cluster, ft_score, node_score):  # node weights
 
     ft_score = ft_score[b_daugthers_mask].cpu()
     node_score = node_score[b_daugthers_mask].cpu()
-    
+
     weighted_mean = (ft_score * node_score).sum(dim=0) / node_score.sum()
     # Get the probabillity with softmax
     ft_bbar_score, ft_no_score, ft_b_score = torch.softmax(weighted_mean, dim=0)
@@ -292,9 +292,10 @@ def eval_reco_performance(output, graph, event, signal_df, event_df, ft_score, p
                                            'PartReco': part_reco,
                                            'NotFound': none_associated,
                                            'SigMatch': signal_match,
-                                           'Pred_FT_bbar_score': ft_bbar_score,
+                                           # Here we flip b bar score because -1 mc id equals to b and bbar
+                                           'Pred_FT_b_score': ft_bbar_score,
                                            'Pred_FT_no_scrore': ft_no_score,
-                                           'Pred_FT_b_score': ft_b_score,
+                                           'Pred_FT_bbar_score': ft_b_score,
                                            'B_id': origin_B_id,
                                            'reco_pv_idx': reco_pv_idx,
                                            'true_pv_idx': true_pv_idx
