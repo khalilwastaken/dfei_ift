@@ -1,0 +1,52 @@
+model:
+  type: "analysis"
+  node_types: ['tracks', 'pvs']
+  edge_types: ["tracks_tracks", "tracks_pvs"]
+  encoder:
+    usage: True
+    MLP: [-1, 128, 128, 128, 16]
+    norm: "batch_norm"
+    dropout: 0.3
+  GNblocks:
+    nBlocks: 4
+    edge_infer: True
+    node_infer: False
+    MLP: [-1, 128, 128, 128, 16]
+    norm: "batch_norm"
+    dropout: 0.3
+    FTlayers: 1 # FT layers from back
+    # Later add here inference explicitly for edge, node, frag, FT
+    infer_mlp: [-1, 16, 16, 16, 1]
+    weight_mlp_layers: 4
+    weight_mlp_channels: 16
+    weight_mp: False  # Whether to pass edge, node pass to message passing/aggregation
+  decoder:
+    usage: True
+    MLP: [ -1, 128, 128, 128, 16 ]
+    norm: "batch_norm"
+    dropout: 0.3
+  op_trafo:  # transforms output to desired dimension
+    usage: True
+    tr_tr_edge_op: 4  # Output dim of edges
+    tr_pv_edge_op: 1
+    tr_node_op: None
+    pv_node_op: None
+    global_node_op: None
+
+data_dir: "/eos/user/y/yukaiz/DFEI_single_pp_graph_data"
+
+training:
+  graph_mode: "true"  # true: True graph
+  sample: ["inclusive"]
+  batch_size: 12
+  gacc: 1  # gradient accumulation if using smaller batch size
+  ngpu: 1  # need roughly 40 Gb for bs of 12
+  ncpu: 1  # need roughly 128Gb cpu memory
+  cpt: None
+  cw: False # Flag if weights need to be calculated or not
+  infer:
+    LCA: True
+    node_prune: False
+    edge_prune: False
+    FT: False
+    frag: False
