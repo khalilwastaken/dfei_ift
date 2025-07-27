@@ -65,9 +65,9 @@ class HeteroEdgesToNodesAggregator(AbstractModule):
 
         out = graph[edge_type].edges.new_zeros(num_nodes, graph[edge_type].edges.shape[1])
         if self._weighted:
-            output = scatter_add(graph[edge_type].edges * weight, indices, out=out, dim=0)
+            output = scatter_add(graph[edge_type].edges * weight, indices.to(torch.int64), out=out, dim=0)
         else:
-            output = scatter_add(graph[edge_type].edges, indices, out=out, dim=0)
+            output = scatter_add(graph[edge_type].edges, indices.to(torch.int64), out=out, dim=0)
         return output
 
 class HeteroEdgesToGlobalsAggregator(AbstractModule):
