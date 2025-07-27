@@ -42,7 +42,7 @@ if __name__ == "__main__":
     trn_dataset = []
     for sample in samples:
         print(f"Loading {sample}")
-        trn_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/trn_data_*'))
+        trn_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/trn_data_*'))[:config["training"]["nfiles"]]
         with ThreadPool(processes=config["training"]["ncpu"]) as pool:
             results = list(
                 tqdm(pool.imap(load_dataset_true, trn_paths), total=len(trn_paths), desc="Training dataset"))
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     val_dataset = []
     for sample in samples:
         print(f"Loading {sample}")
-        val_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/val_data_*'))
+        val_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/val_data_*'))[:config["training"]["nfiles"]]
         with ThreadPool(processes=config["training"]["ncpu"]) as pool:
             results = list(
                 tqdm(pool.imap(load_dataset_true, val_paths), total=len(val_paths), desc="Validation dataset"))
@@ -71,4 +71,4 @@ if __name__ == "__main__":
     val_loader = DataLoader(val_dataset, batch_size=config["training"]["batch_size"],
                             num_workers=config["training"]["ncpu"] * 2, drop_last=True)
 
-    training(model, trn_loader, val_loader, config)
+    training(model, trn_loader, val_loader, config["training"])

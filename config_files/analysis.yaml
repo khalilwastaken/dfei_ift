@@ -38,10 +38,12 @@ data_dir: "/eos/user/y/yukaiz/DFEI_single_pp_graph_data"
 training:
   graph_mode: "true"  # true: True graph
   sample: ["inclusive"]
+  nfiles: 10
   batch_size: 12
+  eochs: 30
   gacc: 1  # gradient accumulation if using smaller batch size
   ngpu: 1  # need roughly 40 Gb for bs of 12
-  ncpu: 1  # need roughly 128Gb cpu memory
+  ncpu: 8  # need roughly 128Gb cpu memory
   cpt: None
   cw: False # Flag if weights need to be calculated or not
   infer:

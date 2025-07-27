@@ -80,12 +80,46 @@ def training(model, trn_loader, val_loader, config):
         config=config
     )
 
+    early_stopping = EarlyStopping(
+        monitor="val_combined_loss",
+        verbose=True,
+        mode="min",
+        patience=10,
+    )
+
+    best_model_callback = ModelCheckpoint(
+        filename="best-{epoch:02d}-{val_combined_loss:.2f}",
+        monitor="val_combined_loss",
+        mode="min",
+        save_top_k=1
+    )
+
+    all_epochs_callback = ModelCheckpoint(
+        filename="epoch-{epoch:02d}",
+        save_top_k=-1,
+        every_n_epochs=1
+    )
+
+    log_dir = "lightning_logs"
+    experiment_name = None  # default name
+
+    tb_logger = TensorBoardLogger(save_dir=log_dir, name=experiment_name)
+    csv_logger = CSVLogger(save_dir=log_dir, name=experiment_name, version=tb_logger.version)
+
     """Start training"""
     trainer = Trainer(
-        max_epochs=5,
-        accelerator="cpu",
-        devices=1,
-        precision="32",  # never do 16-mixed
+        logger=[csv_logger, tb_logger],
+        max_epochs=config["epochs"],
+        accelerator="gpu",
+        devices=condig["n_gpu"],
+        strategy="auto",
+        callbacks=[early_stopping, best_model_callback, all_epochs_callback],
+        precision="32",
+        accumulate_grad_batches=config["gacc"],
+        num_sanity_val_steps=1,
+        gradient_clip_val=0.5,
+        sync_batchnorm=True,
+        reload_dataloaders_every_n_epochs=1
     )
 
     trainer.fit(module, trn_loader, val_loader)
