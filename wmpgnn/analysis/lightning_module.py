@@ -12,21 +12,32 @@ from torch import nn
 from lightning_module_helper import *
 
 from wmpgnn.util.functions import acc_four_class
+from wmpgnn.lightning.plot_helper import *
 
 
 class HGNNLightningModule(L.LightningModule):
-    def __init__(self, model, optimizer_class, optimizer_params, config):
+    def __init__(self, model, optimizer_class, optimizer_params, config, pos_weights):
         super().__init__()
         self.save_hyperparameters({
-            **config
+            **config,
+            "pos_weights": make_loggable(pos_weights)
         })
         self.model = model
         self.config = config["training"]["infer"]
+        self.nFT_layers = config["model"]["GNblocks"]["FTlayers"]
         self.optimizer_class = optimizer_class
         self.optimizer_params = optimizer_params
 
         if self.config["LCA"]:
-            self.LCA_criterion = nn.CrossEntropyLoss()
+            self.LCA_criterion = nn.CrossEntropyLoss(weight=pos_weights["LCA"])
+        if self.config["node_prune"]:
+            self.nodes_criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights["nodes"])
+        if self.config["edge_prune"]:
+            self.edges_criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights["edges"])
+        if self.config["frag"]:
+            self.frag_criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights["frag"])
+        if self.config["FT"]:
+            self.FT_criterion = nn.CrossEntropyLoss(weight=pos_weights["FT"])
 
         self.trn_log, self.val_log = init_logs(self.config)
 
@@ -48,7 +59,35 @@ class HGNNLightningModule(L.LightningModule):
             for key, values in acc_LCA.items():
                 log[key].append(values)
 
-        return loss["LCA"]
+        if self.config["node_prune"]:
+            y_nodes = (batch["tracks"].ft != 0).to(torch.float32).unsqueeze(-1)
+        if self.config["edge_prune"]:
+            y_edges = batch[('tracks', 'to', 'tracks')].y.to(torch.float32).unsqueeze(-1)
+        if self.config["frag"]:
+            y_frag = (batch['tracks'].frag != 0).unsqueeze(-1).to(torch.float32)
+        if self.config["FT"]:
+            y_ft = batch['tracks'].ft
+
+        for i, block in enumerate(self.model._blocks):
+            if self.config["node_prune"]:
+                loss["t_nodes"] += self.nodes_criterion(block.node_logits['tracks'], y_nodes)
+            if self.config["edge_prune"]:
+                loss["tt_edges"] += self.edges_criterion(block.edge_logits[('tracks', 'to', 'tracks')], y_edges)
+            if i >= len(self.model._blocks) - self.nFT_layers:
+                if self.config["frag"]:
+                    loss["frag_nodes"] += self.frag_criterion(block.node_logits['frag'], y_frag)
+                if self.config["FT"]:
+                    loss["ft_nodes"] += self.FT_criterion(block.node_logits['ft'], y_ft)
+
+        combined_loss = loss["LCA"] + loss["t_nodes"] + loss["tt_edges"] + loss["frag_nodes"] + loss["ft_nodes"]
+
+        """temp logging"""
+        log_dict["t_nodes_loss"].append(loss["t_nodes"].item())
+        log_dict["tt_edges_loss"].append(loss["tt_edges"].item())
+        log["frag_loss"].append(loss["frag_nodes"].item())
+        log["ft_loss"].append(loss["ft_nodes"].item())
+        log_dict["combined_loss"].append(loss.item())
+        return combined_loss
 
     def training_step(self, batch, batch_idx):
         loss = self.shared_step(batch, batch_idx, self.trn_log)
@@ -72,12 +111,13 @@ class HGNNLightningModule(L.LightningModule):
 
 
 # Here we define a wrapper to do the training
-def training(model, trn_loader, val_loader, config):
+def training(model, trn_loader, val_loader, config, pos_weights):
     module = HGNNLightningModule(
         model=model,
         optimizer_class=torch.optim.Adam,
         optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
-        config=config
+        config=config,
+        pos_weights=pos_weights
     )
 
     early_stopping = EarlyStopping(
@@ -106,12 +146,12 @@ def training(model, trn_loader, val_loader, config):
     tb_logger = TensorBoardLogger(save_dir=log_dir, name=experiment_name)
     csv_logger = CSVLogger(save_dir=log_dir, name=experiment_name, version=tb_logger.version)
 
-    """Start training"""
+    config = config["training"]
     trainer = Trainer(
         logger=[csv_logger, tb_logger],
         max_epochs=config["epochs"],
         accelerator="gpu",
-        devices=condig["n_gpu"],
+        devices=config["ngpu"],
         strategy="auto",
         callbacks=[early_stopping, best_model_callback, all_epochs_callback],
         precision="32",
@@ -122,4 +162,11 @@ def training(model, trn_loader, val_loader, config):
         reload_dataloaders_every_n_epochs=1
     )
 
+    """Start training"""
     trainer.fit(module, trn_loader, val_loader)
+
+    csv_path = os.path.join(log_dir, f"version_{version}", "metrics.csv")
+    df = pd.read_csv(csv_path)
+    df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
+    plot_LCA_acc(df, version)
+    plot_LCA_loss(df, version)

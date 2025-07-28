@@ -10,7 +10,7 @@ model:
   GNblocks:
     nBlocks: 4
     edge_infer: True
-    node_infer: False
+    node_infer: True
     MLP: [-1, 128, 128, 128, 16]
     norm: "batch_norm"
     dropout: 0.3
@@ -19,7 +19,7 @@ model:
     infer_mlp: [-1, 16, 16, 16, 1]
     weight_mlp_layers: 4
     weight_mlp_channels: 16
-    weight_mp: False  # Whether to pass edge, node pass to message passing/aggregation
+    weight_mp: True  # Whether to pass edge, node pass to message passing/aggregation
   decoder:
     usage: True
     MLP: [ -1, 128, 128, 128, 16 ]
@@ -38,9 +38,9 @@ data_dir: "/eos/user/y/yukaiz/DFEI_single_pp_graph_data"
 training:
   graph_mode: "true"  # true: True graph
   sample: ["inclusive"]
-  nfiles: 10
+  nfiles: 50
   batch_size: 12
-  eochs: 30
+  epochs: 30
   gacc: 1  # gradient accumulation if using smaller batch size
   ngpu: 1  # need roughly 40 Gb for bs of 12
   ncpu: 8  # need roughly 128Gb cpu memory
@@ -48,7 +48,14 @@ training:
   cw: False # Flag if weights need to be calculated or not
   infer:
     LCA: True
-    node_prune: False
-    edge_prune: False
-    FT: False
-    frag: False
+    node_prune: True
+    edge_prune: True
+    FT: True
+    frag: True
+  weights:
+    weights: True
+    LCA: True
+    node: True
+    edge: True
+    FT: True
+    frag: True
