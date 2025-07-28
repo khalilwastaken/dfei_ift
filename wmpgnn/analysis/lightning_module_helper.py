@@ -1,16 +1,24 @@
 import torch
 
+
 def init_logs(configs):
-    trn_log = {}
+    log = {"combined_loss": []}
     if configs["LCA"]:
-        trn_log["LCA_loss"] = []
+        log["LCA_loss"] = []
         for i in range(4):  # something like num classes in config file
-            trn_log[f"LCA_class{i}_num"] = []
+            log[f"LCA_class{i}_num"] = []
             for j in range(4):
-                trn_log[f"LCA_class{i}_pred_class{j}"] = []
+                log[f"LCA_class{i}_pred_class{j}"] = []
 
-    return trn_log, trn_log
-
+    if configs["node_prune"]:
+        log["t_nodes_loss"] = []
+    if configs["edge_prune"]:
+        log["tt_edges_loss"] = []
+    if configs["FT"]:
+        log["ft_loss"] = []
+    if configs["frag"]:
+        log["frag_loss"] = []
+    return log, log
 
 
 def make_loggable(hparams_dict):

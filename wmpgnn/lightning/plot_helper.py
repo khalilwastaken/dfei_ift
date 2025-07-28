@@ -88,6 +88,27 @@ def plot_loss(df, version):
     plt.close()
 
 
+def plot_LCA_loss(df, version):
+    trn_LCA_loss = np.array(df["train_LCA_loss"])
+    val_LCA_loss = np.array(df["val_LCA_loss"])
+    epochs = np.arange(len(trn_LCA_loss))
+
+    # Plot dir
+    outdir = f"lightning_logs/version_{version}/plots"
+    os.makedirs(outdir, exist_ok=True)
+
+    # Plot combined loss
+    f, ax = plt.subplots(figsize=(9, 6))
+    ax.plot(epochs, trn_LCA_loss, color="#4169E1", label="trn loss")
+    ax.plot(epochs, val_LCA_loss, color="#B22222", label="val loss")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Loss")
+    ax.legend()
+    plt.savefig(f"{outdir}/LCA_loss.pdf")
+    plt.savefig(f"{outdir}/LCA_loss.png")
+    plt.close()
+
+
 def plot_LCA_acc(df, version):
     trn_LCA_acc0 = np.array(df["train_LCA_class0_pred_class0"])
     trn_LCA_acc1 = np.array(df["train_LCA_class1_pred_class1"])
@@ -241,15 +262,17 @@ def plot_ft_nodes(df, nlayers, version, ref_signal):
         plt.close()
 
         # collapse into one plot
-        bbar_pred_power = 1-bbar_score[0]  # bbar score being bbar -> peak at 1
+        bbar_pred_power = 1 - bbar_score[0]  # bbar score being bbar -> peak at 1
         b_pred_power = b_score[-1]  # b_score being b_score -> peak at 0
 
         bbar_weights = np.ones_like(bbar_pred_power) / bbar_pred_power.shape[0]
         b_weights = np.ones_like(b_pred_power) / b_pred_power.shape[0]
-        
+
         f, ax = plt.subplots(figsize=(9, 6))
-        ax.hist(bbar_pred_power, bins=100, range=[0, 1], alpha=.7, label="bbar prediction", color='#B22222', weights=bbar_weights)
-        ax.hist(b_pred_power, bins=100, range=[0, 1], alpha=.7, label="b prediction", color='#4169E1', weights=b_weights)
+        ax.hist(bbar_pred_power, bins=100, range=[0, 1], alpha=.7, label="bbar prediction", color='#B22222',
+                weights=bbar_weights)
+        ax.hist(b_pred_power, bins=100, range=[0, 1], alpha=.7, label="b prediction", color='#4169E1',
+                weights=b_weights)
 
         ax.set_xlabel("NN weights [a.u.]")
         ax.set_ylabel("Entries [a.u.]")
@@ -258,4 +281,3 @@ def plot_ft_nodes(df, nlayers, version, ref_signal):
         plt.savefig(f"{outdir}/b_bbar_pred_power_{i}.pdf")
         plt.savefig(f"{outdir}/b_bbar_pred_power_{i}.png")
         plt.close()
-        

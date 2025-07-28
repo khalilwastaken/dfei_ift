@@ -82,11 +82,11 @@ class HGNNLightningModule(L.LightningModule):
         combined_loss = loss["LCA"] + loss["t_nodes"] + loss["tt_edges"] + loss["frag_nodes"] + loss["ft_nodes"]
 
         """temp logging"""
-        log_dict["t_nodes_loss"].append(loss["t_nodes"].item())
-        log_dict["tt_edges_loss"].append(loss["tt_edges"].item())
+        log["t_nodes_loss"].append(loss["t_nodes"].item())
+        log["tt_edges_loss"].append(loss["tt_edges"].item())
         log["frag_loss"].append(loss["frag_nodes"].item())
         log["ft_loss"].append(loss["ft_nodes"].item())
-        log_dict["combined_loss"].append(loss.item())
+        log["combined_loss"].append(combined_loss.item())
         return combined_loss
 
     def training_step(self, batch, batch_idx):
@@ -144,6 +144,7 @@ def training(model, trn_loader, val_loader, config, pos_weights):
     experiment_name = None  # default name
 
     tb_logger = TensorBoardLogger(save_dir=log_dir, name=experiment_name)
+    version = tb_logger.version
     csv_logger = CSVLogger(save_dir=log_dir, name=experiment_name, version=tb_logger.version)
 
     config = config["training"]
@@ -170,3 +171,4 @@ def training(model, trn_loader, val_loader, config, pos_weights):
     df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
     plot_LCA_acc(df, version)
     plot_LCA_loss(df, version)
+    # print the val acc percent values for the best epoch on val combined loos
