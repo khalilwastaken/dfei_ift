@@ -1,5 +1,5 @@
 import pytorch_lightning as L
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
@@ -10,6 +10,7 @@ import torch
 from torch import nn
 
 from lightning_module_helper import *
+from plotter import *
 
 from wmpgnn.util.functions import acc_four_class
 from wmpgnn.lightning.plot_helper import *
@@ -39,7 +40,8 @@ class HGNNLightningModule(L.LightningModule):
         if self.config["FT"]:
             self.FT_criterion = nn.CrossEntropyLoss(weight=pos_weights["FT"])
 
-        self.trn_log, self.val_log = init_logs(self.config)
+        self.trn_log, self.val_log = init_logs(config)
+        self.tst_log = init_logs(config, mode="test")
 
     def forward(self, batch):
         return self.model(batch)
@@ -47,7 +49,7 @@ class HGNNLightningModule(L.LightningModule):
     def configure_optimizers(self):
         return self.optimizer_class(self.model.parameters(), **self.optimizer_params)
 
-    def shared_step(self, batch, batch_idx, log):
+    def shared_step(self, batch, batch_idx, log, mode="train"):
         loss = {"LCA": 0., "t_nodes": 0., "tt_edges": 0., "tPV_edges": 0., "frag_nodes": 0., "ft_nodes": 0.}
         outputs = self.model(batch)
 
@@ -78,14 +80,18 @@ class HGNNLightningModule(L.LightningModule):
                     loss["frag_nodes"] += self.frag_criterion(block.node_logits['frag'], y_frag)
                 if self.config["FT"]:
                     loss["ft_nodes"] += self.FT_criterion(block.node_logits['ft'], y_ft)
+                    if mode == "test":
+                        b_selbool = y_ft == 0
+                        bbar_selbool = y_ft == 2
+                        log[f"b_ft_score_{i}"] = torch.cat(
+                            [log[f"b_ft_score_{i}"], block.node_weights['ft'][b_selbool][:, 0].cpu()], dim=0)
+                        log[f"bbar_ft_score_{i}"] = torch.cat(
+                            [log[f"bbar_ft_score_{i}"], block.node_weights['ft'][bbar_selbool][:, 2].cpu()], dim=0)
 
         combined_loss = loss["LCA"] + loss["t_nodes"] + loss["tt_edges"] + loss["frag_nodes"] + loss["ft_nodes"]
 
-        """temp logging"""
-        log["t_nodes_loss"].append(loss["t_nodes"].item())
-        log["tt_edges_loss"].append(loss["tt_edges"].item())
-        log["frag_loss"].append(loss["frag_nodes"].item())
-        log["ft_loss"].append(loss["ft_nodes"].item())
+        """Logging"""
+        log = loss_logging(log, loss, self.config)
         log["combined_loss"].append(combined_loss.item())
         return combined_loss
 
@@ -96,6 +102,10 @@ class HGNNLightningModule(L.LightningModule):
     def validation_step(self, batch, batch_idx):
         loss = self.shared_step(batch, batch_idx, self.val_log)
         return loss
+
+    def test_step(self, batch, batch_idx):
+        _ = self.shared_step(batch, batch_idx, self.tst_log, mode="test")
+        return {}
 
     def on_train_epoch_end(self):
         avg_losses = {key: torch.tensor(vals).nanmean(dim=0) for key, vals in self.trn_log.items()}
@@ -109,9 +119,17 @@ class HGNNLightningModule(L.LightningModule):
             self.log(f"val_{key}", val, prog_bar=(key == "combined_loss"), on_epoch=True, on_step=False)
         self.val_log = defaultdict(list)
 
+    def on_test_epoch_end(self):
+        version = self.logger.version
+
+        bbar_score = 1 - self.tst_log["bbar_ft_score_3"]  # optimal 0
+        b_score = self.tst_log["b_ft_score_3"]  # optimal 1
+        plot_weights(b_score, bbar_score, ["ft_decision", "b", "bbar"], version)
+
 
 # Here we define a wrapper to do the training
-def training(model, trn_loader, val_loader, config, pos_weights):
+def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
+    seed_everything(42, workers=True)
     module = HGNNLightningModule(
         model=model,
         optimizer_class=torch.optim.Adam,
@@ -160,11 +178,13 @@ def training(model, trn_loader, val_loader, config, pos_weights):
         num_sanity_val_steps=1,
         gradient_clip_val=0.5,
         sync_batchnorm=True,
-        reload_dataloaders_every_n_epochs=1
+        reload_dataloaders_every_n_epochs=1,
+        deterministic=True
     )
 
     """Start training"""
     trainer.fit(module, trn_loader, val_loader)
+    trainer.test(module, dataloaders=tst_loader)
 
     csv_path = os.path.join(log_dir, f"version_{version}", "metrics.csv")
     df = pd.read_csv(csv_path)

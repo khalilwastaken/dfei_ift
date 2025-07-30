@@ -65,8 +65,9 @@ class HeteroGNN(nn.Module):
             if b < (len(self._blocks) - 1):
                 data = hetero_graph_concat(latent, data)
 
-        decoded_op = self._decoder(data)
+        if self.decode:
+            data = self._decoder(data)
 
-        output = (self._op_trafo(decoded_op))
+        output = (self._op_trafo(data))
 
         return output

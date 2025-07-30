@@ -63,11 +63,22 @@ if __name__ == "__main__":
                 tqdm(pool.imap(load_val_dataset, val_paths), total=len(val_paths), desc="Validation dataset"))
         for r in results:
             val_dataset.extend(r[0])
+    print("Testing:")
+    tst_dataset = []
+    for sample in samples:
+        print(f"Loading {sample}")
+        tst_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/tst_data_*'))[:config["training"]["nfiles"]]
+        with ThreadPool(processes=config["training"]["ncpu"]) as pool:
+            results = list(
+                tqdm(pool.imap(load_val_dataset, tst_paths), total=len(tst_paths), desc="Test dataset"))
+        for r in results:
+            tst_dataset.extend(r[0])
     end = time.time()
 
     print(f"data read in, time needed {(end - start):.2f}")
     print(f"Train dataset       : {len(trn_dataset)}")
     print(f"Validation dataset  : {len(val_dataset)}")
+    print(f"Test dataset        : {len(tst_dataset)}")
     print("=" * 30)
 
     # Transform pos weight
@@ -78,5 +89,7 @@ if __name__ == "__main__":
                             num_workers=config["training"]["ncpu"] * 2, drop_last=True, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=config["training"]["batch_size"],
                             num_workers=config["training"]["ncpu"] * 2, drop_last=True)
+    tst_loader = DataLoader(tst_dataset, batch_size=config["training"]["batch_size"],
+                            num_workers=config["training"]["ncpu"] * 2, drop_last=True)
 
-    training(model, trn_loader, val_loader, config, pos_weights)
+    training(model, trn_loader, val_loader, val_loader, config, pos_weights)
