@@ -1,3 +1,5 @@
+import re
+
 import torch
 
 
@@ -46,6 +48,28 @@ def init_logs(configs, mode="train"):
         return log, log
     elif mode == "test":
         return log
+
+
+def epoch_end_loggable(log):
+    # keys of the loss functions
+    avg_log = {}
+    loss_keys = [k for k in log if k.endswith('_loss')]
+    for key in loss_keys:
+        avg_log[key] = torch.tensor(log[key]).nanmean(dim=0)
+
+    class_numbers = sorted(set(
+        int(m.group(1)) for k in log if (m := re.search(r'LCA_class(\d+)_num', k))
+    ))
+
+    # LCA logging
+    for score in class_numbers:
+        selbool = torch.tensor(log[f"LCA_class{score}_num"]) != 0
+        avg_log[f"LCA_class{score}_num"] = torch.tensor(log[f"LCA_class{score}_num"]).nanmean(dim=0)
+        for s in class_numbers:
+            avg_log[f"LCA_class{score}_pred_class{s}"] = torch.nan_to_num(
+                torch.tensor(log[f"LCA_class{score}_pred_class{s}"])[selbool].nanmean(dim=0), nan=-1)
+
+    return avg_log
 
 
 def loss_logging(log, loss, configs):

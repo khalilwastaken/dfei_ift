@@ -108,13 +108,13 @@ class HGNNLightningModule(L.LightningModule):
         return {}
 
     def on_train_epoch_end(self):
-        avg_losses = {key: torch.tensor(vals).nanmean(dim=0) for key, vals in self.trn_log.items()}
+        avg_losses = epoch_end_loggable(self.trn_log)
         for key, val in avg_losses.items():
             self.log(f"train_{key}", val, prog_bar=(key == "combined_loss"), on_epoch=True, on_step=False)
         self.trn_log = defaultdict(list)
 
     def on_validation_epoch_end(self):
-        avg_losses = {key: torch.tensor(vals).nanmean(dim=0) for key, vals in self.val_log.items()}
+        avg_losses = epoch_end_loggable(self.trn_log)
         for key, val in avg_losses.items():
             self.log(f"val_{key}", val, prog_bar=(key == "combined_loss"), on_epoch=True, on_step=False)
         self.val_log = defaultdict(list)
