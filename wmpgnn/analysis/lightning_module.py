@@ -114,7 +114,7 @@ class HGNNLightningModule(L.LightningModule):
         self.trn_log = defaultdict(list)
 
     def on_validation_epoch_end(self):
-        avg_losses = epoch_end_loggable(self.trn_log)
+        avg_losses = epoch_end_loggable(self.val_log)
         for key, val in avg_losses.items():
             self.log(f"val_{key}", val, prog_bar=(key == "combined_loss"), on_epoch=True, on_step=False)
         self.val_log = defaultdict(list)
@@ -184,7 +184,11 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
 
     """Start training"""
     trainer.fit(module, trn_loader, val_loader)
-    trainer.test(module, dataloaders=tst_loader)
+
+    # testing
+    run_test = any(value for key, value in config["training"]["infer"].items() if key != "LCA")
+    if run_test:
+        trainer.test(module, dataloaders=tst_loader)
 
     csv_path = os.path.join(log_dir, f"version_{version}", "metrics.csv")
     df = pd.read_csv(csv_path)

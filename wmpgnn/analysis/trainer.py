@@ -35,12 +35,13 @@ if __name__ == "__main__":
 
     # Get dataset
     samples = config["training"]["sample"]
+    run_test = any(value for key, value in config["training"]["infer"].items() if key != "LCA")
     print("Start reading in the data")
     load_train_dataset = partial(load_dataset, config=config["training"], mode="train")
     load_val_dataset = partial(load_dataset, config=config["training"], mode="val")
     # Training
-    print("Training:")
     start = time.time()
+    print("Training:")
     trn_dataset = []
     weights = []
     for sample in samples:
@@ -63,33 +64,37 @@ if __name__ == "__main__":
                 tqdm(pool.imap(load_val_dataset, val_paths), total=len(val_paths), desc="Validation dataset"))
         for r in results:
             val_dataset.extend(r[0])
-    print("Testing:")
-    tst_dataset = []
-    for sample in samples:
-        print(f"Loading {sample}")
-        tst_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/tst_data_*'))[:config["training"]["nfiles"]]
-        with ThreadPool(processes=config["training"]["ncpu"]) as pool:
-            results = list(
-                tqdm(pool.imap(load_val_dataset, tst_paths), total=len(tst_paths), desc="Test dataset"))
-        for r in results:
-            tst_dataset.extend(r[0])
+    if run_test:
+        print("Testing:")
+        tst_dataset = []
+        for sample in samples:
+            print(f"Loading {sample}")
+            tst_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/tst_data_*'))[:config["training"]["nfiles"]]
+            with ThreadPool(processes=config["training"]["ncpu"]) as pool:
+                results = list(
+                    tqdm(pool.imap(load_val_dataset, tst_paths), total=len(tst_paths), desc="Test dataset"))
+            for r in results:
+                tst_dataset.extend(r[0])
     end = time.time()
 
     print(f"data read in, time needed {(end - start):.2f}")
     print(f"Train dataset       : {len(trn_dataset)}")
     print(f"Validation dataset  : {len(val_dataset)}")
-    print(f"Test dataset        : {len(tst_dataset)}")
+    if run_test:
+        print(f"Test dataset        : {len(tst_dataset)}")
     print("=" * 30)
 
     # Transform pos weight
     pos_weights = transform_pos_weight(weights, config["training"]["weights"])
 
     # Here we can check what kind of gpu it is to specify bs, also num_workers = num_cpu * 2
-    trn_loader = DataLoader(trn_dataset, batch_size=config["training"]["batch_size"],
+    trn_loader = DataLoader(trn_dataset[:12], batch_size=config["training"]["batch_size"],
                             num_workers=config["training"]["ncpu"] * 2, drop_last=True, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=config["training"]["batch_size"],
+    val_loader = DataLoader(val_dataset[:12], batch_size=config["training"]["batch_size"],
                             num_workers=config["training"]["ncpu"] * 2, drop_last=True)
-    tst_loader = DataLoader(tst_dataset, batch_size=config["training"]["batch_size"],
-                            num_workers=config["training"]["ncpu"] * 2, drop_last=True)
+    if run_test:
+        tst_loader = DataLoader(tst_dataset[:12], batch_size=config["training"]["batch_size"],
+                                num_workers=config["training"]["ncpu"] * 2, drop_last=True)
 
+    # TODO: Some issue with the tst loader when passing
     training(model, trn_loader, val_loader, val_loader, config, pos_weights)
