@@ -1,4 +1,8 @@
+import re
+
 import torch
+
+from plotter import *
 
 
 def node_pruning(valid_mask, graph, node_type, edge_types):
@@ -24,13 +28,27 @@ def load_dataset(path, config, mode):
     with open(path, "rb") as f:
         data = torch.load(f, weights_only=False)
     if config["graph_mode"] == "true":
-        for evt in data:
-            _ = node_pruning((evt["tracks"].ft != 1), evt, "tracks", [('tracks', 'to', 'tracks')])
+        data_selbool = torch.ones(len(data))
+        for i, evt in enumerate(data):
+            if config["data"] == "LHCb":
+                edge_data = evt[('tracks', 'to', 'tracks')]
+                selbool = edge_data.y != 0
+                sig_nodes = torch.unique(edge_data.edge_index[:, selbool])
+                y_nodes = torch.zeros(evt['tracks'].x.shape[0], dtype=torch.bool)
+                y_nodes[sig_nodes] = True
+            elif config["data"] == "pythia":
+                y_nodes = evt["tracks"].ft != 1
+            else:
+                raise "Mode not implemented"
+            _ = node_pruning(y_nodes, evt, "tracks", [('tracks', 'to', 'tracks')])
+            if evt[("tracks", "to", "tracks")].y.shape[0] == 0:
+                data_selbool[i] = 0
+    filtered_data = [d for d, sel in zip(data, data_selbool) if sel]
     if config["weights"]["weights"] and mode == "train":
-        weights = get_hetero_weight(data, config["weights"])
+        weights = get_hetero_weight(filtered_data, config["weights"])
     else:
         weights = {}
-    return data, weights
+    return filtered_data, weights
 
 
 def get_hetero_weight(data, config):
@@ -113,3 +131,28 @@ def transform_pos_weight(weights, config):
         pos_weight["FT"] = torch.ones(3)
 
     return pos_weight
+
+
+def adjust_config(configs):
+    if configs["data_dir"].split("_")[2] in ["LHCb", "pythia"]:
+        configs["training"]["data"] = configs["data_dir"].split("_")[2]
+        configs["training"]["infer"]["sim"] = configs["data_dir"].split("_")[2]
+    else:
+        raise ValueError("Data type cannot be inferred. Please check.")
+    configs["training"]["weights"]["weights"] = any(configs["training"]["weights"].values())
+
+    return configs
+
+
+def metrics_eval(metrics, configs, version):
+    if configs["LCA"]:
+        plot_LCA_acc(metrics, version)
+
+    loss_val = [
+        match.group(1)
+        for key in metrics.keys()
+        if (match := re.fullmatch(r"train_(.+?)_loss", key))
+    ]
+
+    for loss in loss_val:
+        plot_loss(metrics, version, loss)

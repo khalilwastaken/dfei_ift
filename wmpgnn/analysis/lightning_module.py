@@ -11,9 +11,9 @@ from torch import nn
 
 from lightning_module_helper import *
 from plotter import *
+from reco import reco_event
 
 from wmpgnn.util.functions import acc_four_class
-from wmpgnn.lightning.plot_helper import *
 
 
 class HGNNLightningModule(L.LightningModule):
@@ -24,6 +24,7 @@ class HGNNLightningModule(L.LightningModule):
             "pos_weights": make_loggable(pos_weights)
         })
         self.model = model
+        self.signal = config["training"]["sample"][0]
         self.config = config["training"]["infer"]
         self.nFT_layers = config["model"]["GNblocks"]["FTlayers"]
         self.optimizer_class = optimizer_class
@@ -42,6 +43,7 @@ class HGNNLightningModule(L.LightningModule):
 
         self.trn_log, self.val_log = init_logs(config)
         self.tst_log = init_logs(config, mode="test")
+        self.sig_df, self.evt_df = None, None
 
     def forward(self, batch):
         return self.model(batch)
@@ -62,7 +64,16 @@ class HGNNLightningModule(L.LightningModule):
                 log[key].append(values)
 
         if self.config["node_prune"]:
-            y_nodes = (batch["tracks"].ft != 0).to(torch.float32).unsqueeze(-1)
+            if config["sim"] == "pythia":
+                y_nodes = (batch["tracks"].ft != 0).to(torch.float32).unsqueeze(-1)
+            else:
+                num_nodes = batch['tracks'].x.shape[0]
+                out = batch[('tracks', 'to', 'tracks')].edges.new_zeros(num_nodes,
+                                                                        batch[('tracks', 'to', 'tracks')].y.shape[1])
+                node_sum = scatter_add(batch[('tracks', 'to', 'tracks')].y,
+                                       batch[('tracks', 'to', 'tracks')].edge_index[0],
+                                       out=out, dim=0)
+                y_nodes = ((torch.sum(node_sum[:, 1:], 1) > 0)).unsqueeze(1).float()
         if self.config["edge_prune"]:
             y_edges = batch[('tracks', 'to', 'tracks')].y.to(torch.float32).unsqueeze(-1)
         if self.config["frag"]:
@@ -88,12 +99,18 @@ class HGNNLightningModule(L.LightningModule):
                         log[f"bbar_ft_score_{i}"] = torch.cat(
                             [log[f"bbar_ft_score_{i}"], block.node_weights['ft'][bbar_selbool][:, 2].cpu()], dim=0)
 
+        if mode == "test":
+            self.sig_df, self.evt_df = reco_event(outputs, batch_idx, self.config, self.signal, self.sig_df,
+                                                  self.evt_df)
         combined_loss = loss["LCA"] + loss["t_nodes"] + loss["tt_edges"] + loss["frag_nodes"] + loss["ft_nodes"]
 
         """Logging"""
         log = loss_logging(log, loss, self.config)
         log["combined_loss"].append(combined_loss.item())
         return combined_loss
+
+    def on_test_start(self) -> None:
+        self.sig_df, self.evt_df = inti_test_df()
 
     def training_step(self, batch, batch_idx):
         loss = self.shared_step(batch, batch_idx, self.trn_log)
@@ -122,9 +139,10 @@ class HGNNLightningModule(L.LightningModule):
     def on_test_epoch_end(self):
         version = self.logger.version
 
-        bbar_score = 1 - self.tst_log["bbar_ft_score_3"]  # optimal 0
-        b_score = self.tst_log["b_ft_score_3"]  # optimal 1
-        plot_weights(b_score, bbar_score, ["ft_decision", "b", "bbar"], version)
+        self.sig_df.to_csv(f'lightning_logs/version_{version}/signal_df_{self.signal}.csv', index=False)
+        self.evt_df.to_csv(f'lightning_logs/version_{version}/event_df_{self.signal}.csv', index=False)
+        if self.config["FT"]:
+            process_ft(self.tst_log, version)
 
 
 # Here we define a wrapper to do the training
@@ -186,13 +204,11 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
     trainer.fit(module, trn_loader, val_loader)
 
     # testing
-    run_test = any(value for key, value in config["training"]["infer"].items() if key != "LCA")
+    run_test = any(value for key, value in config["infer"].items() if key != "LCA")
     if run_test:
         trainer.test(module, dataloaders=tst_loader)
 
     csv_path = os.path.join(log_dir, f"version_{version}", "metrics.csv")
     df = pd.read_csv(csv_path)
     df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
-    plot_LCA_acc(df, version)
-    plot_LCA_loss(df, version)
-    # print the val acc percent values for the best epoch on val combined loos
+    return df, version

@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
     # Load config file
     with open(option.CONFIG, "r") as file:
-        config = yaml.safe_load(file)
+        config = adjust_config(yaml.safe_load(file))
 
     # Load model
     model = HeteroGNN(config["model"])
@@ -88,13 +88,21 @@ if __name__ == "__main__":
     pos_weights = transform_pos_weight(weights, config["training"]["weights"])
 
     # Here we can check what kind of gpu it is to specify bs, also num_workers = num_cpu * 2
-    trn_loader = DataLoader(trn_dataset[:12], batch_size=config["training"]["batch_size"],
+    trn_loader = DataLoader(trn_dataset, batch_size=config["training"]["batch_size"],
                             num_workers=config["training"]["ncpu"] * 2, drop_last=True, shuffle=True)
-    val_loader = DataLoader(val_dataset[:12], batch_size=config["training"]["batch_size"],
+    val_loader = DataLoader(val_dataset, batch_size=config["training"]["batch_size"],
                             num_workers=config["training"]["ncpu"] * 2, drop_last=True)
     if run_test:
-        tst_loader = DataLoader(tst_dataset[:12], batch_size=config["training"]["batch_size"],
+        tst_loader = DataLoader(tst_dataset, batch_size=1,
                                 num_workers=config["training"]["ncpu"] * 2, drop_last=True)
+    else:
+        tst_loader = None
 
     # TODO: Some issue with the tst loader when passing
-    training(model, trn_loader, val_loader, val_loader, config, pos_weights)
+    metrics, version = training(model, trn_loader, val_loader, tst_loader, config, pos_weights)
+
+    """Evaluate the output metrics"""
+    metrics_eval(metrics, config["training"]["infer"], version)
+    import pdb; pdb.set_trace()
+
+

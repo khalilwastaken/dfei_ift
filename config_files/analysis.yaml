@@ -1,19 +1,19 @@
 model:
   type: "analysis"
-  node_types: ['tracks', 'pvs']
-  edge_types: ["tracks_tracks", "tracks_pvs"]
+  node_types: ['tracks']  # pvs
+  edge_types: ["tracks_tracks"]  #, "tracks_pvs"
   encoder:
     usage: True
-    MLP: [-1, 128, 128, 128, 16]
-    norm: "batch_norm"
-    dropout: 0.3
+    MLP: [-1, 128, 128, 16]
+    norm: "graph_norm"
+    dropout: 0.01
   GNblocks:
-    nBlocks: 4
+    nBlocks: 1
     edge_infer: True
     node_infer: True
-    MLP: [-1, 128, 128, 128, 16]
-    norm: "batch_norm"
-    dropout: 0.3
+    MLP: [-1, 128, 128, 16]
+    norm: "graph_norm"
+    dropout: 0.01
     FTlayers: 1 # FT layers from back
     # Later add here inference explicitly for edge, node, frag, FT
     infer_mlp: [-1, 16, 16, 16, 1]
@@ -22,9 +22,9 @@ model:
     weight_mp: True  # Whether to pass edge, node pass to message passing/aggregation
   decoder:
     usage: True
-    MLP: [ -1, 128, 128, 128, 16 ]
-    norm: "batch_norm"
-    dropout: 0.3
+    MLP: [ -1, 128, 128, 16 ]
+    norm: "graph_norm"
+    dropout: 0.01
   op_trafo:  # transforms output to desired dimension
     usage: True
     tr_tr_edge_op: 4  # Output dim of edges
@@ -32,13 +32,14 @@ model:
     tr_node_op: None
     pv_node_op: None
     global_node_op: None
+  FT_inferer: True  # To be implemented
 
-data_dir: "/eos/user/y/yukaiz/DFEI_single_pp_graph_data"
+data_dir: "/eos/user/y/yukaiz/DFEI_data/DFEI_pythia_single_pp_normed_graph/"
 
 training:
   graph_mode: "true"  # true: True graph
   sample: ["inclusive"]
-  nfiles: 50
+  nfiles: 200
   batch_size: 12
   epochs: 30
   gacc: 1  # gradient accumulation if using smaller batch size
@@ -48,14 +49,13 @@ training:
   cw: False # Flag if weights need to be calculated or not
   infer:
     LCA: True
-    node_prune: True
-    edge_prune: True
+    node_prune: False
+    edge_prune: False
     FT: True
-    frag: True
+    frag: False
   weights:
-    weights: True
     LCA: True
-    node: True
-    edge: True
-    FT: True
-    frag: True
+    node: False
+    edge: False
+    FT: False
+    frag: False

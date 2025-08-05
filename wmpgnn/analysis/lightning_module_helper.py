@@ -1,7 +1,7 @@
 import re
 
 import torch
-
+import pandas as pd
 
 def init_logs(configs, mode="train"):
     loss_config = configs["training"]["infer"]
@@ -48,6 +48,33 @@ def init_logs(configs, mode="train"):
         return log, log
     elif mode == "test":
         return log
+
+
+def inti_test_df():
+    signal_df = pd.DataFrame(
+        columns=['EventNumber',
+                 'NumParticlesInEvent', 'NumSignalParticles', 'NumBkgParticles_noniso',
+                 'PerfectSignalReconstruction', 'AllParticles', 'PerfectReco', 'NoneIso', 'PartReco', 'NotFound',
+                 'SigMatch',
+                 'B_id', 'Pred_FT',
+                 'reco_pv_idx', 'true_pv_idx'
+                 ])
+
+    event_df = pd.DataFrame(
+        columns=['EventNumber', 'NumParticlesInEvent', 'NumParticlesFromHeavyHadronInEvent',
+                 'NumBackgroundParticlesInEvent', 'NumSelectedParticlesInEvent',
+                 'NumSelectedParticlesFromHeavyHadronInEvent',
+                 'NumSelectedBackgroundParticlesInEvent', 'NumTruthClustersGen1', 'NumTruthClustersGen2',
+                 'NumTruthClustersGen3', 'NumTruthClustersGen4', 'NumRecoClustersGen1', 'NumRecoClustersGen2',
+                 'NumRecoClustersGen3', 'NumRecoClustersGen4', 'MaxTruthFullChainDepthInEvent',
+                 'EfficiencyParticlesFromHeavyHadronInEvent', 'EfficiencyBackgroundParticlesInEvent',
+                 'BackgroundRejectionPowerInEvent', 'PerfectEventReconstruction', 'TimeNodeFiltering',
+                 'TimeEdgeFiltering',
+                 'TimeLCAReconstruction', 'TimeSequence', 'NumTrueSignalsInEvent', 'NumRecoSignalsInEvent',
+                 'TimeModel', 'TimeReco', 'TimeTruth'
+                 ])
+
+    return signal_df, event_df
 
 
 def epoch_end_loggable(log):

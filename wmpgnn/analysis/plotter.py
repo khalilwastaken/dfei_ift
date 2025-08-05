@@ -1,4 +1,4 @@
-import os
+import os, re
 
 import numpy as np
 
@@ -6,6 +6,17 @@ import matplotlib.pyplot as plt
 import mplhep as hep
 
 hep.style.use(hep.style.LHCb2)
+
+
+def process_ft(df, version):
+    pattern = re.compile(r"bbar_ft_score_(\d+)")
+    ft_layers = [int(match.group(1)) for k in df for match in [pattern.match(k)] if match]
+
+    # Plot the node level output
+    for i in ft_layers:
+        bbar_score = 1 - df[f"bbar_ft_score_{i}"]  # optimal 0
+        b_score = df[f"b_ft_score_{i}"]  # optimal 1
+        plot_weights(b_score, bbar_score, [f"ft_decision_{i}", "b", "bbar"], version)
 
 
 def plot_weights(pos_weight, neg_weights, labels, version):
@@ -27,4 +38,64 @@ def plot_weights(pos_weight, neg_weights, labels, version):
     ax.set_yscale("log")
     plt.savefig(f"{outdir}/{labels[0]}.pdf")
     plt.savefig(f"{outdir}/{labels[0]}.png")
+    plt.close()
+
+
+def plot_LCA_acc(df, version):
+    trn_LCA_acc0 = np.array(df["train_LCA_class0_pred_class0"])
+    trn_LCA_acc1 = np.array(df["train_LCA_class1_pred_class1"])
+    trn_LCA_acc2 = np.array(df["train_LCA_class2_pred_class2"])
+    trn_LCA_acc3 = np.array(df["train_LCA_class3_pred_class3"])
+
+    val_LCA_acc0 = np.array(df["val_LCA_class0_pred_class0"])
+    val_LCA_acc1 = np.array(df["val_LCA_class1_pred_class1"])
+    val_LCA_acc2 = np.array(df["val_LCA_class2_pred_class2"])
+    val_LCA_acc3 = np.array(df["val_LCA_class3_pred_class3"])
+
+    epochs = np.arange(len(trn_LCA_acc0))
+
+    # Plot dir
+    outdir = f"lightning_logs/version_{version}/plots"
+    os.makedirs(outdir, exist_ok=True)
+
+    # Plot LCA acc
+    f, ax = plt.subplots(figsize=(9, 6))
+    ax.plot(epochs, trn_LCA_acc0, color="black", label="LCA=0")
+    ax.plot(epochs, val_LCA_acc0, color="black", linestyle='dashed')
+
+    ax.plot(epochs, trn_LCA_acc1, color="blue", label="LCA=1")
+    ax.plot(epochs, val_LCA_acc1, color="blue", linestyle='dashed')
+
+    ax.plot(epochs, trn_LCA_acc2, color="red", label="LCA=2")
+    ax.plot(epochs, val_LCA_acc2, color="red", linestyle='dashed')
+
+    ax.plot(epochs, trn_LCA_acc3, color="green", label="LCA=3")
+    ax.plot(epochs, val_LCA_acc3, color="green", linestyle='dashed')
+
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Accuracy [%]")
+    ax.legend()
+    plt.savefig(f"{outdir}/LCA_acc.pdf")
+    plt.savefig(f"{outdir}/LCA_acc.png")
+    plt.close()
+
+
+def plot_loss(df, version, loss):
+    trn_LCA_loss = np.array(df[f"train_{loss}_loss"])
+    val_LCA_loss = np.array(df[f"val_{loss}_loss"])
+    epochs = np.arange(len(trn_LCA_loss))
+
+    # Plot dir
+    outdir = f"lightning_logs/version_{version}/plots"
+    os.makedirs(outdir, exist_ok=True)
+
+    # Plot combined loss
+    f, ax = plt.subplots(figsize=(9, 6))
+    ax.plot(epochs, trn_LCA_loss, color="#4169E1", label="trn loss")
+    ax.plot(epochs, val_LCA_loss, color="#B22222", label="val loss")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Loss")
+    ax.legend()
+    plt.savefig(f"{outdir}/{loss}_loss.pdf")
+    plt.savefig(f"{outdir}/{loss}_loss.png")
     plt.close()
