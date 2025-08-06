@@ -67,7 +67,27 @@ def lca_truth_matrix(graph):
     return truth_lca
 
 
-def reco_event(graph, event, config, signal, sig_df, evt_df):
+def get_pred_ft(sig_dict, graph, cluster, ft_score):
+    res_dict = sig_dict
+    # Save combined b bbar score, save individual scores, save pid of final
+    cluster_keys = cluster['node_keys']
+    keys = graph['final_keys']
+    b_daugthers_mask = np.isin(keys, cluster_keys)
+
+    # Get the pid of the particles
+    res_dict["final_pid"] = ','.join(str(x.item()) for x in graph["part_ids"][b_daugthers_mask])
+
+    # Get the individual scores stored as strings
+    ft_score = ft_score[b_daugthers_mask].cpu()
+    res_dict["final_b_score"] = ','.join(str(x.item()) for x in ft_score[:, :1].squeeze())
+    res_dict["final_bbar_score"] = ','.join(str(x.item()) for x in ft_score[:, 2:].squeeze())
+
+    res_dict["ft_b_score"], _, res_dict["ft_bbar_score"] = ft_score.mean(dim=0).tolist()
+
+    return res_dict
+
+
+def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des):
     ref_signal = get_ref_signal(signal)
     graph = graph.cpu()
 
@@ -114,8 +134,11 @@ def reco_event(graph, event, config, signal, sig_df, evt_df):
 
         # Looping over reco candidates
         for tc_key in tc_dict.keys():
+            sig_dict = {'EventNumber': event, 'NumParticlesInEvent': n_part,
+                        "PerfectReco": 0, "AllParticles": 0, "NoneIso": 0, "PartReco": 0, "NotFound": 0,
+                        "NumBkgParticles_noniso": -999}
             tc = tc_dict[tc_key]
-            sig_match = 0
+            sig_dict["SigMatch"] = 0
             if ref_signal:
                 labels = tc['labels']
                 mothers = [label[3:] for label in labels if 'c' == label[0]]
@@ -130,66 +153,53 @@ def reco_event(graph, event, config, signal, sig_df, evt_df):
                             check_mothers1 = False
                         if ref_signal[1]['mothers'][i] not in mothers:
                             check_mothers2 = False
-                    sig_match = int(check_mothers1 or check_mothers2)
+                    sig_dict["SigMatch"] = int(check_mothers1 or check_mothers2)
 
-            n_sig_part = len(tc['node_keys'])
+            sig_dict["NumSignalParticles"] = len(tc['node_keys'])
 
             if tc_key in rc_dict.keys():
-                per_sig_reco = int(
+                perfect_sig_reco = int(
                     rc_dict[tc_key]['node_keys'] == tc['node_keys']
                     and rc_dict[tc_key]['LCA_values'] == tc['LCA_values']
                 )
             else:
-                per_sig_reco = 0
-            perfect_evt_reco *= per_sig_reco
+                perfect_sig_reco = 0
+            perfect_evt_reco *= perfect_sig_reco
 
-            sig_dict = {"perfect_reco": 0, "all_particles": 0, "none_iso": 0, "part_reco": 0, "none_associated": 0,
-                        "none_iso_n_bkg": -999}
             for rc in rc_dict.values():
                 true_in_reco = np.sum(np.isin(tc['node_keys'], rc['node_keys'])) / len(tc['node_keys'])
                 if rc['node_keys'] == tc['node_keys']:
-                    sig_dict["all_particles"] = 1
+                    sig_dict["AllParticles"] = 1
                     if rc['LCA_values'] == tc['LCA_values']:
-                        sig_dict["perfect_reco"] = 1
+                        sig_dict["PerfectReco"] = 1
+                    sig_dict["NoneIso"] = sig_dict["PartReco"] = 0
+                    sig_dict = get_pred_ft(sig_dict, graph, rc, ft_des)
                     break
                 elif true_in_reco == 1 and len(rc['node_keys']) > len(tc['node_keys']):
-                    sig_dict["none_iso"] = 1  # background tracks in signal
+                    sig_dict["NoneIso"] = 1  # background tracks in signal
+                    sig_dict["PartReco"] = 0
+                    sig_dict = get_pred_ft(sig_dict, graph, rc, ft_des)
                     break
                 elif 0.2 <= true_in_reco < 1:
-                    sig_dict["part_reco"] = 1  # FT decision can not be trusted
-                    sig_dict["none_iso_n_bkg"] = len(rc['node_keys']) - len(tc['node_keys'])
-            if sig_dict["all_particles"] == 1:
-                sig_dict["none_iso"] = sig_dict["part_reco"] = 0
-            if sig_dict["none_iso"] == 1:
-                sig_dict["part_reco"] = 0
-            if sig_dict["all_particles"] == 0 and sig_dict["none_iso"] == 0 and sig_dict["part_reco"] == 0:
-                sig_dict["none_associated"] = 1
+                    sig_dict["PartReco"] = 1  # FT decision can not be trusted
+                    sig_dict["NumBkgParticles_noniso"] = len(rc['node_keys']) - len(tc['node_keys'])
+                    sig_dict = get_pred_ft(sig_dict, graph, rc, ft_des)
+                else:
+                    sig_dict["final_pid"] = sig_dict["final_b_score"] = sig_dict["final_bbar_score"] = ""
+                    sig_dict["ft_b_score"] = sig_dict["ft_bbar_score"] = 0
+
+            if sig_dict["AllParticles"] == 0 and sig_dict["NoneIso"] == 0 and sig_dict["PartReco"] == 0:
+                sig_dict["NotFound"] = 1
 
             # Get origin B id
             indices = [particle_keys.index(x) for x in tc['node_keys']]
             signal_LCA_id = true_LCA[true_LCA['senders'].isin(indices) | true_LCA['receivers'].isin(indices)][
                 "LCA_id"]
             values, counts = np.unique(signal_LCA_id, return_counts=True)
-            origin_B_id = values[np.argmax(counts)]
+            sig_dict["B_id"] = values[np.argmax(counts)]
+            sig_df = sig_df._append(sig_dict, ignore_index=True)
 
-            sig_df = sig_df._append({'EventNumber': event,
-                                     'NumParticlesInEvent': n_part,
-                                     'NumSignalParticles': n_sig_part,
-                                     'PerfectSignalReconstruction': per_sig_reco,
-                                     'AllParticles': sig_dict["all_particles"],
-                                     'PerfectReco': sig_dict["perfect_reco"],
-                                     'NoneIso': sig_dict["none_iso"],
-                                     'PartReco': sig_dict["part_reco"],
-                                     'NotFound': sig_dict["none_associated"],
-                                     'SigMatch': sig_match,
-                                     'B_id': origin_B_id,
-                                     'NumBkgParticles_noniso': sig_dict["none_iso_n_bkg"],
-                                     # 'Pred_FT_b_score': ft_bbar_score,
-                                     # 'Pred_FT_no_scrore': ft_no_score,
-                                     # 'Pred_FT_bbar_score': ft_b_score,
-                                     # 'reco_pv_idx': reco_pv_idx,
-                                     # 'true_pv_idx': true_pv_idx
-                                     }, ignore_index=True)
+        # temp stuff
         evt_df = evt_df._append({'EventNumber': event,
                                  'NumParticlesInEvent': n_part,
                                  'NumParticlesFromHeavyHadronInEvent': n_part_heavy_h,

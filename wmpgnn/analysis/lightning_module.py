@@ -94,14 +94,16 @@ class HGNNLightningModule(L.LightningModule):
                     if mode == "test":
                         b_selbool = y_ft == 0
                         bbar_selbool = y_ft == 2
-                        log[f"b_ft_score_{i}"] = torch.cat(
-                            [log[f"b_ft_score_{i}"], block.node_weights['ft'][b_selbool][:, 0].cpu()], dim=0)
-                        log[f"bbar_ft_score_{i}"] = torch.cat(
-                            [log[f"bbar_ft_score_{i}"], block.node_weights['ft'][bbar_selbool][:, 2].cpu()], dim=0)
+                        ft_des = block.node_weights['ft']
+
+                        b_pred = ft_des[b_selbool][:, 0].cpu()
+                        bbar_pred = ft_des[bbar_selbool][:, 2].cpu()
+                        log[f"b_ft_score_{i}"] = torch.cat([log[f"b_ft_score_{i}"], b_pred], dim=0)
+                        log[f"bbar_ft_score_{i}"] = torch.cat([log[f"bbar_ft_score_{i}"], bbar_pred], dim=0)
 
         if mode == "test":
             self.sig_df, self.evt_df = reco_event(outputs, batch_idx, self.config, self.signal, self.sig_df,
-                                                  self.evt_df)
+                                                  self.evt_df, ft_des)
         combined_loss = loss["LCA"] + loss["t_nodes"] + loss["tt_edges"] + loss["frag_nodes"] + loss["ft_nodes"]
 
         """Logging"""
@@ -142,7 +144,7 @@ class HGNNLightningModule(L.LightningModule):
         self.sig_df.to_csv(f'lightning_logs/version_{version}/signal_df_{self.signal}.csv', index=False)
         self.evt_df.to_csv(f'lightning_logs/version_{version}/event_df_{self.signal}.csv', index=False)
         if self.config["FT"]:
-            process_ft(self.tst_log, version)
+            process_ft(self.tst_log, self.sig_df, version)
 
 
 # Here we define a wrapper to do the training

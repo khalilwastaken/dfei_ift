@@ -8,7 +8,7 @@ import mplhep as hep
 hep.style.use(hep.style.LHCb2)
 
 
-def process_ft(df, version):
+def process_ft(df, sig_df, version):
     pattern = re.compile(r"bbar_ft_score_(\d+)")
     ft_layers = [int(match.group(1)) for k in df for match in [pattern.match(k)] if match]
 
@@ -17,6 +17,26 @@ def process_ft(df, version):
         bbar_score = 1 - df[f"bbar_ft_score_{i}"]  # optimal 0
         b_score = df[f"b_ft_score_{i}"]  # optimal 1
         plot_weights(b_score, bbar_score, [f"ft_decision_{i}", "b", "bbar"], version)
+
+    # Plot the B particle decision
+    has_signal = np.sum(df["SigMatch"]) != 0
+    selbool = df["AllParticles"] == 1
+    if has_signal:
+        selbool = selbool * df["SigMatch"] == 1
+    sig_df = sig_df[selbool]
+
+    b_hadrons = [511, 521, 531]
+    for b in b_hadrons:
+        bbar_selbool = sig_df["B_id"] == b
+        b_selbool = sig_df["B_id"] == -b
+        b_dec = sig_df["ft_b_score"][b_selbool]
+        bbar_dec = 1 - sig_df["ft_bbar_score"][bbar_selbool]
+        plot_weights(b_dec, bbar_dec, [f"{b}_id_decision", "b", "bbar"], version)
+
+        # Plot the weights of the final state particles
+        b_dec_final = np.array([float(x) for item in df["final_b_score"][b_selbool].values for x in item.split(',')])
+        bbar_dec_final = np.array([float(x) for item in df["final_bbar_score"][bbar_selbool].values for x in item.split(',')])
+        plot_weights(b_dec_final, bbar_dec_final, [f"{b}_id_decision", "b", "bbar"], version)
 
 
 def plot_weights(pos_weight, neg_weights, labels, version):
