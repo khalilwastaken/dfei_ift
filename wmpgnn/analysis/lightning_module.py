@@ -17,13 +17,15 @@ from wmpgnn.util.functions import acc_four_class
 
 
 class HGNNLightningModule(L.LightningModule):
-    def __init__(self, model, optimizer_class, optimizer_params, config, pos_weights):
+    def __init__(self, model, optimizer_class, optimizer_params, config, pos_weights, is_train=True):
         super().__init__()
-        self.save_hyperparameters({
-            **config,
-            "pos_weights": make_loggable(pos_weights)
-        })
+        if is_train:
+            self.save_hyperparameters({
+                **config,
+                "pos_weights": make_loggable(pos_weights)
+            })
         self.model = model
+        # include here the second model, which only transforms the output
         self.signal = config["training"]["sample"][0]
         self.config = config["training"]["infer"]
         self.nFT_layers = config["model"]["GNblocks"]["FTlayers"]
@@ -49,6 +51,7 @@ class HGNNLightningModule(L.LightningModule):
         return self.model(batch)
 
     def configure_optimizers(self):
+        # here we separate the FT and DFEI model
         return self.optimizer_class(self.model.parameters(), **self.optimizer_params)
 
     def shared_step(self, batch, batch_idx, log, mode="train"):
@@ -150,13 +153,27 @@ class HGNNLightningModule(L.LightningModule):
 # Here we define a wrapper to do the training
 def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
     seed_everything(42, workers=True)
-    module = HGNNLightningModule(
-        model=model,
-        optimizer_class=torch.optim.Adam,
-        optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
-        config=config,
-        pos_weights=pos_weights
-    )
+    load_from_cpt = config["training"]["cpt"]
+    if load_from_cpt == "None":
+        module = HGNNLightningModule(
+            model=model,
+            optimizer_class=torch.optim.Adam,
+            optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
+            config=config,
+            pos_weights=pos_weights
+        )
+    else:
+        print("Loading from checkpoint")
+        print(load_from_cpt)
+        module = HGNNLightningModule.load_from_checkpoint(
+            checkpoint_path=load_from_cpt,
+            model=model,
+            pos_weights=pos_weight,
+            optimizer_class=torch.optim.Adam,
+            optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
+            scheduler_params={"min_lr": 1e-4, "patience": 5},
+            config=config
+        )
 
     early_stopping = EarlyStopping(
         monitor="val_combined_loss",
@@ -209,6 +226,37 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
     run_test = any(value for key, value in config["infer"].items() if key != "LCA")
     if run_test:
         trainer.test(module, dataloaders=tst_loader)
+
+    csv_path = os.path.join(log_dir, f"version_{version}", "metrics.csv")
+    df = pd.read_csv(csv_path)
+    df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
+    return df, version
+
+
+def evaluate(model, tst_loader, config, pos_weight):
+    load_from_cpt = config["training"]["cpt"]["model"]
+
+    if load_from_cpt == "None":
+        raise RuntimeError("No model defined")
+    else:
+        print("Loading from checkpoint")
+        cpt = get_model_path(load_from_cpt)[0]
+        print(cpt)
+        module = HGNNLightningModule.load_from_checkpoint(
+            checkpoint_path=cpt,
+            model=model,
+            pos_weights=pos_weight,
+            optimizer_class=torch.optim.Adam,
+            optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
+            scheduler_params={"min_lr": 1e-4, "patience": 5},
+            config=config
+        )
+    version = config["training"]["cpt"]["model"].split("_")[0]
+    trainer = Trainer(
+        default_root_dir=f'lightning_logs/version_{version}',  # save the eval stuff in the dir of the model
+    )
+
+    trainer.test(module, dataloaders=tst_loader)
 
     csv_path = os.path.join(log_dir, f"version_{version}", "metrics.csv")
     df = pd.read_csv(csv_path)

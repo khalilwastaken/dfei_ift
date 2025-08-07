@@ -45,17 +45,23 @@ training:
   gacc: 1  # gradient accumulation if using smaller batch size
   ngpu: 1  # need roughly 40 Gb for bs of 12
   ncpu: 8  # need roughly 128Gb cpu memory
-  cpt: None
+  cpt:
+    model: "10_bis" # None
   cw: False # Flag if weights need to be calculated or not
   infer:
-    LCA: True
+    LCA: False
     node_prune: False
     edge_prune: False
     FT: True
     frag: False
   weights:
-    LCA: True
+    LCA: False
     node: False
     edge: False
     FT: False
     frag: False
+
+
+evaluate:
+  sample: "Bs_Jpsiphi"
+  nfiles: 100

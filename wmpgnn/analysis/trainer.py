@@ -10,7 +10,7 @@ from functools import partial
 from torch_geometric.loader import DataLoader
 
 from trainer_helper import *
-from model import HeteroGNN
+from model import DFEI_HGNN
 from lightning_module import training
 
 if __name__ == "__main__":
@@ -28,9 +28,8 @@ if __name__ == "__main__":
         config = adjust_config(yaml.safe_load(file))
 
     # Load model
-    model = HeteroGNN(config["model"])
-    checkpoint_path = config["training"]["cpt"]  # load the previous last model to retrain
-    print(model)
+    DFEI_model = DFEI_HGNN(config["model"])
+    print(DFEI_model)
     print("=" * 30)
 
     # Get dataset
@@ -99,7 +98,7 @@ if __name__ == "__main__":
         tst_loader = None
 
     # TODO: Some issue with the tst loader when passing
-    metrics, version = training(model, trn_loader, val_loader, tst_loader, config, pos_weights)
+    metrics, version = training(DFEI_model, trn_loader, val_loader, tst_loader, config, pos_weights)
 
     """Evaluate the output metrics"""
     metrics_eval(metrics, config["training"]["infer"], version)

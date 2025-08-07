@@ -30,9 +30,9 @@ def hetero_graph_concat(g1, g2):
     return graph
 
 
-class HeteroGNN(nn.Module):
+class DFEI_HGNN(nn.Module):
     def __init__(self, config):
-        super(HeteroGNN, self).__init__()
+        super(DFEI_HGNN, self).__init__()
         self.node_types = config["node_types"]
         self.edge_types = [(edge.split('_')[0], 'to', edge.split('_')[1]) for edge in config["edge_types"]]
 
@@ -69,5 +69,16 @@ class HeteroGNN(nn.Module):
             data = self._decoder(data)
 
         output = (self._op_trafo(data))
+        # Perform FT at this stage and take into account the LCA as weights. One could do a "reco" her to remove the
+        # information of the signal B and infer for whole PV
+
 
         return output
+
+
+class FTGNN(nn.Module):
+    def __init__(self, config):
+        self.GN_blocks = "ok"
+
+    def forward(self, data):
+        return data

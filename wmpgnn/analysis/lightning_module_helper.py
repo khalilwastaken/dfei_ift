@@ -1,7 +1,8 @@
-import re
+import re, glob
 
 import torch
 import pandas as pd
+
 
 def init_logs(configs, mode="train"):
     loss_config = configs["training"]["infer"]
@@ -122,3 +123,18 @@ def make_loggable(hparams_dict):
         else:
             loggable[k] = str(v)  # fallback to string
     return loggable
+
+
+def get_model_path(config):
+    try:
+        version, model = config.split("_")
+    except:
+        raise RuntimeError("Could not obtain version + model in the format of version_model")
+
+    path = f"lightning_logs/version_{version}/checkpoints/"
+    if model == "bis":
+        path = glob.glob(path + "best-epoch=*")
+    else:
+        path = path + f"epoch-epoch={str(model).zfill(2)}.ckpt"
+
+    return path

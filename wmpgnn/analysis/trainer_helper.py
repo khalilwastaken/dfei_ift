@@ -94,7 +94,15 @@ def get_hetero_weight(data, config):
     return raw_weights
 
 
-def transform_pos_weight(weights, config):
+def transform_pos_weight(weights, config, mode="train"):
+    if mode == "eval":
+        pos_weight = {}
+        pos_weight["LCA"] = torch.ones(4)
+        pos_weight["nodes"] = torch.ones(1)
+        pos_weight["edges"] = torch.ones(1)
+        pos_weight["FT"] = torch.ones(3)
+        return pos_weight
+
     summed = {}
     for d in weights:
         for key, value in d.items():

@@ -19,10 +19,10 @@ def process_ft(df, sig_df, version):
         plot_weights(b_score, bbar_score, [f"ft_decision_{i}", "b", "bbar"], version)
 
     # Plot the B particle decision
-    has_signal = np.sum(df["SigMatch"]) != 0
-    selbool = df["AllParticles"] == 1
+    has_signal = np.sum(sig_df["SigMatch"]) != 0
+    selbool = sig_df["AllParticles"] == 1
     if has_signal:
-        selbool = selbool * df["SigMatch"] == 1
+        selbool = selbool * sig_df["SigMatch"] == 1
     sig_df = sig_df[selbool]
 
     b_hadrons = [511, 521, 531]
@@ -34,8 +34,8 @@ def process_ft(df, sig_df, version):
         plot_weights(b_dec, bbar_dec, [f"{b}_id_decision", "b", "bbar"], version)
 
         # Plot the weights of the final state particles
-        b_dec_final = np.array([float(x) for item in df["final_b_score"][b_selbool].values for x in item.split(',')])
-        bbar_dec_final = np.array([float(x) for item in df["final_bbar_score"][bbar_selbool].values for x in item.split(',')])
+        b_dec_final = np.array([float(x) for item in sig_df["final_b_score"][b_selbool].values for x in item.split(',')])
+        bbar_dec_final = np.array([float(x) for item in sig_df["final_bbar_score"][bbar_selbool].values for x in item.split(',')])
         plot_weights(b_dec_final, bbar_dec_final, [f"{b}_id_decision", "b", "bbar"], version)
 
 
