@@ -152,9 +152,9 @@ def adjust_config(configs):
     return configs
 
 
-def metrics_eval(metrics, configs, version):
+def metrics_eval(metrics, configs, version, channel):
     if configs["LCA"]:
-        plot_LCA_acc(metrics, version)
+        plot_LCA_acc(metrics, version, channel=channel)
 
     loss_val = [
         match.group(1)

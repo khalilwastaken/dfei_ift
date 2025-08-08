@@ -8,7 +8,7 @@ import mplhep as hep
 hep.style.use(hep.style.LHCb2)
 
 
-def process_ft(df, sig_df, version):
+def process_ft(df, sig_df, version, signal):
     pattern = re.compile(r"bbar_ft_score_(\d+)")
     ft_layers = [int(match.group(1)) for k in df for match in [pattern.match(k)] if match]
 
@@ -19,27 +19,45 @@ def process_ft(df, sig_df, version):
         plot_weights(b_score, bbar_score, [f"ft_decision_{i}", "b", "bbar"], version)
 
     # Plot the B particle decision
-    has_signal = np.sum(sig_df["SigMatch"]) != 0
     selbool = sig_df["AllParticles"] == 1
+    has_signal = np.sum(sig_df["SigMatch"]) != 0
     if has_signal:
-        selbool = selbool * sig_df["SigMatch"] == 1
-    sig_df = sig_df[selbool]
+        sig_selbool = sig_df["SigMatch"] == 1
+        sig_ch_df = sig_df[selbool * sig_selbool]
+        rem_B_df = sig_df[selbool * ~sig_selbool]
+        # Plotting signal B results
+        bbar_selbool = np.sign(sig_ch_df["B_id"]) == 1
+        b_selbool = np.sign(sig_ch_df["B_id"]) == -1
+        b_dec = sig_ch_df["ft_b_score"][b_selbool]
+        bbar_dec = 1 - sig_ch_df["ft_bbar_score"][bbar_selbool]
+        plot_weights(b_dec, bbar_dec, [f"signal_b_id_decision", "b", "bbar"], version, channel=signal)
+
+        # Plot the weights of the final state particles
+        b_dec_final = np.array(
+            [float(x) for item in sig_ch_df["final_b_score"][b_selbool].values for x in item.split(',')])
+        bbar_dec_final = 1 - np.array(
+            [float(x) for item in sig_ch_df["final_bbar_score"][bbar_selbool].values for x in item.split(',')])
+        plot_weights(b_dec_final, bbar_dec_final, [f"signal_b_decision_final", "b", "bbar"], version, channel=signal)
+    else:
+        rem_B_df = sig_df[selbool]
 
     b_hadrons = [511, 521, 531]
     for b in b_hadrons:
-        bbar_selbool = sig_df["B_id"] == b
-        b_selbool = sig_df["B_id"] == -b
-        b_dec = sig_df["ft_b_score"][b_selbool]
-        bbar_dec = 1 - sig_df["ft_bbar_score"][bbar_selbool]
+        bbar_selbool = rem_B_df["B_id"] == b
+        b_selbool = rem_B_df["B_id"] == -b
+        b_dec = rem_B_df["ft_b_score"][b_selbool]
+        bbar_dec = 1 - rem_B_df["ft_bbar_score"][bbar_selbool]
         plot_weights(b_dec, bbar_dec, [f"{b}_id_decision", "b", "bbar"], version)
 
         # Plot the weights of the final state particles
-        b_dec_final = np.array([float(x) for item in sig_df["final_b_score"][b_selbool].values for x in item.split(',')])
-        bbar_dec_final = np.array([float(x) for item in sig_df["final_bbar_score"][bbar_selbool].values for x in item.split(',')])
-        plot_weights(b_dec_final, bbar_dec_final, [f"{b}_id_decision", "b", "bbar"], version)
+        b_dec_final = np.array(
+            [float(x) for item in rem_B_df["final_b_score"][b_selbool].values for x in item.split(',')])
+        bbar_dec_final = 1 - np.array(
+            [float(x) for item in rem_B_df["final_bbar_score"][bbar_selbool].values for x in item.split(',')])
+        plot_weights(b_dec_final, bbar_dec_final, [f"{b}_id_decision_final", "b", "bbar"], version)
 
 
-def plot_weights(pos_weight, neg_weights, labels, version):
+def plot_weights(pos_weight, neg_weights, labels, version, channel="inclusive"):
     true_weights = np.ones_like(pos_weight) / len(pos_weight)
     fake_weights = np.ones_like(neg_weights) / len(neg_weights)
 
@@ -49,7 +67,7 @@ def plot_weights(pos_weight, neg_weights, labels, version):
     ax.hist(neg_weights, bins=100, range=[0, 1], alpha=.8, label=labels[2], color='#4169E1',
             weights=fake_weights)
 
-    outdir = f"lightning_logs/version_{version}/plots"
+    outdir = f"lightning_logs/version_{version}/plots_{channel}"
     os.makedirs(outdir, exist_ok=True)
 
     ax.set_xlabel("NN weights [a.u.]")
@@ -61,7 +79,7 @@ def plot_weights(pos_weight, neg_weights, labels, version):
     plt.close()
 
 
-def plot_LCA_acc(df, version):
+def plot_LCA_acc(df, version, channel="inclusive"):
     trn_LCA_acc0 = np.array(df["train_LCA_class0_pred_class0"])
     trn_LCA_acc1 = np.array(df["train_LCA_class1_pred_class1"])
     trn_LCA_acc2 = np.array(df["train_LCA_class2_pred_class2"])
@@ -75,7 +93,7 @@ def plot_LCA_acc(df, version):
     epochs = np.arange(len(trn_LCA_acc0))
 
     # Plot dir
-    outdir = f"lightning_logs/version_{version}/plots"
+    outdir = f"lightning_logs/version_{version}/plots_{channel}"
     os.makedirs(outdir, exist_ok=True)
 
     # Plot LCA acc

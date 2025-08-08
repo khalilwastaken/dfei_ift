@@ -19,14 +19,19 @@ from wmpgnn.util.functions import acc_four_class
 class HGNNLightningModule(L.LightningModule):
     def __init__(self, model, optimizer_class, optimizer_params, config, pos_weights, is_train=True):
         super().__init__()
+        self.is_train = is_train
         if is_train:
+            self.version = None
             self.save_hyperparameters({
                 **config,
                 "pos_weights": make_loggable(pos_weights)
             })
+            self.signal = config["training"]["sample"][0]
+        else:
+            self.version = config["training"]["cpt"]["model"].split("_")[0]
+            self.signal = config["evaluate"]["sample"]
         self.model = model
         # include here the second model, which only transforms the output
-        self.signal = config["training"]["sample"][0]
         self.config = config["training"]["infer"]
         self.nFT_layers = config["model"]["GNblocks"]["FTlayers"]
         self.optimizer_class = optimizer_class
@@ -142,12 +147,12 @@ class HGNNLightningModule(L.LightningModule):
         self.val_log = defaultdict(list)
 
     def on_test_epoch_end(self):
-        version = self.logger.version
-
-        self.sig_df.to_csv(f'lightning_logs/version_{version}/signal_df_{self.signal}.csv', index=False)
-        self.evt_df.to_csv(f'lightning_logs/version_{version}/event_df_{self.signal}.csv', index=False)
+        if self.is_train:
+            self.version = self.logger.version
+        self.sig_df.to_csv(f'lightning_logs/version_{self.version}/signal_df_{self.signal}.csv', index=False)
+        self.evt_df.to_csv(f'lightning_logs/version_{self.version}/event_df_{self.signal}.csv', index=False)
         if self.config["FT"]:
-            process_ft(self.tst_log, self.sig_df, version)
+            process_ft(self.tst_log, self.sig_df, self.version, self.signal)
 
 
 # Here we define a wrapper to do the training
@@ -168,7 +173,7 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
         module = HGNNLightningModule.load_from_checkpoint(
             checkpoint_path=load_from_cpt,
             model=model,
-            pos_weights=pos_weight,
+            pos_weights=pos_weights,
             optimizer_class=torch.optim.Adam,
             optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
             scheduler_params={"min_lr": 1e-4, "patience": 5},
@@ -249,7 +254,8 @@ def evaluate(model, tst_loader, config, pos_weight):
             optimizer_class=torch.optim.Adam,
             optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
             scheduler_params={"min_lr": 1e-4, "patience": 5},
-            config=config
+            config=config,
+            is_train=False
         )
     version = config["training"]["cpt"]["model"].split("_")[0]
     trainer = Trainer(
@@ -257,8 +263,7 @@ def evaluate(model, tst_loader, config, pos_weight):
     )
 
     trainer.test(module, dataloaders=tst_loader)
-
-    csv_path = os.path.join(log_dir, f"version_{version}", "metrics.csv")
+    csv_path = os.path.join("lightning_logs", f"version_{version}", "metrics.csv")
     df = pd.read_csv(csv_path)
     df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
     return df, version

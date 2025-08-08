@@ -101,7 +101,7 @@ if __name__ == "__main__":
     metrics, version = training(DFEI_model, trn_loader, val_loader, tst_loader, config, pos_weights)
 
     """Evaluate the output metrics"""
-    metrics_eval(metrics, config["training"]["infer"], version)
+    metrics_eval(metrics, config["training"]["infer"], version, config["training"]["sample"][0])
     import pdb; pdb.set_trace()
 
 

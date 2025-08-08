@@ -9,7 +9,7 @@ from wmpgnn.performance.reconstruction import reconstruct_decay, flatten, match_
 
 
 def get_ref_signal(ref_signal):  # Here we can define them all
-    if ref_signal == 'Bs_JpsiPhi':
+    if ref_signal == 'Bs_Jpsiphi':
         signal_decay = {'daughters': ['mu+', 'mu-', 'K+', 'K-'], 'mothers': ['B(s)0']}
         cc_signal_decay = {'daughters': ['mu+', 'mu-', 'K+', 'K-'], 'mothers': ['B(s)~0']}
         return (signal_decay, cc_signal_decay)

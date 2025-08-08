@@ -59,4 +59,4 @@ if __name__ == "__main__":
     metrics, version = evaluate(DFEI_model, tst_loader, config, pos_weights)
 
     """Evaluate the output metrics"""
-    metrics_eval(metrics, config["training"]["infer"], version)
+    metrics_eval(metrics, config["training"]["infer"], version, config["evaluate"]["sample"])
