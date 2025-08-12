@@ -70,7 +70,7 @@ def get_op_trafo(config, node_types, edge_types):
     if config["tr_node_op"] != "None":
         node_models["tracks"] = lambda: nn.Linear(16, config["tr_node_op"])
     else:
-        node_models["tracks"] =lambda: nn.Identity()
+        node_models["tracks"] = lambda: nn.Identity()
     if config["pv_node_op"] != "None":
         node_models["pvs"] = lambda: nn.Linear(16, config["pv_node_op"])
     else:
@@ -78,7 +78,7 @@ def get_op_trafo(config, node_types, edge_types):
 
     # Global trafo
     if config["global_node_op"] != "None":
-        global_fn = lambda: nn.LazyLinear(16, config["global_node_op"])
+        global_fn = lambda: nn.Linear(16, config["global_node_op"])
     else:
         global_fn = lambda: nn.Identity()
 
@@ -86,3 +86,30 @@ def get_op_trafo(config, node_types, edge_types):
                                          node_models=node_models, global_model=global_fn, endecoder=False)
 
     return _output_transform
+
+
+def get_IFT_model(config, node_types, edge_types):
+    n_blocks = config["nBlocks"]
+    mlp_layer = config["MLP"]
+    dropout = config["dropout"]
+    norm = config["norm"]
+
+    use_node_weights = config["node_infer"]
+    use_edge_weights = config["edge_infer"]
+
+    # temporary stuff
+    weight_mlp_channels = 1
+    weight_mlp_layers = 1
+    weighted_mp = False
+
+    mlp = lambda: MLP(mlp_layer, norm=norm, drop_out=dropout)  # mlp for GN blocks update
+
+    blocks = []
+    for i in range(n_blocks):
+        blocks.append(
+            HeteroGraphNetwork(node_types, edge_types, edge_model=mlp, node_model=mlp, global_model=mlp,
+                               use_node_weights=use_node_weights, use_edge_weights=use_edge_weights,
+                               weight_mlp_channels=weight_mlp_channels, weight_mlp_layers=weight_mlp_layers,
+                               weighted_mp=weighted_mp, norm=norm, drop_out=dropout, nFT_layers=False))
+
+    return nn.ModuleList(blocks)

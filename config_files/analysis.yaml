@@ -29,10 +29,17 @@ model:
     usage: True
     tr_tr_edge_op: 4  # Output dim of edges
     tr_pv_edge_op: 1
-    tr_node_op: None
+    tr_node_op: 32  # Output dim of track nodes, which is passed to FT inferer
     pv_node_op: None
     global_node_op: None
-  FT_inferer: True  # To be implemented
+  FT_inferer:
+    usage: True  # To be implemented
+    nBlocks: 1
+    MLP: [-1, 128, 128, 16]
+    edge_infer: True
+    node_infer: True
+    norm: "graph_norm"
+    dropout: 0.01
 
 data_dir: "/eos/user/y/yukaiz/DFEI_data/DFEI_pythia_single_pp_normed_graph/"
 
@@ -49,7 +56,7 @@ training:
     model: "10_bis" # None
   cw: False # Flag if weights need to be calculated or not
   infer:
-    LCA: False
+    LCA: True
     node_prune: False
     edge_prune: False
     FT: True

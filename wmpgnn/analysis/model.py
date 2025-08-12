@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch_geometric.nn.models import MLP
 
 from model_helper import *
 
@@ -52,6 +53,11 @@ class DFEI_HGNN(nn.Module):
         if self.out_trafo:
             self._op_trafo = get_op_trafo(config["op_trafo"], self.node_types, self.edge_types)
 
+        self.ft_model = config["FT_inferer"]["usage"]
+        if self.ft_model:
+            self._ftblocks = get_IFT_model(config["FT_inferer"], self.node_types, self.edge_types)
+            self._ftlayer = nn.LazyLinear(3)
+
     def forward(self, data):
         init_graph_pid = data['tracks'].x[:, -6:]  # charge + 5 pid, hard coded be careful
 
@@ -68,17 +74,33 @@ class DFEI_HGNN(nn.Module):
         if self.decode:
             data = self._decoder(data)
 
-        output = (self._op_trafo(data))
-        # Perform FT at this stage and take into account the LCA as weights. One could do a "reco" her to remove the
-        # information of the signal B and infer for whole PV
+        data = self._op_trafo(data)
+        LCA_score = data[("tracks", "to", "tracks")].edges
+        if self.ft_model:
+            data["tracks"].x = torch.cat([data["tracks"].x, init_graph_pid], dim=1)
+            for b, core in enumerate(self._ftblocks):
+                data = core(data, torch.ones(1))
+                if b < (len(self._ftblocks) - 1):
+                    data = hetero_graph_concat(latent, data)
+
+            data["tracks"].x = self._ftlayer(data["tracks"].x)
+        return data, LCA_score
 
 
-        return output
-
-
-class FTGNN(nn.Module):
+class FT_HGNN(nn.Module):
     def __init__(self, config):
-        self.GN_blocks = "ok"
+        super(FT_HGNN, self).__init__()
+        self.node_types = config["node_types"]
+        self.edge_types = [(edge.split('_')[0], 'to', edge.split('_')[1]) for edge in config["edge_types"]]
+
+        self._blocks = get_IFT_model(config["FT_inferer"], self.node_types, self.edge_types)
+        self._ftlayer = nn.LazyLinear(3)
 
     def forward(self, data):
+        for b, core in enumerate(self._blocks):
+            data = core(data, torch.ones(1))
+            if b < (len(self._blocks) - 1):
+                data = hetero_graph_concat(latent, data)
+
+        data["tracks"].x = self._ftlayer(data["tracks"].x)
         return data

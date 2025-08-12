@@ -51,7 +51,7 @@ def init_logs(configs, mode="train"):
         return log
 
 
-def inti_test_df():
+def init_test_df():
     signal_df = pd.DataFrame(
         columns=['EventNumber',
                  'NumParticlesInEvent', 'NumSignalParticles', 'NumBkgParticles_noniso',

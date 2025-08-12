@@ -5,6 +5,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 
 from collections import defaultdict
+import copy
 
 import torch
 from torch import nn
@@ -19,6 +20,7 @@ from wmpgnn.util.functions import acc_four_class
 class HGNNLightningModule(L.LightningModule):
     def __init__(self, model, optimizer_class, optimizer_params, config, pos_weights, is_train=True):
         super().__init__()
+        self.automatic_optimization = False
         self.is_train = is_train
         if is_train:
             self.version = None
@@ -33,6 +35,7 @@ class HGNNLightningModule(L.LightningModule):
         self.model = model
         # include here the second model, which only transforms the output
         self.config = config["training"]["infer"]
+        self.use_ft_model = config["model"]["FT_inferer"]["usage"]
         self.nFT_layers = config["model"]["GNblocks"]["FTlayers"]
         self.optimizer_class = optimizer_class
         self.optimizer_params = optimizer_params
@@ -56,18 +59,36 @@ class HGNNLightningModule(L.LightningModule):
         return self.model(batch)
 
     def configure_optimizers(self):
-        # here we separate the FT and DFEI model
-        return self.optimizer_class(self.model.parameters(), **self.optimizer_params)
+        ft_params = list(self.model._ftblocks.parameters())
+        ft_params += list(self.model._op_trafo._node_models_model_dict.parameters())
+
+        if hasattr(self.model, "_ftlayer"):
+            ft_params += list(self.model._ftlayer.parameters())
+
+        # Convert to set of IDs to compare efficiently
+        ft_param_ids = {id(p) for p in ft_params}
+
+        # All parameters of the model
+        all_params = list(self.model.parameters())
+
+        # Keep only those not in ft_params
+        non_ft_params = [p for p in all_params if id(p) not in ft_param_ids]
+
+        out1 = self.optimizer_class(non_ft_params, **self.optimizer_params)
+        out2 = self.optimizer_class(ft_params, **self.optimizer_params)
+
+        return [out1, out2]
 
     def shared_step(self, batch, batch_idx, log, mode="train"):
+        DFEI_opt, FT_opt = self.optimizers()
         loss = {"LCA": 0., "t_nodes": 0., "tt_edges": 0., "tPV_edges": 0., "frag_nodes": 0., "ft_nodes": 0.}
-        outputs = self.model(batch)
-
+        data = copy.deepcopy(batch)
+        outputs, pred_LCA = self.model(batch)
         if self.config["LCA"]:
             y_LCA = batch[('tracks', 'to', 'tracks')].y.to(torch.int64)
-            loss["LCA"] = self.LCA_criterion(outputs[('tracks', 'to', 'tracks')].edges, y_LCA)
+            loss["LCA"] = self.LCA_criterion(pred_LCA, y_LCA)
             log["LCA_loss"].append(loss["LCA"].item())
-            acc_LCA = acc_four_class(outputs[('tracks', 'to', 'tracks')].edges, y_LCA)
+            acc_LCA = acc_four_class(pred_LCA, y_LCA)
             for key, values in acc_LCA.items():
                 log[key].append(values)
 
@@ -109,10 +130,27 @@ class HGNNLightningModule(L.LightningModule):
                         log[f"b_ft_score_{i}"] = torch.cat([log[f"b_ft_score_{i}"], b_pred], dim=0)
                         log[f"bbar_ft_score_{i}"] = torch.cat([log[f"bbar_ft_score_{i}"], bbar_pred], dim=0)
 
+        combined_loss = loss["LCA"] + loss["t_nodes"] + loss["tt_edges"] + loss["frag_nodes"] + loss["ft_nodes"]
+        if mode == "train":
+            DFEI_opt.zero_grad()
+            self.manual_backward(combined_loss, retain_graph=True)
+            DFEI_opt.step()
+
+        if self.use_ft_model:
+            if self.config["FT"]:
+                outputs_ft, _ = self.model(data)
+                ift_loss = self.FT_criterion(outputs_ft["tracks"].x, y_ft)
+                loss["ft_nodes"] += ift_loss
+
+        if mode == "train":
+            torch.autograd.set_detect_anomaly(True)
+            FT_opt.zero_grad()
+            self.manual_backward(ift_loss)
+            FT_opt.step()
+
         if mode == "test":
             self.sig_df, self.evt_df = reco_event(outputs, batch_idx, self.config, self.signal, self.sig_df,
                                                   self.evt_df, ft_des)
-        combined_loss = loss["LCA"] + loss["t_nodes"] + loss["tt_edges"] + loss["frag_nodes"] + loss["ft_nodes"]
 
         """Logging"""
         log = loss_logging(log, loss, self.config)
@@ -120,14 +158,14 @@ class HGNNLightningModule(L.LightningModule):
         return combined_loss
 
     def on_test_start(self) -> None:
-        self.sig_df, self.evt_df = inti_test_df()
+        self.sig_df, self.evt_df = init_test_df()
 
     def training_step(self, batch, batch_idx):
-        loss = self.shared_step(batch, batch_idx, self.trn_log)
+        loss = self.shared_step(batch, batch_idx, self.trn_log, mode="train")
         return loss
 
     def validation_step(self, batch, batch_idx):
-        loss = self.shared_step(batch, batch_idx, self.val_log)
+        loss = self.shared_step(batch, batch_idx, self.val_log, mode="val")
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -153,12 +191,13 @@ class HGNNLightningModule(L.LightningModule):
         self.evt_df.to_csv(f'lightning_logs/version_{self.version}/event_df_{self.signal}.csv', index=False)
         if self.config["FT"]:
             process_ft(self.tst_log, self.sig_df, self.version, self.signal)
+            obtain_tagging_power(self.sig_df, self.version, self.signal)
 
 
 # Here we define a wrapper to do the training
 def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
     seed_everything(42, workers=True)
-    load_from_cpt = config["training"]["cpt"]
+    load_from_cpt = config["training"]["cpt"]["model"]
     if load_from_cpt == "None":
         module = HGNNLightningModule(
             model=model,
@@ -179,6 +218,11 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
             scheduler_params={"min_lr": 1e-4, "patience": 5},
             config=config
         )
+
+    first_batch = next(iter(trn_loader))
+    with torch.no_grad():
+        module(first_batch)
+    print("initilaized")
 
     early_stopping = EarlyStopping(
         monitor="val_combined_loss",
@@ -217,8 +261,7 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
         callbacks=[early_stopping, best_model_callback, all_epochs_callback],
         precision="32",
         accumulate_grad_batches=config["gacc"],
-        num_sanity_val_steps=1,
-        gradient_clip_val=0.5,
+        num_sanity_val_steps=0,
         sync_batchnorm=True,
         reload_dataloaders_every_n_epochs=1,
         deterministic=True

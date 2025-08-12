@@ -10,7 +10,7 @@ from functools import partial
 from torch_geometric.loader import DataLoader
 
 from trainer_helper import *
-from model import DFEI_HGNN
+from model import DFEI_HGNN, FT_HGNN
 from lightning_module import training
 
 if __name__ == "__main__":
