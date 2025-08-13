@@ -37,7 +37,7 @@ def particle_name(id_):
 
 def lca_reco_matrix(graph, mode="reco"):
     edge_index = graph[('tracks', 'to', 'tracks')].edge_index.cpu()
-    edges = graph[('tracks', 'to', 'tracks')].edges.cpu()
+    edges = graph[('tracks', 'to', 'tracks')].LCA.cpu()
 
     pd_matrix = pd.DataFrame(edge_index.T, columns=['senders', 'receivers'])
     if mode == "reco":

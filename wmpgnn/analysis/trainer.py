@@ -35,6 +35,7 @@ if __name__ == "__main__":
     # Get dataset
     samples = config["training"]["sample"]
     run_test = any(value for key, value in config["training"]["infer"].items() if key != "LCA")
+    nevts = {"training": {}, "validation": {}}
     print("Start reading in the data")
     load_train_dataset = partial(load_dataset, config=config["training"], mode="train")
     load_val_dataset = partial(load_dataset, config=config["training"], mode="val")
@@ -44,38 +45,46 @@ if __name__ == "__main__":
     trn_dataset = []
     weights = []
     for sample in samples:
-        print(f"Loading {sample}")
+        nevts["training"][sample] = 0
         trn_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/trn_data_*'))[:config["training"]["nfiles"]]
         with ThreadPool(processes=config["training"]["ncpu"]) as pool:
             results = list(
-                tqdm(pool.imap(load_train_dataset, trn_paths), total=len(trn_paths), desc="Training dataset"))
+                tqdm(pool.imap(load_train_dataset, trn_paths), total=len(trn_paths),
+                     desc=f"Loading {sample} training dataset"))
         for r in results:
             trn_dataset.extend(r[0])
             weights.append(r[1])
+            nevts["training"][sample] += len(r[0])
     # Validation
     print("Validation:")
     val_dataset = []
     for sample in samples:
-        print(f"Loading {sample}")
+        nevts["validation"][sample] = 0
         val_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/val_data_*'))[:config["training"]["nfiles"]]
         with ThreadPool(processes=config["training"]["ncpu"]) as pool:
             results = list(
-                tqdm(pool.imap(load_val_dataset, val_paths), total=len(val_paths), desc="Validation dataset"))
+                tqdm(pool.imap(load_val_dataset, val_paths), total=len(val_paths),
+                     desc=f"Loading {sample} validation dataset"))
         for r in results:
             val_dataset.extend(r[0])
+            nevts["validation"][sample] += len(r[0])
+    # Tests
     if run_test:
         print("Testing:")
+        sample = config["evaluate"]["sample"]
+        nevts["testing"] = {sample: 0}
         tst_dataset = []
-        for sample in samples:
-            print(f"Loading {sample}")
-            tst_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/tst_data_*'))[:config["training"]["nfiles"]]
-            with ThreadPool(processes=config["training"]["ncpu"]) as pool:
-                results = list(
-                    tqdm(pool.imap(load_val_dataset, tst_paths), total=len(tst_paths), desc="Test dataset"))
-            for r in results:
-                tst_dataset.extend(r[0])
+        tst_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/tst_data_*'))[:config["training"]["nfiles"]]
+        with ThreadPool(processes=config["training"]["ncpu"]) as pool:
+            results = list(
+                tqdm(pool.imap(load_val_dataset, tst_paths), total=len(tst_paths),
+                     desc=f"Loading {sample} test dataset"))
+        for r in results:
+            tst_dataset.extend(r[0])
+            nevts["testing"][sample] += len(r[0])
     end = time.time()
 
+    config.update({"num_events": nevts})
     print(f"data read in, time needed {(end - start):.2f}")
     print(f"Train dataset       : {len(trn_dataset)}")
     print(f"Validation dataset  : {len(val_dataset)}")

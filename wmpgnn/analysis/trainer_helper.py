@@ -45,13 +45,14 @@ def load_dataset(path, config, mode):
                 data_selbool[i] = 0
     filtered_data = [d for d, sel in zip(data, data_selbool) if sel]
     if config["weights"]["weights"] and mode == "train":
-        weights = get_hetero_weight(filtered_data, config["weights"])
+        weights = get_hetero_weight(filtered_data, config)
     else:
         weights = {}
     return filtered_data, weights
 
 
-def get_hetero_weight(data, config):
+def get_hetero_weight(data, configs):
+    config = configs["weights"]
     raw_weights = {}
     if config["LCA"]:
         raw_weights["LCA"] = torch.zeros(4)
@@ -89,6 +90,9 @@ def get_hetero_weight(data, config):
 
         if config["FT"]:
             y = evt['tracks'].ft
+            if configs["graph_mode"] == "true":  # Consider frag nodes later on
+                selbool = evt["tracks"].ft != 1
+                y = y[selbool]
             raw_weights["FT"] += torch.bincount(y, minlength=3)
 
     return raw_weights
@@ -134,7 +138,9 @@ def transform_pos_weight(weights, config, mode="train"):
         pos_weight["frag"] = torch.ones(1)
 
     if config["FT"]:
-        pos_weight["FT"] = torch.sum(summed["FT"]) / (3 * summed["FT"])
+        ft_weights = torch.sum(summed["FT"]) / (3 * summed["FT"])
+        ft_weights[torch.isinf(ft_weights)] = 1.0
+        pos_weight["FT"] = ft_weights
     else:
         pos_weight["FT"] = torch.ones(3)
 

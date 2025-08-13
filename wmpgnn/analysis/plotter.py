@@ -179,17 +179,17 @@ def obtain_tagging_power(df, version, signal):
         xerr_upper = [eta_bins[i + 1] - center for i, center in enumerate(eta_centers)]
         xerr = [xerr_lower, xerr_upper]
 
-        output_dir = f"lightning_logs/version_{version}/plots_{channel}"
-        os.makedirs(output_dir, exist_ok=True)
+        outdir = f"lightning_logs/version_{version}/plots_{channel}"
+        os.makedirs(outdir, exist_ok=True)
 
         fig, ax = plt.subplots(figsize=(9, 6))
-        weights = np.ones_like(eta_distribution) / len(eta_distribution)
+        weights = np.ones_like(eta_dist) / len(eta_dist)
         ax.hist(eta_dist, bins=eta_bins, label=r"Underlying $\eta$ distribution", color="grey", weights=weights / 2)
         ax.errorbar(eta_centers, power, xerr=xerr, fmt='o', color="red", label="Tagging Power")
         ax.errorbar(eta_centers, wrong_fra, xerr=xerr, fmt='o', color="blue", label="Wrong Fraction")
         ax.set_xlim(0, 0.5)
         ax.set_xlabel(r"$\eta$")
-        ax.set_ylabel("[%]]")
+        ax.set_ylabel("[%]")
         ax.legend()
         plt.savefig(f"{outdir}/{label}.pdf")
         plt.savefig(f"{outdir}/{label}.png")
@@ -234,6 +234,13 @@ def obtain_tagging_power(df, version, signal):
                                                                                 eta_bins)
     plot_tagging_power(eta_centers, eta_bins, power_bpm_non, wrong_frac_bpm_non, os_bpm_df_non_sig["eta"], version,
                        signal, "os_bpm_tagging_power")
+    # Sanity check: determine flavour from charge predictions
+    pid = np.array(os_bpm_df_non_sig["final_pid"])
+    B_pid = np.sign(np.array(os_bpm_df_non_sig["B_id"]))
+    res = []
+    for i in range(len(B_pid)):
+        charge = np.sign(list(map(int, re.findall(r'-?\d+', pid[i]))))
+        res.append(B_pid[i] == np.sum(charge))
 
     # also save some numbers
     with open(f"lightning_logs/version_{version}/info_{signal}_FT.txt", "w") as f:
@@ -241,6 +248,7 @@ def obtain_tagging_power(df, version, signal):
         f.write(f"OS B exists tagging power (combined): {combined_os}\n")
         f.write(f"Two B events: {num_two_b_events}\n")
         f.write(f"One B events: {num_one_b_events}\n")
-        f.write(f"OS B± exists tagging power (combined): {combined_bpm}\n")
-        f.write(f"OS B± tagging power (combined): {combined_bpm_non}\n")
-        f.write(f"nOS events: {len(os_bpm_df_sig)}")
+        f.write(f"OS B+/-  exists tagging power (combined): {combined_bpm}\n")
+        f.write(f"OS B+/- tagging power (combined): {combined_bpm_non}\n")
+        f.write(f"#OS B+/- events: {len(os_bpm_df_sig)}")
+        f.write(f"Charge based B+/- correct: {np.sum(res)/len(res)}")

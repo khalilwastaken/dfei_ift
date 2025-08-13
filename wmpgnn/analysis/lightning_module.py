@@ -28,10 +28,10 @@ class HGNNLightningModule(L.LightningModule):
                 **config,
                 "pos_weights": make_loggable(pos_weights)
             })
-            self.signal = config["training"]["sample"][0]
         else:
             self.version = config["training"]["cpt"]["model"].split("_")[0]
-            self.signal = config["evaluate"]["sample"]
+
+        self.signal = config["evaluate"]["sample"]
         self.model = model
         # include here the second model, which only transforms the output
         self.config = config["training"]["infer"]
@@ -59,36 +59,45 @@ class HGNNLightningModule(L.LightningModule):
         return self.model(batch)
 
     def configure_optimizers(self):
-        ft_params = list(self.model._ftblocks.parameters())
-        ft_params += list(self.model._op_trafo._node_models_model_dict.parameters())
+        ft_params = []
 
-        if hasattr(self.model, "_ftlayer"):
-            ft_params += list(self.model._ftlayer.parameters())
+        if hasattr(self.model, "_ftblocks"):
+            ft_params += list(self.model._ftblocks.parameters())
 
-        # Convert to set of IDs to compare efficiently
+            if hasattr(self.model, "_op_trafo") and hasattr(self.model._op_trafo, "_node_models_model_dict"):
+                ft_params += list(self.model._op_trafo._node_models_model_dict.parameters())
+
+            if hasattr(self.model, "_ftlayer"):
+                ft_params += list(self.model._ftlayer.parameters())
+
+        # Id comparison
         ft_param_ids = {id(p) for p in ft_params}
 
-        # All parameters of the model
         all_params = list(self.model.parameters())
-
-        # Keep only those not in ft_params
         non_ft_params = [p for p in all_params if id(p) not in ft_param_ids]
 
-        out1 = self.optimizer_class(non_ft_params, **self.optimizer_params)
-        out2 = self.optimizer_class(ft_params, **self.optimizer_params)
+        optimizers = []
 
-        return [out1, out2]
+        if non_ft_params:
+            optimizers.append(self.optimizer_class(non_ft_params, **self.optimizer_params))
+        if ft_params:
+            optimizers.append(self.optimizer_class(ft_params, **self.optimizer_params))
+
+        return optimizers
 
     def shared_step(self, batch, batch_idx, log, mode="train"):
-        DFEI_opt, FT_opt = self.optimizers()
+        if mode != "test":
+            optimizers = self.optimizers()
+            if not isinstance(optimizers, (list, tuple)):
+                optimizers = [optimizers]
         loss = {"LCA": 0., "t_nodes": 0., "tt_edges": 0., "tPV_edges": 0., "frag_nodes": 0., "ft_nodes": 0.}
         data = copy.deepcopy(batch)
-        outputs, pred_LCA = self.model(batch)
+        outputs = self.model(batch)
         if self.config["LCA"]:
             y_LCA = batch[('tracks', 'to', 'tracks')].y.to(torch.int64)
-            loss["LCA"] = self.LCA_criterion(pred_LCA, y_LCA)
+            loss["LCA"] = self.LCA_criterion(outputs[('tracks', 'to', 'tracks')].LCA, y_LCA)
             log["LCA_loss"].append(loss["LCA"].item())
-            acc_LCA = acc_four_class(pred_LCA, y_LCA)
+            acc_LCA = acc_four_class(outputs[('tracks', 'to', 'tracks')].LCA, y_LCA)
             for key, values in acc_LCA.items():
                 log[key].append(values)
 
@@ -132,21 +141,21 @@ class HGNNLightningModule(L.LightningModule):
 
         combined_loss = loss["LCA"] + loss["t_nodes"] + loss["tt_edges"] + loss["frag_nodes"] + loss["ft_nodes"]
         if mode == "train":
-            DFEI_opt.zero_grad()
+            optimizers[0].zero_grad()
             self.manual_backward(combined_loss, retain_graph=True)
-            DFEI_opt.step()
+            optimizers[0].step()
 
         if self.use_ft_model:
             if self.config["FT"]:
-                outputs_ft, _ = self.model(data)
-                ift_loss = self.FT_criterion(outputs_ft["tracks"].x, y_ft)
+                outputs_ft = self.model(data)
+                ft_des = outputs_ft["tracks"].x
+                ift_loss = self.FT_criterion(ft_des, y_ft)
                 loss["ft_nodes"] += ift_loss
 
-        if mode == "train":
-            torch.autograd.set_detect_anomaly(True)
-            FT_opt.zero_grad()
+        if mode == "train" and self.use_ft_model and self.config["FT"]:
+            optimizers[1].zero_grad()
             self.manual_backward(ift_loss)
-            FT_opt.step()
+            optimizers[1].step()
 
         if mode == "test":
             self.sig_df, self.evt_df = reco_event(outputs, batch_idx, self.config, self.signal, self.sig_df,

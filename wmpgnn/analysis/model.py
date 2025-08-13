@@ -75,7 +75,7 @@ class DFEI_HGNN(nn.Module):
             data = self._decoder(data)
 
         data = self._op_trafo(data)
-        LCA_score = data[("tracks", "to", "tracks")].edges
+        data[("tracks", "to", "tracks")].LCA = data[("tracks", "to", "tracks")].edges
         if self.ft_model:
             data["tracks"].x = torch.cat([data["tracks"].x, init_graph_pid], dim=1)
             for b, core in enumerate(self._ftblocks):
@@ -84,7 +84,7 @@ class DFEI_HGNN(nn.Module):
                     data = hetero_graph_concat(latent, data)
 
             data["tracks"].x = self._ftlayer(data["tracks"].x)
-        return data, LCA_score
+        return data
 
 
 class FT_HGNN(nn.Module):
