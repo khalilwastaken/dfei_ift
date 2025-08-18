@@ -90,7 +90,8 @@ class HGNNLightningModule(L.LightningModule):
             optimizers = self.optimizers()
             if not isinstance(optimizers, (list, tuple)):
                 optimizers = [optimizers]
-        loss = {"LCA": 0., "t_nodes": 0., "tt_edges": 0., "tPV_edges": 0., "frag_nodes": 0., "ft_nodes": 0.}
+        loss = {"LCA": torch.tensor(0.), "t_nodes": torch.tensor(0.), "tt_edges": torch.tensor(0.),
+                "tPV_edges": torch.tensor(0.), "frag_nodes": torch.tensor(0.), "ft_nodes": torch.tensor(0.)}
         data = copy.deepcopy(batch)
         outputs = self.model(batch)
         if self.config["LCA"]:

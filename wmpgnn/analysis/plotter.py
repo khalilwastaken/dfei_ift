@@ -16,7 +16,7 @@ def process_ft(df, sig_df, version, signal):
     for i in ft_layers:
         bbar_score = 1 - df[f"bbar_ft_score_{i}"]  # optimal 0
         b_score = df[f"b_ft_score_{i}"]  # optimal 1
-        plot_weights(b_score, bbar_score, [f"ft_decision_{i}", "b", "bbar"], version)
+        plot_weights(b_score, bbar_score, [f"ft_decision_{i}", "b", "bbar"], version, channel=signal)
 
     # Plot the B particle decision
     selbool = sig_df["AllParticles"] == 1
@@ -47,14 +47,14 @@ def process_ft(df, sig_df, version, signal):
         b_selbool = rem_B_df["B_id"] == -b
         b_dec = rem_B_df["ft_b_score"][b_selbool]
         bbar_dec = 1 - rem_B_df["ft_bbar_score"][bbar_selbool]
-        plot_weights(b_dec, bbar_dec, [f"{b}_id_decision", "b", "bbar"], version)
+        plot_weights(b_dec, bbar_dec, [f"{b}_id_decision", "b", "bbar"], version, channel=signal)
 
         # Plot the weights of the final state particles
         b_dec_final = np.array(
             [float(x) for item in rem_B_df["final_b_score"][b_selbool].values for x in item.split(',')])
         bbar_dec_final = 1 - np.array(
             [float(x) for item in rem_B_df["final_bbar_score"][bbar_selbool].values for x in item.split(',')])
-        plot_weights(b_dec_final, bbar_dec_final, [f"{b}_id_decision_final", "b", "bbar"], version)
+        plot_weights(b_dec_final, bbar_dec_final, [f"{b}_id_decision_final", "b", "bbar"], version, channel=signal)
 
 
 def plot_weights(pos_weight, neg_weights, labels, version, channel="inclusive"):
@@ -200,6 +200,7 @@ def obtain_tagging_power(df, version, signal):
 
     df = df.copy()
     df["eta"] = 1 - np.max(df[["ft_b_score", "ft_bbar_score"]], axis=1)
+    # We want FT prediction on fully reco events (either perfect reco or all particles)
 
     # First case:
     full_df = df[df["SigMatch"] == 1]

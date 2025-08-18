@@ -27,7 +27,7 @@ def node_pruning(valid_mask, graph, node_type, edge_types):
 def load_dataset(path, config, mode):
     with open(path, "rb") as f:
         data = torch.load(f, weights_only=False)
-    if config["graph_mode"] == "true":
+    if "true" in config["graph_mode"]:
         data_selbool = torch.ones(len(data))
         for i, evt in enumerate(data):
             if config["data"] == "LHCb":
@@ -38,12 +38,17 @@ def load_dataset(path, config, mode):
                 y_nodes[sig_nodes] = True
             elif config["data"] == "pythia":
                 y_nodes = evt["tracks"].ft != 1
+                if "frag" in config["graph_mode"]:
+                    frag_selbool = evt["tracks"].frag != 0
+                    y_nodes = y_nodes | frag_selbool
             else:
                 raise "Mode not implemented"
             _ = node_pruning(y_nodes, evt, "tracks", [('tracks', 'to', 'tracks')])
-            if evt[("tracks", "to", "tracks")].y.shape[0] == 0:
+            if evt[("tracks", "to", "tracks")].y.shape[0] == 0 or torch.all(evt[("tracks", "to", "tracks")].y == 0):
                 data_selbool[i] = 0
-    filtered_data = [d for d, sel in zip(data, data_selbool) if sel]
+        filtered_data = [d for d, sel in zip(data, data_selbool) if sel]
+    else:
+        filtered_data = data
     if config["weights"]["weights"] and mode == "train":
         weights = get_hetero_weight(filtered_data, config)
     else:
