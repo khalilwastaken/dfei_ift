@@ -12,7 +12,11 @@ def get_ref_signal(ref_signal):  # Here we can define them all
     if ref_signal == 'Bs_Jpsiphi':
         signal_decay = {'daughters': ['mu+', 'mu-', 'K+', 'K-'], 'mothers': ['B(s)0']}
         cc_signal_decay = {'daughters': ['mu+', 'mu-', 'K+', 'K-'], 'mothers': ['B(s)~0']}
-        return (signal_decay, cc_signal_decay)
+        return signal_decay, cc_signal_decay
+    elif ref_signal == 'Bd_JpsiKs':  # Check if this is cor
+        signal_decay = {'daughters': ['mu+', 'mu-', 'pi+', 'pi-'], 'mothers': ['B0']}
+        cc_signal_decay = {'daughters': ['mu+', 'mu-', 'pi+', 'pi-'], 'mothers': ['B~0']}
+        return signal_decay, cc_signal_decay
     return {}
 
 
@@ -216,12 +220,6 @@ def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des):
                                  'NumRecoClustersGen3': r_nclust_order[2],
                                  'NumRecoClustersGen4': r_nclust_order[3],
                                  'MaxTruthFullChainDepthInEvent': max_chain_depth,
-                                 'EfficiencyParticlesFromHeavyHadronInEvent': float(
-                                     n_sel_heavy_h) / n_part_heavy_h,
-                                 'EfficiencyBackgroundParticlesInEvent': float(
-                                     n_sel_bkg_part) / n_bkg_part,
-                                 'BackgroundRejectionPowerInEvent': 1. - float(
-                                     n_sel_bkg_part) / n_bkg_part,
                                  'PerfectEventReconstruction': perfect_evt_reco,
                                  'NumTrueSignalsInEvent': len(tc_dict.keys()),
                                  'NumRecoSignalsInEvent': len(rc_dict.keys()),

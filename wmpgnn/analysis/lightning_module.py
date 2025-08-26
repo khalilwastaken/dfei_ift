@@ -90,8 +90,9 @@ class HGNNLightningModule(L.LightningModule):
             optimizers = self.optimizers()
             if not isinstance(optimizers, (list, tuple)):
                 optimizers = [optimizers]
-        loss = {"LCA": torch.tensor(0.), "t_nodes": torch.tensor(0.), "tt_edges": torch.tensor(0.),
-                "tPV_edges": torch.tensor(0.), "frag_nodes": torch.tensor(0.), "ft_nodes": torch.tensor(0.)}
+
+        loss = init_loss(self.device)
+
         data = copy.deepcopy(batch)
         outputs = self.model(batch)
         if self.config["LCA"]:
@@ -232,7 +233,8 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
     first_batch = next(iter(trn_loader))
     with torch.no_grad():
         module(first_batch)
-    print("initilaized")
+    print("initialized")
+    del first_batch
 
     early_stopping = EarlyStopping(
         monitor="val_combined_loss",
@@ -250,7 +252,7 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
 
     all_epochs_callback = ModelCheckpoint(
         filename="epoch-{epoch:02d}",
-        save_top_k=-1,
+        save_top_k=3,
         every_n_epochs=1
     )
 

@@ -133,6 +133,7 @@ def plot_loss(df, version, loss):
     ax.plot(epochs, val_LCA_loss, color="#B22222", label="val loss")
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Loss")
+    ax.set_yscale("log")
     ax.legend()
     plt.savefig(f"{outdir}/{loss}_loss.pdf")
     plt.savefig(f"{outdir}/{loss}_loss.png")
@@ -242,6 +243,11 @@ def obtain_tagging_power(df, version, signal):
     for i in range(len(B_pid)):
         charge = np.sign(list(map(int, re.findall(r'-?\d+', pid[i]))))
         res.append(B_pid[i] == np.sum(charge))
+    # Last sanity check: tagging power for the OS B+/- which are fully reco based on sum of charge
+    charge_reco_bpm = os_bpm_df_non_sig[res]
+    w_frac_bpm_cor_q, eff_bpm_cor_q, combined_bpm_cor_q = tagging_power_per_eta(charge_reco_bpm, eta_centers, eta_bins)
+    plot_tagging_power(eta_centers, eta_bins, eff_bpm_cor_q, w_frac_bpm_cor_q, charge_reco_bpm["eta"], version,
+                       signal, "os_bpm_tagging_power_true_charge")
 
     # also save some numbers
     with open(f"lightning_logs/version_{version}/info_{signal}_FT.txt", "w") as f:
@@ -251,5 +257,6 @@ def obtain_tagging_power(df, version, signal):
         f.write(f"One B events: {num_one_b_events}\n")
         f.write(f"OS B+/-  exists tagging power (combined): {combined_bpm}\n")
         f.write(f"OS B+/- tagging power (combined): {combined_bpm_non}\n")
-        f.write(f"#OS B+/- events: {len(os_bpm_df_sig)}")
-        f.write(f"Charge based B+/- correct: {np.sum(res)/len(res)}")
+        f.write(f"#OS B+/- events: {len(os_bpm_df_sig)}\n")
+        f.write(f"Charge based B+/- correct: {np.sum(res) / len(res)}\n")
+        f.write(f"Correct q by sum: {combined_bpm_cor_q}")

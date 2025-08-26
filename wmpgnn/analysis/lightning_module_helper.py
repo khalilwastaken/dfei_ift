@@ -78,6 +78,15 @@ def init_test_df():
     return signal_df, event_df
 
 
+def init_loss(device):
+    # Later add config
+    loss = {"LCA": torch.tensor(0., device=device), "t_nodes": torch.tensor(0., device=device),
+            "tt_edges": torch.tensor(0., device=device),
+            "tPV_edges": torch.tensor(0., device=device), "frag_nodes": torch.tensor(0., device=device),
+            "ft_nodes": torch.tensor(0., device=device)}
+    return loss
+
+
 def epoch_end_loggable(log):
     # keys of the loss functions
     avg_log = {}

@@ -45,15 +45,16 @@ data_dir: "/eos/user/y/yukaiz/DFEI_data/DFEI_pythia_single_pp_normed_graph/"
 
 training:
   graph_mode: "true"  # true: True graph
+  node_sel: "true"
   sample: ["inclusive"]
-  nfiles: 200
+  nfiles: 1
   batch_size: 12
   epochs: 30
   gacc: 1  # gradient accumulation if using smaller batch size
   ngpu: 1  # need roughly 40 Gb for bs of 12
   ncpu: 8  # need roughly 128Gb cpu memory
   cpt:
-    model: "10_bis" # None
+    model: "None" # None or 10_bis
   cw: False # Flag if weights need to be calculated or not
   infer:
     LCA: True
@@ -65,7 +66,7 @@ training:
     LCA: False
     node: False
     edge: False
-    FT: False
+    FT: True
     frag: False
 
 

@@ -41,7 +41,7 @@ if __name__ == "__main__":
     print("Testing:")
     tst_dataset = []
     print(f"Loading {sample}")
-    tst_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/tst_data_*'))[:config["training"]["nfiles"]]
+    tst_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/tst_data_*'))[:config["evaluate"]["nfiles"]]
     with ThreadPool(processes=config["training"]["ncpu"]) as pool:
         results = list(
             tqdm(pool.imap(load_val_dataset, tst_paths), total=len(tst_paths), desc="Test dataset"))
