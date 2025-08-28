@@ -201,25 +201,32 @@ def obtain_tagging_power(df, version, signal):
 
     df = df.copy()
     df["eta"] = 1 - np.max(df[["ft_b_score", "ft_bbar_score"]], axis=1)
-    # We want FT prediction on fully reco events (either perfect reco or all particles)
 
-    # First case:
+    # Full tagging power
     full_df = df[df["SigMatch"] == 1]
     wrong_frac_full, power_full, combined_full = tagging_power_per_eta(full_df, eta_centers, eta_bins)
     plot_tagging_power(eta_centers, eta_bins, power_full, wrong_frac_full, full_df["eta"], version, signal,
                        "full_tagging_power")
 
-    # Second case:
+    # Tagging power for only signal B in event and the case where OS exists
     event_ids, event_counts = np.unique(df["EventNumber"], return_counts=True)
-    num_two_b_events = np.sum(event_counts == 2)
-    num_one_b_events = np.sum(event_counts == 1)
-    two_b_events = event_ids[event_counts == 2]
 
-    two_b_df = df[df["EventNumber"].isin(two_b_events)]
-    os_b_df = two_b_df[two_b_df["SigMatch"] == 1]
-    wrong_frac_os, power_os, combined_os = tagging_power_per_eta(os_b_df, eta_centers, eta_bins)
-    plot_tagging_power(eta_centers, eta_bins, power_os, wrong_frac_os, os_b_df["eta"], version, signal,
+    # Tagging power for only signal B in event
+    single_b_df = df[df["EventNumber"].isin(event_ids[event_counts == 1])]
+    signal_b_df = single_b_df[single_b_df["SigMatch"] == 1]
+
+    wrong_frac_one_b, power_one_b, combined_one_b = tagging_power_per_eta(signal_b_df, eta_centers, eta_bins)
+    plot_tagging_power(eta_centers, eta_bins, power_one_b, wrong_frac_one_b, signal_b_df["eta"], version, signal,
+                       "only_signal_B_tagging_power")
+
+    # Tagging power where there is an OS B
+    two_b_df = df[df["EventNumber"].isin(event_ids[event_counts == 2])]
+    signal_b_df = two_b_df[two_b_df["SigMatch"] == 1]
+
+    wrong_frac_two_b, power_two_b, combined_two_b = tagging_power_per_eta(signal_b_df, eta_centers, eta_bins)
+    plot_tagging_power(eta_centers, eta_bins, power_two_b, wrong_frac_two_b, signal_b_df["eta"], version, signal,
                        "os_b_exists_tagging_power")
+
 
     # Third case:
     is_bpm = np.abs(two_b_df["B_id"]) == 521
@@ -251,12 +258,13 @@ def obtain_tagging_power(df, version, signal):
 
     # also save some numbers
     with open(f"lightning_logs/version_{version}/info_{signal}_FT.txt", "w") as f:
-        f.write(f"Full tagging power (combined): {combined_full}\n")
-        f.write(f"OS B exists tagging power (combined): {combined_os}\n")
-        f.write(f"Two B events: {num_two_b_events}\n")
-        f.write(f"One B events: {num_one_b_events}\n")
-        f.write(f"OS B+/-  exists tagging power (combined): {combined_bpm}\n")
-        f.write(f"OS B+/- tagging power (combined): {combined_bpm_non}\n")
+        f.write(f"Full tagging power: {combined_full}\n")
+        f.write(f"One B events: {np.sum(event_counts == 1)}\n")
+        f.write(f"Two B events: {np.sum(event_counts == 2)}\n")
+        f.write(f"One B tagging power: {combined_one_b}\n")
+        f.write(f"Two B tagging power: {combined_two_b}\n")
         f.write(f"#OS B+/- events: {len(os_bpm_df_sig)}\n")
+        f.write(f"OS B = B+/- tagging power (combined): {combined_bpm}\n")
+        f.write(f"OS B+/- tagging power (combined): {combined_bpm_non}\n")
         f.write(f"Charge based B+/- correct: {np.sum(res) / len(res)}\n")
         f.write(f"Correct q by sum: {combined_bpm_cor_q}")

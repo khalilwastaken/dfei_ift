@@ -130,7 +130,8 @@ class HGNNLightningModule(L.LightningModule):
                 if self.config["frag"]:
                     loss["frag_nodes"] += self.frag_criterion(block.node_logits['frag'], y_frag)
                 if self.config["FT"]:
-                    loss["ft_nodes"] += self.FT_criterion(block.node_logits['ft'], y_ft)
+                    selbool = y_ft != 1
+                    loss["ft_nodes"] += self.FT_criterion(block.node_logits['ft'][selbool], y_ft[selbool])
                     if mode == "test":
                         b_selbool = y_ft == 0
                         bbar_selbool = y_ft == 2
@@ -217,6 +218,11 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
             config=config,
             pos_weights=pos_weights
         )
+        first_batch = next(iter(trn_loader))
+        with torch.no_grad():
+            module(first_batch)
+        print("initialized")
+        del first_batch
     else:
         print("Loading from checkpoint")
         print(load_from_cpt)
@@ -230,12 +236,6 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
             config=config
         )
 
-    first_batch = next(iter(trn_loader))
-    with torch.no_grad():
-        module(first_batch)
-    print("initialized")
-    del first_batch
-
     early_stopping = EarlyStopping(
         monitor="val_combined_loss",
         verbose=True,
@@ -248,12 +248,6 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
         monitor="val_combined_loss",
         mode="min",
         save_top_k=1
-    )
-
-    all_epochs_callback = ModelCheckpoint(
-        filename="epoch-{epoch:02d}",
-        save_top_k=3,
-        every_n_epochs=1
     )
 
     log_dir = "lightning_logs"
@@ -270,7 +264,7 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
         accelerator="gpu",
         devices=config["ngpu"],
         strategy="auto",
-        callbacks=[early_stopping, best_model_callback, all_epochs_callback],
+        callbacks=[early_stopping, best_model_callback],
         precision="32",
         accumulate_grad_batches=config["gacc"],
         num_sanity_val_steps=0,
