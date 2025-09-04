@@ -120,6 +120,8 @@ class HGNNLightningModule(L.LightningModule):
             y_frag = (batch['tracks'].frag != 0).unsqueeze(-1).to(torch.float32)
         if self.config["FT"]:
             y_ft = batch['tracks'].ft
+        else:
+            ft_des = torch.ones(batch['tracks'].ft.shape[0], 3) * -1
 
         for i, block in enumerate(self.model._blocks):
             if self.config["node_prune"]:
