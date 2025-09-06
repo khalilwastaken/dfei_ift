@@ -41,10 +41,10 @@ def particle_name(id_):
 
 def lca_reco_matrix(graph, mode="reco"):
     edge_index = graph[('tracks', 'to', 'tracks')].edge_index.cpu()
-    edges = graph[('tracks', 'to', 'tracks')].LCA.cpu()
 
     pd_matrix = pd.DataFrame(edge_index.T, columns=['senders', 'receivers'])
     if mode == "reco":
+        edges = graph[('tracks', 'to', 'tracks')].lca.cpu()
         pd_matrix["LCA_dec"] = torch.argmax(edges, axis=-1).tolist()  # LCA decision
     else:
         pd_matrix["LCA_dec"] = graph[('tracks', 'to', 'tracks')].y.tolist()  # LCA decision

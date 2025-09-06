@@ -162,8 +162,12 @@ class HGNNLightningModule(L.LightningModule):
                     optimizers[-1].step()
 
         if mode == "test":
-            self.sig_df, self.evt_df = reco_event(outputs, batch_idx, self.config, self.signal, self.sig_df,
-                                                  self.evt_df, ft_des)
+            if self.dfei_usage:
+                self.sig_df, self.evt_df = reco_event(outputs, batch_idx, self.config, self.signal, self.sig_df,
+                                                      self.evt_df, ft_des)
+            elif self.ft_usage:
+                self.sig_df, self.evt_df = reco_event(outputs_ft, batch_idx, self.config, self.signal, self.sig_df,
+                                                      self.evt_df, ft_des)
 
         """Logging"""
         log = loss_logging(log, loss, self.config)
