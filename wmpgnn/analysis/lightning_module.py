@@ -152,10 +152,13 @@ class HGNNLightningModule(L.LightningModule):
         if self.ft_usage:
             if self.config["FT"]:
                 outputs_ft = self.model(data)
-                ft_des = outputs_ft["tracks"].x
-                ift_loss = self.FT_criterion(ft_des, y_ft)
+
+                selbool = y_ft != 1
+                ift_loss = self.FT_criterion(outputs_ft["tracks"].x[selbool], y_ft[selbool])
                 loss["ft_nodes"] += ift_loss
                 combined_loss += ift_loss
+                if mode == "test":
+                    ft_des = torch.softmax(outputs_ft["tracks"].x, dim=1)
                 if mode == "train":
                     optimizers[-1].zero_grad()
                     self.manual_backward(ift_loss)
