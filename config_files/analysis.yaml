@@ -1,55 +1,103 @@
 model:
-  type: "analysis"
-  node_types: ['tracks']  # pvs
-  edge_types: ["tracks_tracks"]  #, "tracks_pvs"
-  encoder:
+  DFEI:
     usage: True
-    MLP: [-1, 128, 128, 16]
-    norm: "graph_norm"
-    dropout: 0.01
-  GNblocks:
-    nBlocks: 1
-    edge_infer: True
-    node_infer: True
-    MLP: [-1, 128, 128, 16]
-    norm: "graph_norm"
-    dropout: 0.01
-    FTlayers: 1 # FT layers from back
-    # Later add here inference explicitly for edge, node, frag, FT
-    infer_mlp: [-1, 16, 16, 16, 1]
-    weight_mlp_layers: 4
-    weight_mlp_channels: 16
-    weight_mp: True  # Whether to pass edge, node pass to message passing/aggregation
-  decoder:
+    node_types: [ 'tracks' ]  # pvs
+    edge_types: [ "tracks_tracks" ]  #, "tracks_pvs"
+    encoder:
+      usage: True
+      vars: [ "global", "tracks" ,"tracks_tracks" ] # variables which are encoded
+      MLP:
+        layers: [ -1, 128, 128, 16 ]
+        norm: "batch_norm"
+        dropout: 0.01
+    GNblocks:
+      nBlocks: 1
+      FTlayers: 0
+      use_globals: True
+      use_node_weights: True # MLP to infer a node weight, also necessary for node pruning
+      use_edge_weights: True # MLP to infer an edge weight, also necessary for edge pruning
+      weighted_pass: True # Whether to pass the weights, requires above
+      MLP_forward:
+        layers: [ -1, 128, 128, 16 ]
+        norm: "batch_norm"
+        dropout: 0.01
+      MLP_infer:
+        layers: [ -1, 16, 16, 16, 1 ]
+        norm: "batch_norm"
+        dropout: 0.01
+    decoder:
+      usage: True
+      vars: [ "global", "tracks" ,"tracks_tracks" ] # variables which are encoded
+      MLP:
+        layers: [ -1, 128, 128, 16 ]
+        norm: "batch_norm"
+        dropout: 0.01
+    op_trafo: # transforms output to desired dimension
+      usage: True
+      tr_tr: 4  # Output dim of edges, 4 for LCA edges
+      tr_pv: None
+      tr: 32  # Hyperspace representation to pass to FT part
+      pv: None
+      global: None
+      MLP:
+        layers: [ -1, -1 ]
+        norm: "batch_norm"
+        dropout: 0.01
+
+  FT_inferer: # FT model
     usage: True
-    MLP: [ -1, 128, 128, 16 ]
-    norm: "graph_norm"
-    dropout: 0.01
-  op_trafo:  # transforms output to desired dimension
-    usage: True
-    tr_tr_edge_op: 4  # Output dim of edges
-    tr_pv_edge_op: 1
-    tr_node_op: 32  # Output dim of track nodes, which is passed to FT inferer
-    pv_node_op: None
-    global_node_op: None
-  FT_inferer:
-    usage: True  # To be implemented
-    nBlocks: 1
-    MLP: [-1, 128, 128, 16]
-    edge_infer: True
-    node_infer: True
-    norm: "graph_norm"
-    dropout: 0.01
+    node_types: [ 'tracks' ]  # pvs
+    edge_types: [ "tracks_tracks" ]  #, "tracks_pvs"
+    encoder:
+      usage: True
+      vars: [ "global", "tracks" ,"tracks_tracks" ] # variables which are encoded
+      MLP:
+        layers: [ -1, 128, 128, 16 ]
+        norm: "batch_norm"
+        dropout: 0.01
+    GNblocks:
+      nBlocks: 1
+      FTlayers: 0
+      use_globals: True
+      use_node_weights: True # MLP to infer a node weight, also necessary for node pruning
+      use_edge_weights: True # MLP to infer an edge weight, also necessary for edge pruning
+      weighted_pass: True # Whether to pass the weights, requires above
+      MLP_forward:
+        layers: [ -1, 128, 128, 16 ]
+        norm: "batch_norm"
+        dropout: 0.01
+      MLP_infer:
+        layers: [ -1, 16, 16, 16, 1 ]
+        norm: "batch_norm"
+        dropout: 0.01
+    decoder:
+      usage: True
+      vars: [ "global", "tracks" ,"tracks_tracks" ] # variables which are encoded
+      MLP:
+        layers: [ -1, 128, 128, 16 ]
+        norm: "batch_norm"
+        dropout: 0.01
+    op_trafo: # transforms output to desired dimension
+      usage: True
+      tr_tr: None
+      tr_pv: None
+      tr: 3  # FT output dim
+      pv: None
+      global: None
+      MLP:
+        layers: [ -1, -1 ]
+        norm: "batch_norm"
+        dropout: 0.01
 
 data_dir: "/eos/user/y/yukaiz/DFEI_data/DFEI_pythia_single_pp_normed_graph/"
 
 training:
-  graph_mode: "true"  # true: True graph
-  node_sel: "true"
-  sample: ["inclusive"]
-  nfiles: 1
-  batch_size: 12
-  epochs: 30
+  graph_mode: "None"  # true: True graph
+  node_sel: "true"  # Conditioned on graph_mode
+  sample: [ "Bs_Jpsiphi", "Bd_JpsiKs" ]
+  nfiles: 80
+  batch_size: 128
+  epochs: 100
   gacc: 1  # gradient accumulation if using smaller batch size
   ngpu: 1  # need roughly 40 Gb for bs of 12
   ncpu: 8  # need roughly 128Gb cpu memory
@@ -72,4 +120,4 @@ training:
 
 evaluate:
   sample: "Bs_Jpsiphi"
-  nfiles: 100
+  nfiles: 80

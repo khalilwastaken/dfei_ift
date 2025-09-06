@@ -10,7 +10,7 @@ from functools import partial
 from torch_geometric.loader import DataLoader
 
 from trainer_helper import *
-from model import DFEI_HGNN, FT_HGNN
+from model import DFEI_HGNN, FT_HGNN, test
 from lightning_module import training
 
 if __name__ == "__main__":
@@ -28,8 +28,9 @@ if __name__ == "__main__":
         config = adjust_config(yaml.safe_load(file))
 
     # Load model
-    DFEI_model = DFEI_HGNN(config["model"])
-    print(DFEI_model)
+    if config["model"]["DFEI"]["usage"]:
+        DFEI_model = test(config["model"])
+        print(DFEI_model)
     print("=" * 30)
 
     # Get dataset
@@ -74,7 +75,7 @@ if __name__ == "__main__":
         sample = config["evaluate"]["sample"]
         nevts["testing"] = {sample: 0}
         tst_dataset = []
-        tst_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/tst_data_*'))[:config["training"]["nfiles"]]
+        tst_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/tst_data_*'))[:config["evaluate"]["nfiles"]]
         with ThreadPool(processes=config["training"]["ncpu"]) as pool:
             results = list(
                 tqdm(pool.imap(load_val_dataset, tst_paths), total=len(tst_paths),

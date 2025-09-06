@@ -8,47 +8,18 @@ from wmpgnn.gnn.hetero_graphcoder import HeteroGraphCoder
 from wmpgnn.gnn.hetero_graph_network import HeteroGraphNetwork
 
 
-def get_encoder(config, node_types, edge_types):
-    mlp_layer = config["MLP"]
-    dropout = config["dropout"]
-    norm = config["norm"]
-
-    encoder_mlp = lambda: MLP(mlp_layer, norm=norm, drop_out=dropout)
-    encoder = HeteroGraphCoder(node_types, edge_types,
-                               edge_models={edge_type: encoder_mlp for edge_type in edge_types},
-                               node_models={node_type: encoder_mlp for node_type in node_types},
-                               global_model=encoder_mlp)
-    return encoder
 
 
 def get_blocks(config, node_types, edge_types):
-    n_blocks = config["nBlocks"]
-    mlp_layer = config["MLP"]
-    dropout = config["dropout"]
-    norm = config["norm"]
+    n_gn_blocks = config["nBlocks"]
     n_ft_layers = config["FTlayers"]
-
-    use_node_weights = config["node_infer"]
-    use_edge_weights = config["edge_infer"]
-
-    # temporary stuff
-    weight_mlp_channels = config["weight_mlp_channels"]
-    weight_mlp_layers = config["weight_mlp_layers"]
-    weighted_mp = config["weight_mp"]
-
-    mlp = lambda: MLP(mlp_layer, norm=norm, drop_out=dropout)  # mlp for GN blocks update
 
     add_ft_layer = False
     blocks = []
-    for i in range(n_blocks):
-        if i >= n_blocks - n_ft_layers:
+    for i in range(n_gn_blocks):
+        if i >= n_gn_blocks - n_ft_layers:
             add_ft_layer = True
-
-        blocks.append(
-            HeteroGraphNetwork(node_types, edge_types, edge_model=mlp, node_model=mlp, global_model=mlp,
-                               use_node_weights=use_node_weights, use_edge_weights=use_edge_weights,
-                               weight_mlp_channels=weight_mlp_channels, weight_mlp_layers=weight_mlp_layers,
-                               weighted_mp=weighted_mp, norm=norm, drop_out=dropout, nFT_layers=add_ft_layer))
+        blocks.append(HeteroGraphNetwork(config, node_types, edge_types, add_ft_layer))
     return nn.ModuleList(blocks)
 
 

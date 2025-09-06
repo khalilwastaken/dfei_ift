@@ -6,8 +6,8 @@ import pandas as pd
 
 def init_logs(configs, mode="train"):
     loss_config = configs["training"]["infer"]
-    gn_blocks = configs["model"]["GNblocks"]["nBlocks"]
-    ft_layers = configs["model"]["GNblocks"]["FTlayers"]
+    gn_blocks = configs["model"]["DFEI"]["GNblocks"]["nBlocks"]
+    ft_layers = configs["model"]["DFEI"]["GNblocks"]["FTlayers"]
 
     log = {"combined_loss": []}
     if loss_config["LCA"]:

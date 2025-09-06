@@ -36,7 +36,7 @@ class HGNNLightningModule(L.LightningModule):
         # include here the second model, which only transforms the output
         self.config = config["training"]["infer"]
         self.use_ft_model = config["model"]["FT_inferer"]["usage"]
-        self.nFT_layers = config["model"]["GNblocks"]["FTlayers"]
+        self.nFT_layers = config["model"]["DFEI"]["GNblocks"]["FTlayers"]
         self.optimizer_class = optimizer_class
         self.optimizer_params = optimizer_params
 
@@ -59,47 +59,35 @@ class HGNNLightningModule(L.LightningModule):
         return self.model(batch)
 
     def configure_optimizers(self):
-        ft_params = []
-
-        if hasattr(self.model, "_ftblocks"):
-            ft_params += list(self.model._ftblocks.parameters())
-
-            if hasattr(self.model, "_op_trafo") and hasattr(self.model._op_trafo, "_node_models_model_dict"):
-                ft_params += list(self.model._op_trafo._node_models_model_dict.parameters())
-
-            if hasattr(self.model, "_ftlayer"):
-                ft_params += list(self.model._ftlayer.parameters())
-
-        # Id comparison
-        ft_param_ids = {id(p) for p in ft_params}
-
-        all_params = list(self.model.parameters())
-        non_ft_params = [p for p in all_params if id(p) not in ft_param_ids]
-
+        params = {}
         optimizers = []
+        if hasattr(self.model, "dfei_model"):
+            params["dfei_model"] = self.model.dfei_model.parameters()
+            optimizers.append(self.optimizer_class(params["dfei_model"], **self.optimizer_params))
 
-        if non_ft_params:
-            optimizers.append(self.optimizer_class(non_ft_params, **self.optimizer_params))
-        if ft_params:
-            optimizers.append(self.optimizer_class(ft_params, **self.optimizer_params))
+        if hasattr(self.model, "ft_model"):
+            params["ft_model"] = self.model.ft_model.parameters()
+            optimizers.append(self.optimizer_class(params["ft_model"], **self.optimizer_params))
 
         return optimizers
 
     def shared_step(self, batch, batch_idx, log, mode="train"):
         if mode != "test":
             optimizers = self.optimizers()
-            if not isinstance(optimizers, (list, tuple)):
-                optimizers = [optimizers]
 
+        # Get logging dict for loss
         loss = init_loss(self.device)
 
+        """First model pass"""
         data = copy.deepcopy(batch)
         outputs = self.model(batch)
+
+        # Evaluate
         if self.config["LCA"]:
             y_LCA = batch[('tracks', 'to', 'tracks')].y.to(torch.int64)
-            loss["LCA"] = self.LCA_criterion(outputs[('tracks', 'to', 'tracks')].LCA, y_LCA)
+            loss["LCA"] = self.LCA_criterion(outputs[('tracks', 'to', 'tracks')].lca, y_LCA)
             log["LCA_loss"].append(loss["LCA"].item())
-            acc_LCA = acc_four_class(outputs[('tracks', 'to', 'tracks')].LCA, y_LCA)
+            acc_LCA = acc_four_class(outputs[('tracks', 'to', 'tracks')].lca, y_LCA)
             for key, values in acc_LCA.items():
                 log[key].append(values)
 
@@ -116,9 +104,9 @@ class HGNNLightningModule(L.LightningModule):
                 y_nodes = ((torch.sum(node_sum[:, 1:], 1) > 0)).unsqueeze(1).float()
         if self.config["edge_prune"]:
             y_edges = batch[('tracks', 'to', 'tracks')].y.to(torch.float32).unsqueeze(-1)
-        if self.config["frag"]:
+        if self.config["frag"]:  # Frag does not work
             y_frag = (batch['tracks'].frag != 0).unsqueeze(-1).to(torch.float32)
-        if self.config["FT"]:
+        if self.config["FT"]:  # Get y value of ft
             y_ft = batch['tracks'].ft
         else:
             ft_des = torch.ones(batch['tracks'].ft.shape[0], 3) * -1
@@ -156,11 +144,11 @@ class HGNNLightningModule(L.LightningModule):
                 ft_des = outputs_ft["tracks"].x
                 ift_loss = self.FT_criterion(ft_des, y_ft)
                 loss["ft_nodes"] += ift_loss
-
-        if mode == "train" and self.use_ft_model and self.config["FT"]:
-            optimizers[1].zero_grad()
-            self.manual_backward(ift_loss)
-            optimizers[1].step()
+                combined_loss += ift_loss
+                if mode == "train":
+                    optimizers[1].zero_grad()
+                    self.manual_backward(ift_loss)
+                    optimizers[1].step()
 
         if mode == "test":
             self.sig_df, self.evt_df = reco_event(outputs, batch_idx, self.config, self.signal, self.sig_df,
