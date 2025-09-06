@@ -16,6 +16,8 @@ from reco import reco_event
 
 from wmpgnn.util.functions import acc_four_class
 
+torch.set_float32_matmul_precision("high")
+
 
 class HGNNLightningModule(L.LightningModule):
     def __init__(self, model, optimizer_class, optimizer_params, config, pos_weights, is_train=True):
@@ -32,10 +34,12 @@ class HGNNLightningModule(L.LightningModule):
             self.version = config["training"]["cpt"]["model"].split("_")[0]
 
         self.signal = config["evaluate"]["sample"]
+        self.dfei_usage = config["model"]["DFEI"]["usage"]
+        self.ft_usage = config["model"]["FT_inferer"]["usage"]
         self.model = model
+
         # include here the second model, which only transforms the output
         self.config = config["training"]["infer"]
-        self.use_ft_model = config["model"]["FT_inferer"]["usage"]
         self.nFT_layers = config["model"]["DFEI"]["GNblocks"]["FTlayers"]
         self.optimizer_class = optimizer_class
         self.optimizer_params = optimizer_params
@@ -61,6 +65,7 @@ class HGNNLightningModule(L.LightningModule):
     def configure_optimizers(self):
         params = {}
         optimizers = []
+
         if hasattr(self.model, "dfei_model"):
             params["dfei_model"] = self.model.dfei_model.parameters()
             optimizers.append(self.optimizer_class(params["dfei_model"], **self.optimizer_params))
@@ -69,76 +74,82 @@ class HGNNLightningModule(L.LightningModule):
             params["ft_model"] = self.model.ft_model.parameters()
             optimizers.append(self.optimizer_class(params["ft_model"], **self.optimizer_params))
 
+        # Return in the format Lightning expects
         return optimizers
 
     def shared_step(self, batch, batch_idx, log, mode="train"):
         if mode != "test":
             optimizers = self.optimizers()
+            if not isinstance(optimizers, (list, tuple)):
+                optimizers = [optimizers]
 
         # Get logging dict for loss
         loss = init_loss(self.device)
 
-        """First model pass"""
-        data = copy.deepcopy(batch)
-        outputs = self.model(batch)
-
-        # Evaluate
-        if self.config["LCA"]:
-            y_LCA = batch[('tracks', 'to', 'tracks')].y.to(torch.int64)
-            loss["LCA"] = self.LCA_criterion(outputs[('tracks', 'to', 'tracks')].lca, y_LCA)
-            log["LCA_loss"].append(loss["LCA"].item())
-            acc_LCA = acc_four_class(outputs[('tracks', 'to', 'tracks')].lca, y_LCA)
-            for key, values in acc_LCA.items():
-                log[key].append(values)
-
-        if self.config["node_prune"]:
-            if config["sim"] == "pythia":
-                y_nodes = (batch["tracks"].ft != 0).to(torch.float32).unsqueeze(-1)
-            else:
-                num_nodes = batch['tracks'].x.shape[0]
-                out = batch[('tracks', 'to', 'tracks')].edges.new_zeros(num_nodes,
-                                                                        batch[('tracks', 'to', 'tracks')].y.shape[1])
-                node_sum = scatter_add(batch[('tracks', 'to', 'tracks')].y,
-                                       batch[('tracks', 'to', 'tracks')].edge_index[0],
-                                       out=out, dim=0)
-                y_nodes = ((torch.sum(node_sum[:, 1:], 1) > 0)).unsqueeze(1).float()
-        if self.config["edge_prune"]:
-            y_edges = batch[('tracks', 'to', 'tracks')].y.to(torch.float32).unsqueeze(-1)
-        if self.config["frag"]:  # Frag does not work
-            y_frag = (batch['tracks'].frag != 0).unsqueeze(-1).to(torch.float32)
+        """y values"""
         if self.config["FT"]:  # Get y value of ft
             y_ft = batch['tracks'].ft
         else:
             ft_des = torch.ones(batch['tracks'].ft.shape[0], 3) * -1
 
-        for i, block in enumerate(self.model._blocks):
-            if self.config["node_prune"]:
-                loss["t_nodes"] += self.nodes_criterion(block.node_logits['tracks'], y_nodes)
-            if self.config["edge_prune"]:
-                loss["tt_edges"] += self.edges_criterion(block.edge_logits[('tracks', 'to', 'tracks')], y_edges)
-            if i >= len(self.model._blocks) - self.nFT_layers:
-                if self.config["frag"]:
-                    loss["frag_nodes"] += self.frag_criterion(block.node_logits['frag'], y_frag)
-                if self.config["FT"]:
-                    selbool = y_ft != 1
-                    loss["ft_nodes"] += self.FT_criterion(block.node_logits['ft'][selbool], y_ft[selbool])
-                    if mode == "test":
-                        b_selbool = y_ft == 0
-                        bbar_selbool = y_ft == 2
-                        ft_des = block.node_weights['ft']
+        """First model pass"""
+        data = copy.deepcopy(batch)
+        if self.dfei_usage:
+            outputs = self.model(batch)
 
-                        b_pred = ft_des[b_selbool][:, 0].cpu()
-                        bbar_pred = ft_des[bbar_selbool][:, 2].cpu()
-                        log[f"b_ft_score_{i}"] = torch.cat([log[f"b_ft_score_{i}"], b_pred], dim=0)
-                        log[f"bbar_ft_score_{i}"] = torch.cat([log[f"bbar_ft_score_{i}"], bbar_pred], dim=0)
+            if self.config["LCA"]:
+                y_LCA = batch[('tracks', 'to', 'tracks')].y.to(torch.int64)
+                loss["LCA"] = self.LCA_criterion(outputs[('tracks', 'to', 'tracks')].lca, y_LCA)
+                log["LCA_loss"].append(loss["LCA"].item())
+                acc_LCA = acc_four_class(outputs[('tracks', 'to', 'tracks')].lca, y_LCA)
+                for key, values in acc_LCA.items():
+                    log[key].append(values)
+
+            if self.config["node_prune"]:
+                if config["sim"] == "pythia":
+                    y_nodes = (batch["tracks"].ft != 0).to(torch.float32).unsqueeze(-1)
+                else:
+                    num_nodes = batch['tracks'].x.shape[0]
+                    out = batch[('tracks', 'to', 'tracks')].edges.new_zeros(num_nodes,
+                                                                            batch[('tracks', 'to', 'tracks')].y.shape[
+                                                                                1])
+                    node_sum = scatter_add(batch[('tracks', 'to', 'tracks')].y,
+                                           batch[('tracks', 'to', 'tracks')].edge_index[0],
+                                           out=out, dim=0)
+                    y_nodes = ((torch.sum(node_sum[:, 1:], 1) > 0)).unsqueeze(1).float()
+            if self.config["edge_prune"]:
+                y_edges = batch[('tracks', 'to', 'tracks')].y.to(torch.float32).unsqueeze(-1)
+            if self.config["frag"]:  # Frag does not work
+                y_frag = (batch['tracks'].frag != 0).unsqueeze(-1).to(torch.float32)
+
+            for i, block in enumerate(self.model.dfei_model._blocks):
+                if self.config["node_prune"]:
+                    loss["t_nodes"] += self.nodes_criterion(block.node_logits['tracks'], y_nodes)
+                if self.config["edge_prune"]:
+                    loss["tt_edges"] += self.edges_criterion(block.edge_logits[('tracks', 'to', 'tracks')], y_edges)
+                if i >= len(self.model.dfei_model._blocks) - self.nFT_layers:
+                    if self.config["frag"]:
+                        loss["frag_nodes"] += self.frag_criterion(block.node_logits['frag'], y_frag)
+                    if self.config["FT"]:
+                        selbool = y_ft != 1
+                        loss["ft_nodes"] += self.FT_criterion(block.node_logits['ft'][selbool], y_ft[selbool])
+                        if mode == "test":
+                            b_selbool = y_ft == 0
+                            bbar_selbool = y_ft == 2
+                            ft_des = block.node_weights['ft']
+
+                            b_pred = ft_des[b_selbool][:, 0].cpu()
+                            bbar_pred = ft_des[bbar_selbool][:, 2].cpu()
+                            log[f"b_ft_score_{i}"] = torch.cat([log[f"b_ft_score_{i}"], b_pred], dim=0)
+                            log[f"bbar_ft_score_{i}"] = torch.cat([log[f"bbar_ft_score_{i}"], bbar_pred], dim=0)
 
         combined_loss = loss["LCA"] + loss["t_nodes"] + loss["tt_edges"] + loss["frag_nodes"] + loss["ft_nodes"]
-        if mode == "train":
+        if mode == "train" and self.dfei_usage:
             optimizers[0].zero_grad()
             self.manual_backward(combined_loss, retain_graph=True)
             optimizers[0].step()
 
-        if self.use_ft_model:
+        if self.ft_usage:
             if self.config["FT"]:
                 outputs_ft = self.model(data)
                 ft_des = outputs_ft["tracks"].x
@@ -146,9 +157,9 @@ class HGNNLightningModule(L.LightningModule):
                 loss["ft_nodes"] += ift_loss
                 combined_loss += ift_loss
                 if mode == "train":
-                    optimizers[1].zero_grad()
+                    optimizers[-1].zero_grad()
                     self.manual_backward(ift_loss)
-                    optimizers[1].step()
+                    optimizers[-1].step()
 
         if mode == "test":
             self.sig_df, self.evt_df = reco_event(outputs, batch_idx, self.config, self.signal, self.sig_df,

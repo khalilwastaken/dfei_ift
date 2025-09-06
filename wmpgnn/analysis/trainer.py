@@ -28,9 +28,8 @@ if __name__ == "__main__":
         config = adjust_config(yaml.safe_load(file))
 
     # Load model
-    if config["model"]["DFEI"]["usage"]:
-        DFEI_model = test(config["model"])
-        print(DFEI_model)
+    model = test(config["model"])
+    print(model)
     print("=" * 30)
 
     # Get dataset
@@ -108,7 +107,7 @@ if __name__ == "__main__":
         tst_loader = None
 
     # TODO: Some issue with the tst loader when passing
-    metrics, version = training(DFEI_model, trn_loader, val_loader, tst_loader, config, pos_weights)
+    metrics, version = training(model, trn_loader, val_loader, tst_loader, config, pos_weights)
 
     """Evaluate the output metrics"""
     metrics_eval(metrics, config["training"]["infer"], version, config["training"]["sample"][0])
