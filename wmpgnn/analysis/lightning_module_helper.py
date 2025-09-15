@@ -63,15 +63,14 @@ def init_loss(device):
 
 def get_node_score(log, node_weights, y_nodes, i):
     sig_selbool = (y_nodes == 1).squeeze()
-    log[f"sig_nodes_score_{i}"] = torch.cat([node_weights[sig_selbool], log[f"sig_edges_score_{i}"]])
-    log[f"bkg_nodes_score_{i}"] = torch.cat([node_weights[~sig_selbool], log[f"bkg_edges_score_{i}"]])
+    log[f"sig_nodes_score_{i}"] = torch.cat([node_weights[sig_selbool].cpu(), log[f"sig_edges_score_{i}"]])
+    log[f"bkg_nodes_score_{i}"] = torch.cat([node_weights[~sig_selbool].cpu(), log[f"bkg_edges_score_{i}"]])
 
 
 def get_edge_score(log, edge_weights, y_edges, i):
     sig_selbool = (y_edges == 1).squeeze()
-    log[f"sig_edges_score_{i}"] = torch.cat([edge_weights[sig_selbool], log[f"sig_edges_score_{i}"]])
-    log[f"bkg_edges_score_{i}"] = torch.cat([edge_weights[~sig_selbool], log[f"bkg_edges_score_{i}"]])
-
+    log[f"sig_edges_score_{i}"] = torch.cat([edge_weights[sig_selbool].cpu(), log[f"sig_edges_score_{i}"]])
+    log[f"bkg_edges_score_{i}"] = torch.cat([edge_weights[~sig_selbool].cpu(), log[f"bkg_edges_score_{i}"]])
 
 def init_test_df():
     signal_df = pd.DataFrame()
