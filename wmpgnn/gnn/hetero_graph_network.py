@@ -1,43 +1,13 @@
-from wmpgnn.blocks.abstract_module import AbstractModule
+import pytorch_lightning as pl
+
+import torch
+from torch.nn import Sigmoid
+
 from wmpgnn.blocks.hetero_edge_block import HeteroEdgeBlock
 from wmpgnn.blocks.hetero_global_block import HeteroGlobalBlock
 from wmpgnn.blocks.hetero_node_block import HeteroNodeBlock
 from wmpgnn.util.helper import create_mlp
-import torch
-import torch.nn as nn
-from torch.nn import Sigmoid
-import pytorch_lightning as pl
-
-
-def edge_pruning(edge_indices, graph, edge_type):
-    graph[edge_type].edges = graph[edge_type].edges[edge_indices]
-    graph[edge_type].edge_index = torch.vstack(
-        [graph[edge_type].edge_index[0][edge_indices],
-         graph[edge_type].edge_index[1][edge_indices]])
-    graph[edge_type].y = graph[edge_type].y[edge_indices]
-
-
-def node_pruning(node_indices, graph, node_type, edge_types):
-    # Does not remove the nodes, only the edges
-    num_nodes = graph[node_type].x.shape[0]
-    valid_mask = torch.zeros(num_nodes, dtype=torch.bool)
-    valid_mask[node_indices] = True
-
-    edge_node_indices = {}
-    for edge_type in edge_types:
-        if edge_type[0] == node_type and edge_type[2] == node_type:
-            # Use the valid mask directly for both source and target.
-            mask = valid_mask[graph[edge_type].edge_index[0]] & valid_mask[graph[edge_type].edge_index[1]]
-        elif edge_type[0] == node_type:
-            mask = valid_mask[graph[edge_type].edge_index[0]]
-        else:
-            mask = valid_mask[graph[edge_type].edge_index[1]]
-
-        graph[edge_type].edge_index = graph[edge_type].edge_index[:, mask]
-        graph[edge_type].edges = graph[edge_type].edges[mask, :]
-        graph[edge_type].y = graph[edge_type].y[mask]
-        edge_node_indices[edge_type] = mask
-    return edge_node_indices
+from wmpgnn.util.pruners import *
 
 
 class HeteroGraphNetwork(pl.LightningModule):
@@ -145,7 +115,7 @@ class HeteroGraphNetwork(pl.LightningModule):
                     mask = self.node_weights[node_type] > self.node_weight_cut
                     node_indices = torch.nonzero(mask, as_tuple=True)[0]
                     self.node_indices[node_type] = node_indices
-                    edge_index = faster_node_pruning(node_indices, global_input, node_type,
+                    edge_index = faster_node_pruning(mask, global_input, node_type,
                                                      [('tracks', 'to', 'tracks')],
                                                      device=self.device)
                     self.edge_node_pruning_indices[node_type] = edge_index

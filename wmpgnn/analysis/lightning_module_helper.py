@@ -55,10 +55,9 @@ def init_test_df():
     signal_df = pd.DataFrame(
         columns=['EventNumber',
                  'NumParticlesInEvent', 'NumSignalParticles', 'NumBkgParticles_noniso',
-                 'PerfectSignalReconstruction', 'AllParticles', 'PerfectReco', 'NoneIso', 'PartReco', 'NotFound',
+                 'AllParticles', 'PerfectReco', 'NoneIso', 'PartReco', 'NotFound',
                  'SigMatch',
-                 'B_id', 'Pred_FT',
-                 'reco_pv_idx', 'true_pv_idx'
+                 'B_id',
                  ])
 
     event_df = pd.DataFrame(

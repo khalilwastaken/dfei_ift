@@ -1,10 +1,11 @@
-from wmpgnn.blocks.abstract_module import AbstractModule
+import pytorch_lightning as pl
+
+import torch
+
 from wmpgnn.blocks.hetero_aggregators import HeteroEdgesToGlobalsAggregator
 from wmpgnn.blocks.hetero_aggregators import HeteroNodesToGlobalsAggregator
-import torch
-from torch_geometric.nn.models import MLP
 from wmpgnn.util.helper import create_mlp
-import pytorch_lightning as pl
+
 
 
 class HeteroGlobalBlock(pl.LightningModule):

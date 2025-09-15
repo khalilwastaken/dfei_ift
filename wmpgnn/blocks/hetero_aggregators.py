@@ -1,10 +1,10 @@
-from wmpgnn.blocks.abstract_module import AbstractModule
-import torch
+import pytorch_lightning as pl
 
+import torch
 from torch_scatter import scatter_add
 
 
-class HeteroEdgesToNodesAggregator(AbstractModule):
+class HeteroEdgesToNodesAggregator(pl.LightningModule):
     """
     Aggregates edge features into node features for a specific edge type.
 
@@ -70,7 +70,7 @@ class HeteroEdgesToNodesAggregator(AbstractModule):
             output = scatter_add(graph[edge_type].edges, indices.to(torch.int64), out=out, dim=0)
         return output
 
-class HeteroEdgesToGlobalsAggregator(AbstractModule):
+class HeteroEdgesToGlobalsAggregator(pl.LightningModule):
     """
     Aggregates edge features into per-graph global features for a specific edge type.
 
@@ -129,7 +129,7 @@ class HeteroEdgesToGlobalsAggregator(AbstractModule):
         return output
 
 
-class HeteroNodesToGlobalsAggregator(AbstractModule):
+class HeteroNodesToGlobalsAggregator(pl.LightningModule):
     """
     Aggregates node features into per-graph global features for a specific node type.
 

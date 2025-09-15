@@ -120,13 +120,25 @@ class test(pl.LightningModule):
             self.ft_model = FT_HGNN(config["FT_inferer"])
 
     def forward(self, data):
+        init_graph = data["tracks"].x
+        lca = None
+
         if self.dfei_usage:
             data = self.dfei_model(data)
-
-            lca_score = data[("tracks", "to", "tracks")].edges
+            lca = data[("tracks", "to", "tracks")].edges
+            lca_score = torch.argmax(lca, dim=1).unsqueeze(1)
+        else:
+            # Add a sampling based on LCA prediction of bis?
+            lca_score = data[("tracks", "to", "tracks")].y.unsqueeze(1)
+            # lca_score = F.one_hot(data[("tracks", "to", "tracks")].y.to(torch.long), num_classes=4).to(torch.float)
 
         if self.ft_usage:
+            data["tracks"].x = torch.cat([data["tracks"].x, init_graph], dim=1)
+            data[("tracks", "to", "tracks")].edges = torch.cat([data[("tracks", "to", "tracks")].edges, lca_score],
+                                                               dim=1)
+
             data = self.ft_model(data)
 
-        data[("tracks", "to", "tracks")].lca = lca_score
+        if self.dfei_usage:
+            data[("tracks", "to", "tracks")].lca = lca
         return data

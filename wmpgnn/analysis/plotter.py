@@ -218,6 +218,13 @@ def obtain_tagging_power(df, version, signal):
     wrong_frac_one_b, power_one_b, combined_one_b = tagging_power_per_eta(signal_b_df, eta_centers, eta_bins)
     plot_tagging_power(eta_centers, eta_bins, power_one_b, wrong_frac_one_b, signal_b_df["eta"], version, signal,
                        "only_signal_B_tagging_power")
+    # Single B correctness fraction
+    pred_b = np.argmax(signal_b_df[["ft_b_score", "ft_bbar_score"]], axis=1) * 2 - 1
+    true_b = np.sign(signal_b_df["B_id"])
+    one_b_corr = np.sum(pred_b == true_b)
+    one_b_tot = len(true_b)
+    one_b_ratio = one_b_corr / one_b_tot
+    one_b_ratio_err = one_b_ratio * np.sqrt(1 / one_b_corr + 1 / one_b_tot)
 
     # Tagging power where there is an OS B
     two_b_df = df[df["EventNumber"].isin(event_ids[event_counts == 2])]
@@ -226,7 +233,13 @@ def obtain_tagging_power(df, version, signal):
     wrong_frac_two_b, power_two_b, combined_two_b = tagging_power_per_eta(signal_b_df, eta_centers, eta_bins)
     plot_tagging_power(eta_centers, eta_bins, power_two_b, wrong_frac_two_b, signal_b_df["eta"], version, signal,
                        "os_b_exists_tagging_power")
-
+    # Tw0 B correctness fraction
+    pred_b = np.argmax(signal_b_df[["ft_b_score", "ft_bbar_score"]], axis=1) * 2 - 1
+    true_b = np.sign(signal_b_df["B_id"])
+    two_b_corr = np.sum(pred_b == true_b)
+    two_b_tot = len(true_b)
+    two_b_ratio = two_b_corr / two_b_tot
+    two_b_ratio_err = two_b_ratio * np.sqrt(1 / two_b_corr + 1 / two_b_tot)
 
     # Third case:
     is_bpm = np.abs(two_b_df["B_id"]) == 521
@@ -257,10 +270,16 @@ def obtain_tagging_power(df, version, signal):
                        signal, "os_bpm_tagging_power_true_charge")
 
     # also save some numbers
-    with open(f"lightning_logs/version_{version}/info_{signal}_FT.txt", "w") as f:
+    file = f"lightning_logs/version_{version}/info_{signal}_FT.txt"
+    cond = "a" if os.path.exists(file) else "w"
+    with open(file, cond) as f:
+        f.write("=" * 30 + "\n")
+        f.write("Tagging decision:\n")
         f.write(f"Full tagging power: {combined_full}\n")
         f.write(f"One B events: {np.sum(event_counts == 1)}\n")
+        f.write(f"One B ratio: {one_b_ratio * 100} +/- {one_b_ratio_err * 100}\n")
         f.write(f"Two B events: {np.sum(event_counts == 2)}\n")
+        f.write(f"Two B ratio: {two_b_ratio * 100} +/- {two_b_ratio_err * 100}\n")
         f.write(f"One B tagging power: {combined_one_b}\n")
         f.write(f"Two B tagging power: {combined_two_b}\n")
         f.write(f"#OS B+/- events: {len(os_bpm_df_sig)}\n")
@@ -268,3 +287,31 @@ def obtain_tagging_power(df, version, signal):
         f.write(f"OS B+/- tagging power (combined): {combined_bpm_non}\n")
         f.write(f"Charge based B+/- correct: {np.sum(res) / len(res)}\n")
         f.write(f"Correct q by sum: {combined_bpm_cor_q}")
+
+
+def obtain_reco_accuracy(df, version, signal):
+    sig_df = df[df["SigMatch"] == 1]
+
+    nevents = len(sig_df)
+    all_particles = np.sum(sig_df["AllParticles"])
+    all_particles_ratio = all_particles / nevents * 100
+    all_particles_ratio_err = np.nan if all_particles == 0 else all_particles_ratio * np.sqrt(1 / all_particles + 1 / nevents)
+    perfect_reco = np.sum(sig_df["PerfectReco"])
+    perfect_reco_ratio = perfect_reco / nevents * 100
+    perfect_reco_ratio_err = np.nan if perfect_reco == 0 else perfect_reco_ratio * np.sqrt(1 / perfect_reco + 1 / nevents)
+    none_iso = np.sum(sig_df["NoneIso"])
+    none_iso_ratio = none_iso / nevents * 100
+    none_iso_ratio_err = np.nan if none_iso == 0 else none_iso_ratio * np.sqrt(1 / none_iso + 1 / nevents)
+    part_reco = np.sum(sig_df["PartReco"])
+    part_reco_ratio = part_reco / nevents * 100
+    part_reco_ratio_err = np.nan if part_reco == 0 else part_reco_ratio * np.sqrt(1 / part_reco + 1 / nevents)
+
+    file = f"lightning_logs/version_{version}/info_{signal}_FT.txt"
+    cond = "a" if os.path.exists(file) else "w"
+    with open(file, cond) as f:
+        f.write("=" * 30 + "\n")
+        f.write("reconstruction efficiency: \n")
+        f.write(f"all_particles: {all_particles_ratio} +/- {all_particles_ratio_err} \n")
+        f.write(f"perfect_reco: {perfect_reco_ratio} +/- {perfect_reco_ratio_err} \n")
+        f.write(f"none_iso: {none_iso_ratio} +/- {none_iso_ratio_err} \n")
+        f.write(f"part_reco: {part_reco_ratio} +/- {part_reco_ratio_err} \n")

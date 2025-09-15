@@ -1,6 +1,8 @@
-import torch
-from wmpgnn.util.helper import create_mlp
 import pytorch_lightning as pl
+
+import torch
+
+from wmpgnn.util.helper import create_mlp
 
 
 class HeteroEdgeBlock(pl.LightningModule):

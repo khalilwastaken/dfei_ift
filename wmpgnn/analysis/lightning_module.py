@@ -165,6 +165,9 @@ class HGNNLightningModule(L.LightningModule):
                     optimizers[-1].step()
 
         if mode == "test":
+            # apply pruning here
+
+
             if self.dfei_usage:
                 self.sig_df, self.evt_df = reco_event(outputs, batch_idx, self.config, self.signal, self.sig_df,
                                                       self.evt_df, ft_des)
@@ -209,6 +212,8 @@ class HGNNLightningModule(L.LightningModule):
             self.version = self.logger.version
         self.sig_df.to_csv(f'lightning_logs/version_{self.version}/signal_df_{self.signal}.csv', index=False)
         self.evt_df.to_csv(f'lightning_logs/version_{self.version}/event_df_{self.signal}.csv', index=False)
+        if self.config["LCA"]:
+            obtain_reco_accuracy(self.sig_df, self.version, self.signal)
         if self.config["FT"]:
             process_ft(self.tst_log, self.sig_df, self.version, self.signal)
             obtain_tagging_power(self.sig_df, self.version, self.signal)
@@ -230,6 +235,7 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
         with torch.no_grad():
             module(first_batch)
         print("initialized")
+        print("=" * 30)
         del first_batch
     else:
         print("Loading from checkpoint")
@@ -240,7 +246,6 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
             pos_weights=pos_weights,
             optimizer_class=torch.optim.Adam,
             optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
-            scheduler_params={"min_lr": 1e-4, "patience": 5},
             config=config
         )
 
@@ -269,7 +274,7 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
     trainer = Trainer(
         logger=[csv_logger, tb_logger],
         max_epochs=config["epochs"],
-        accelerator="gpu",
+        accelerator="cpu",
         devices=config["ngpu"],
         strategy="auto",
         callbacks=[early_stopping, best_model_callback],

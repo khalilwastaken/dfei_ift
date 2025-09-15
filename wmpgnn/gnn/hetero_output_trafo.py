@@ -1,10 +1,9 @@
-from wmpgnn.blocks.abstract_module import AbstractModule
+import pytorch_lightning as pl
 
 import torch
 import torch.nn as nn
-from wmpgnn.util.helper import create_mlp
 
-import pytorch_lightning as pl
+from wmpgnn.util.helper import create_mlp
 
 
 class HeteroGraphTrafo(pl.LightningModule):
@@ -35,7 +34,6 @@ class HeteroGraphTrafo(pl.LightningModule):
 
         self._edge_models_model_dict = torch.nn.ModuleDict({str(i): j for i, j in self._edge_models.items()})
         self._node_models_model_dict = torch.nn.ModuleDict({str(i): j for i, j in self._node_models.items()})
-
 
     def forward(self, graph):
         if self._endecoder:

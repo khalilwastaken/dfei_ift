@@ -1,9 +1,8 @@
-from wmpgnn.blocks.abstract_module import AbstractModule
+import pytorch_lightning as pl
 
 import torch
-from wmpgnn.util.helper import create_mlp
 
-import pytorch_lightning as pl
+from wmpgnn.util.helper import create_mlp
 
 
 class HeteroGraphCoder(pl.LightningModule):

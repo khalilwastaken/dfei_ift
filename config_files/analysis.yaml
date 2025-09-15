@@ -95,9 +95,9 @@ training:
   graph_mode: "None"  # true: True graph
   node_sel: "true"  # Conditioned on graph_mode
   sample: [ "Bs_Jpsiphi", "Bd_JpsiKs" ]
-  nfiles: 80
-  batch_size: 128
-  epochs: 100
+  nfiles: 1
+  batch_size: 12
+  epochs: 1
   gacc: 1  # gradient accumulation if using smaller batch size
   ngpu: 1  # need roughly 40 Gb for bs of 12
   ncpu: 8  # need roughly 128Gb cpu memory
@@ -120,4 +120,4 @@ training:
 
 evaluate:
   sample: "Bs_Jpsiphi"
-  nfiles: 80
+  nfiles: 1

@@ -1,6 +1,8 @@
 # Use PyG’s custom wheel index for torch-scatter, etc.
 --find-links https://data.pyg.org/whl/torch-2.6.0+cu126.html
 
+lightning[extra]
+
 # Core PyTorch stack
 torch
 torchvision
@@ -20,7 +22,6 @@ torch_spline_conv
 dm-tree
 scikit-learn
 matplotlib
-PyYAML
-pandas
-numpy
+mplhep
 particle
+nvitop
