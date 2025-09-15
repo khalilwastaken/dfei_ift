@@ -37,6 +37,9 @@ if __name__ == "__main__":
 
     # Get dataset
     samples = config["training"]["sample"]
+    nfiles = {}
+    for i, sample in enumerate(samples):
+        nfiles[sample] = config["training"]["nfiles"][i]
     run_test = any(value for key, value in config["training"]["infer"].items() if key != "LCA")
     nevts = {"training": {}, "validation": {}}
     print("Start reading in the data")
@@ -49,7 +52,7 @@ if __name__ == "__main__":
     weights = []
     for sample in samples:
         nevts["training"][sample] = 0
-        trn_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/trn_data_*'))[:config["training"]["nfiles"]]
+        trn_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/trn_data_*'))[:nfiles[sample]]
         with ThreadPool(processes=config["training"]["ncpu"]) as pool:
             results = list(
                 tqdm(pool.imap(load_train_dataset, trn_paths), total=len(trn_paths),
@@ -63,7 +66,7 @@ if __name__ == "__main__":
     val_dataset = []
     for sample in samples:
         nevts["validation"][sample] = 0
-        val_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/val_data_*'))[:config["training"]["nfiles"]]
+        val_paths = sorted(glob.glob(f'{config["data_dir"]}/{sample}/val_data_*'))[:nfiles[sample]]
         with ThreadPool(processes=config["training"]["ncpu"]) as pool:
             results = list(
                 tqdm(pool.imap(load_val_dataset, val_paths), total=len(val_paths),
