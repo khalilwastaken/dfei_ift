@@ -102,12 +102,12 @@ if __name__ == "__main__":
     pos_weights = transform_pos_weight(weights, config["training"]["weights"])
 
     # Here we can check what kind of gpu it is to specify bs, also num_workers = num_cpu * 2
-    trn_loader = DataLoader(trn_dataset[:12], batch_size=config["training"]["batch_size"],
+    trn_loader = DataLoader(trn_dataset, batch_size=config["training"]["batch_size"],
                             num_workers=config["training"]["ncpu"] * 2, drop_last=True, shuffle=True)
-    val_loader = DataLoader(val_dataset[:12], batch_size=config["training"]["batch_size"],
+    val_loader = DataLoader(val_dataset, batch_size=config["training"]["batch_size"],
                             num_workers=config["training"]["ncpu"] * 2, drop_last=True)
     if run_test:
-        tst_loader = DataLoader(tst_dataset[:2], batch_size=1,
+        tst_loader = DataLoader(tst_dataset, batch_size=1,
                                 num_workers=config["training"]["ncpu"] * 2, drop_last=True)
     else:
         tst_loader = None
