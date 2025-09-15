@@ -120,7 +120,8 @@ class HGNNLightningModule(L.LightningModule):
                                            out=out, dim=0)
                     y_nodes = ((torch.sum(node_sum[:, 1:], 1) > 0)).unsqueeze(1).float()
             if self.config["edge_prune"]:
-                y_edges = data[('tracks', 'to', 'tracks')].y.to(torch.float32).unsqueeze(-1)
+                y_edges = data[('tracks', 'to', 'tracks')].y > 0
+                y_edges = y_edges.to(torch.float32).unsqueeze(-1)
             if self.config["frag"]:  # Frag does not work
                 y_frag = (data['tracks'].frag != 0).unsqueeze(-1).to(torch.float32)
 
