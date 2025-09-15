@@ -2,8 +2,7 @@ import torch
 import torch.nn as nn
 from torch_geometric.nn.models import MLP
 
-from model_helper import *
-
+from wmpgnn.model.model_helper import *
 from wmpgnn.gnn.hetero_graphcoder import HeteroGraphCoder
 from wmpgnn.gnn.hetero_output_trafo import HeteroGraphTrafo
 
@@ -108,7 +107,7 @@ class FT_HGNN(nn.Module):
         return data
 
 
-class test(pl.LightningModule):
+class DFEIFT(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.dfei_usage = config["DFEI"]["usage"]

@@ -2,9 +2,8 @@ import sys, os, re
 
 import torch
 
-from plotter import *
-
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from wmpgnn.performance.plotter import *
 from wmpgnn.util.pruners import *
 
 

@@ -52,6 +52,8 @@ def true_node_pruning(node_mask, graph, node_type, edge_types):
     # Removing the edges nodes
     node_keys = list(graph[node_type].keys())
     for node_key in node_keys:
+        if node_key == "ptr":
+            continue
         graph[node_type][node_key] = graph[node_type][node_key][node_mask]
     if hasattr(graph, "final_keys"):
         graph.final_keys = graph.final_keys[node_mask]
@@ -75,3 +77,4 @@ def true_node_pruning(node_mask, graph, node_type, edge_types):
             graph[edge_type].edge_index[1] = lookup[graph[edge_type].edge_index[1]]
         graph[edge_type].edges = graph[edge_type].edges[mask, :]
         graph[edge_type].y = graph[edge_type].y[mask]
+        return mask

@@ -10,8 +10,9 @@ from functools import partial
 from torch_geometric.loader import DataLoader
 
 from trainer_helper import *
-from model import DFEI_HGNN, FT_HGNN, test
 from lightning_module import training
+
+from wmpgnn.model.model import DFEI_HGNN, FT_HGNN, DFEIFT
 
 if __name__ == "__main__":
     # python trainer.py  --config  ../../config_files/lightning.yaml
@@ -30,7 +31,7 @@ if __name__ == "__main__":
         config = adjust_config(yaml.safe_load(file))
 
     # Load model
-    model = test(config["model"])
+    model = DFEIFT(config["model"])
     print(model)
     print("=" * 30)
 
@@ -113,6 +114,6 @@ if __name__ == "__main__":
 
     """Evaluate the output metrics"""
     metrics_eval(metrics, config["training"]["infer"], version, config["training"]["sample"][0])
-    import pdb; pdb.set_trace()
+    import pdb;
 
-
+    pdb.set_trace()

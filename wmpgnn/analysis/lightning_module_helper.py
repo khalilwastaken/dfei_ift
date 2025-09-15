@@ -1,7 +1,26 @@
 import re, glob
 
-import torch
 import pandas as pd
+
+import torch
+from torch import nn
+
+
+def get_loss_functions(config, pos_weights):
+    criterion = {}
+
+    if config["LCA"]:
+        criterion["LCA"] = nn.CrossEntropyLoss(weight=pos_weights["LCA"])
+    if config["node_prune"]:
+        criterion["nodes"] = nn.BCEWithLogitsLoss(pos_weight=pos_weights["nodes"])
+    if config["edge_prune"]:
+        criterion["edges"] = nn.BCEWithLogitsLoss(pos_weight=pos_weights["edges"])
+    if config["frag"]:
+        criterion["frag"] = nn.BCEWithLogitsLoss(pos_weight=pos_weights["frag"])
+    if config["FT"]:
+        criterion["FT"] = nn.CrossEntropyLoss(weight=pos_weights["FT"])
+
+    return criterion
 
 
 def init_logs(configs, mode="train"):
@@ -51,39 +70,32 @@ def init_logs(configs, mode="train"):
         return log
 
 
-def init_test_df():
-    signal_df = pd.DataFrame(
-        columns=['EventNumber',
-                 'NumParticlesInEvent', 'NumSignalParticles', 'NumBkgParticles_noniso',
-                 'AllParticles', 'PerfectReco', 'NoneIso', 'PartReco', 'NotFound',
-                 'SigMatch',
-                 'B_id',
-                 ])
-
-    event_df = pd.DataFrame(
-        columns=['EventNumber', 'NumParticlesInEvent', 'NumParticlesFromHeavyHadronInEvent',
-                 'NumBackgroundParticlesInEvent', 'NumSelectedParticlesInEvent',
-                 'NumSelectedParticlesFromHeavyHadronInEvent',
-                 'NumSelectedBackgroundParticlesInEvent', 'NumTruthClustersGen1', 'NumTruthClustersGen2',
-                 'NumTruthClustersGen3', 'NumTruthClustersGen4', 'NumRecoClustersGen1', 'NumRecoClustersGen2',
-                 'NumRecoClustersGen3', 'NumRecoClustersGen4', 'MaxTruthFullChainDepthInEvent',
-                 'EfficiencyParticlesFromHeavyHadronInEvent', 'EfficiencyBackgroundParticlesInEvent',
-                 'BackgroundRejectionPowerInEvent', 'PerfectEventReconstruction', 'TimeNodeFiltering',
-                 'TimeEdgeFiltering',
-                 'TimeLCAReconstruction', 'TimeSequence', 'NumTrueSignalsInEvent', 'NumRecoSignalsInEvent',
-                 'TimeModel', 'TimeReco', 'TimeTruth'
-                 ])
-
-    return signal_df, event_df
-
-
 def init_loss(device):
-    # Later add config
     loss = {"LCA": torch.tensor(0., device=device), "t_nodes": torch.tensor(0., device=device),
             "tt_edges": torch.tensor(0., device=device),
             "tPV_edges": torch.tensor(0., device=device), "frag_nodes": torch.tensor(0., device=device),
             "ft_nodes": torch.tensor(0., device=device)}
     return loss
+
+
+def get_node_score(log, node_weights, y_nodes, i):
+    sig_selbool = (y_nodes == 1).squeeze()
+    log[f"sig_nodes_score_{i}"] = torch.cat([node_weights[sig_selbool], log[f"sig_edges_score_{i}"]])
+    log[f"bkg_nodes_score_{i}"] = torch.cat([node_weights[~sig_selbool], log[f"bkg_edges_score_{i}"]])
+
+
+def get_edge_score(log, edge_weights, y_edges, i):
+    sig_selbool = (y_edges == 1).squeeze()
+    log[f"sig_edges_score_{i}"] = torch.cat([edge_weights[sig_selbool], log[f"sig_edges_score_{i}"]])
+    log[f"bkg_edges_score_{i}"] = torch.cat([edge_weights[~sig_selbool], log[f"bkg_edges_score_{i}"]])
+
+
+def init_test_df():
+    signal_df = pd.DataFrame()
+
+    event_df = pd.DataFrame()
+
+    return signal_df, event_df
 
 
 def epoch_end_loggable(log):

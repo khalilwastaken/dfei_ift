@@ -8,8 +8,6 @@ from wmpgnn.gnn.hetero_graphcoder import HeteroGraphCoder
 from wmpgnn.gnn.hetero_graph_network import HeteroGraphNetwork
 
 
-
-
 def get_blocks(config, node_types, edge_types):
     n_gn_blocks = config["nBlocks"]
     n_ft_layers = config["FTlayers"]

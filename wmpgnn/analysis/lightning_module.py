@@ -8,13 +8,13 @@ from collections import defaultdict
 import copy
 
 import torch
-from torch import nn
 
 from lightning_module_helper import *
-from plotter import *
-from reco import reco_event
 
 from wmpgnn.util.functions import acc_four_class
+from wmpgnn.util.pruners import edge_pruning, true_node_pruning
+from wmpgnn.performance.plotter import *
+from wmpgnn.performance.reconstruction import reco_event
 
 torch.set_float32_matmul_precision("high")
 
@@ -44,20 +44,15 @@ class HGNNLightningModule(L.LightningModule):
         self.optimizer_class = optimizer_class
         self.optimizer_params = optimizer_params
 
-        if self.config["LCA"]:
-            self.LCA_criterion = nn.CrossEntropyLoss(weight=pos_weights["LCA"])
-        if self.config["node_prune"]:
-            self.nodes_criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights["nodes"])
-        if self.config["edge_prune"]:
-            self.edges_criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights["edges"])
-        if self.config["frag"]:
-            self.frag_criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights["frag"])
-        if self.config["FT"]:
-            self.FT_criterion = nn.CrossEntropyLoss(weight=pos_weights["FT"])
+        self.criterion = get_loss_functions(self.config, pos_weights)
 
         self.trn_log, self.val_log = init_logs(config)
         self.tst_log = init_logs(config, mode="test")
         self.sig_df, self.evt_df = None, None
+
+        # Pruning threshold for reco
+        self.edge_prune = 0.1
+        self.node_prune = 0.1
 
     def forward(self, batch):
         return self.model(batch)
@@ -73,8 +68,6 @@ class HGNNLightningModule(L.LightningModule):
         if hasattr(self.model, "ft_model"):
             params["ft_model"] = self.model.ft_model.parameters()
             optimizers.append(self.optimizer_class(params["ft_model"], **self.optimizer_params))
-
-        # Return in the format Lightning expects
         return optimizers
 
     def shared_step(self, batch, batch_idx, log, mode="train"):
@@ -83,97 +76,98 @@ class HGNNLightningModule(L.LightningModule):
             if not isinstance(optimizers, (list, tuple)):
                 optimizers = [optimizers]
 
-        # Get logging dict for loss
         loss = init_loss(self.device)
 
-        """y values"""
-        if self.config["FT"]:  # Get y value of ft
+        # Get y value of ft
+        if self.config["FT"]:
             y_ft = batch['tracks'].ft
         else:
             ft_des = torch.ones(batch['tracks'].ft.shape[0], 3) * -1
 
         """First model pass"""
-        data = copy.deepcopy(batch)
         if self.dfei_usage:
-            outputs = self.model(batch)
+            data = copy.deepcopy(batch)
+            outputs = self.model(data)
 
             if self.config["LCA"]:
-                y_LCA = batch[('tracks', 'to', 'tracks')].y.to(torch.int64)
-                loss["LCA"] = self.LCA_criterion(outputs[('tracks', 'to', 'tracks')].lca, y_LCA)
+                y_LCA = data[('tracks', 'to', 'tracks')].y.to(torch.int64)
+                loss["LCA"] = self.criterion["LCA"](outputs[('tracks', 'to', 'tracks')].lca, y_LCA)
                 log["LCA_loss"].append(loss["LCA"].item())
                 acc_LCA = acc_four_class(outputs[('tracks', 'to', 'tracks')].lca, y_LCA)
                 for key, values in acc_LCA.items():
                     log[key].append(values)
 
             if self.config["node_prune"]:
-                if config["sim"] == "pythia":
-                    y_nodes = (batch["tracks"].ft != 0).to(torch.float32).unsqueeze(-1)
+                if self.config["sim"] == "pythia":
+                    y_nodes = (data["tracks"].ft != 1).to(torch.float32).unsqueeze(-1)
                 else:
-                    num_nodes = batch['tracks'].x.shape[0]
-                    out = batch[('tracks', 'to', 'tracks')].edges.new_zeros(num_nodes,
-                                                                            batch[('tracks', 'to', 'tracks')].y.shape[
-                                                                                1])
-                    node_sum = scatter_add(batch[('tracks', 'to', 'tracks')].y,
-                                           batch[('tracks', 'to', 'tracks')].edge_index[0],
+                    num_nodes = data['tracks'].x.shape[0]
+                    out = data[('tracks', 'to', 'tracks')].edges.new_zeros(num_nodes,
+                                                                           data[('tracks', 'to', 'tracks')].y.shape[
+                                                                               1])
+                    node_sum = scatter_add(data[('tracks', 'to', 'tracks')].y,
+                                           data[('tracks', 'to', 'tracks')].edge_index[0],
                                            out=out, dim=0)
                     y_nodes = ((torch.sum(node_sum[:, 1:], 1) > 0)).unsqueeze(1).float()
             if self.config["edge_prune"]:
-                y_edges = batch[('tracks', 'to', 'tracks')].y.to(torch.float32).unsqueeze(-1)
+                y_edges = data[('tracks', 'to', 'tracks')].y.to(torch.float32).unsqueeze(-1)
             if self.config["frag"]:  # Frag does not work
-                y_frag = (batch['tracks'].frag != 0).unsqueeze(-1).to(torch.float32)
+                y_frag = (data['tracks'].frag != 0).unsqueeze(-1).to(torch.float32)
 
             for i, block in enumerate(self.model.dfei_model._blocks):
                 if self.config["node_prune"]:
-                    loss["t_nodes"] += self.nodes_criterion(block.node_logits['tracks'], y_nodes)
+                    loss["t_nodes"] += self.criterion["nodes"](block.node_logits['tracks'], y_nodes)
+                    if mode == "test":
+                        get_node_score(log, block.node_weights['tracks'].squeeze(), y_nodes, i)
+
                 if self.config["edge_prune"]:
-                    loss["tt_edges"] += self.edges_criterion(block.edge_logits[('tracks', 'to', 'tracks')], y_edges)
+                    loss["tt_edges"] += self.criterion["edges"](block.edge_logits[('tracks', 'to', 'tracks')], y_edges)
+                    if mode == "test":
+                        get_edge_score(log, block.edge_weights[('tracks', 'to', 'tracks')].squeeze(), y_edges, i)
+
                 if i >= len(self.model.dfei_model._blocks) - self.nFT_layers:
                     if self.config["frag"]:
-                        loss["frag_nodes"] += self.frag_criterion(block.node_logits['frag'], y_frag)
+                        loss["frag_nodes"] += self.criterion["frag"](block.node_logits['frag'], y_frag)
                     if self.config["FT"]:
                         selbool = y_ft != 1
-                        loss["ft_nodes"] += self.FT_criterion(block.node_logits['ft'][selbool], y_ft[selbool])
-                        if mode == "test":
-                            b_selbool = y_ft == 0
-                            bbar_selbool = y_ft == 2
-                            ft_des = block.node_weights['ft']
+                        loss["ft_nodes"] += self.criterion["FT"](block.node_logits['ft'][selbool], y_ft[selbool])
 
-                            b_pred = ft_des[b_selbool][:, 0].cpu()
-                            bbar_pred = ft_des[bbar_selbool][:, 2].cpu()
-                            log[f"b_ft_score_{i}"] = torch.cat([log[f"b_ft_score_{i}"], b_pred], dim=0)
-                            log[f"bbar_ft_score_{i}"] = torch.cat([log[f"bbar_ft_score_{i}"], bbar_pred], dim=0)
-
+        # Combined loss of the FT model
         combined_loss = loss["LCA"] + loss["t_nodes"] + loss["tt_edges"] + loss["frag_nodes"] + loss["ft_nodes"]
         if mode == "train" and self.dfei_usage:
             optimizers[0].zero_grad()
             self.manual_backward(combined_loss, retain_graph=True)
             optimizers[0].step()
 
-        if self.ft_usage:
-            if self.config["FT"]:
-                outputs_ft = self.model(data)
+        if self.ft_usage and self.config["FT"]:
+            outputs_ft = self.model(batch)
 
-                selbool = y_ft != 1
-                ift_loss = self.FT_criterion(outputs_ft["tracks"].x[selbool], y_ft[selbool])
-                loss["ft_nodes"] += ift_loss
-                combined_loss += ift_loss
-                if mode == "test":
-                    ft_des = torch.softmax(outputs_ft["tracks"].x, dim=1)
-                if mode == "train":
-                    optimizers[-1].zero_grad()
-                    self.manual_backward(ift_loss)
-                    optimizers[-1].step()
+            selbool = y_ft != 1
+            ift_loss = self.criterion["FT"](outputs_ft["tracks"].x[selbool], y_ft[selbool])
+            loss["ft_nodes"] += ift_loss
+            combined_loss += ift_loss
+            if mode == "test":
+                ft_des = torch.softmax(outputs_ft["tracks"].x, dim=1)
+            if mode == "train":
+                optimizers[-1].zero_grad()
+                self.manual_backward(ift_loss)
+                optimizers[-1].step()
 
         if mode == "test":
-            # apply pruning here
-
-
             if self.dfei_usage:
-                self.sig_df, self.evt_df = reco_event(outputs, batch_idx, self.config, self.signal, self.sig_df,
-                                                      self.evt_df, ft_des)
+                graph = outputs
             elif self.ft_usage:
-                self.sig_df, self.evt_df = reco_event(outputs_ft, batch_idx, self.config, self.signal, self.sig_df,
-                                                      self.evt_df, ft_des)
+                graph = outputs_ft
+
+            if self.config["node_prune"] or self.config["edge_prune"]:
+                node_selbool = block.node_weights["tracks"].squeeze() > self.node_prune
+                edge_mask = true_node_pruning(node_selbool, graph, "tracks", [('tracks', 'to', 'tracks')])
+                ft_des = ft_des[node_selbool]
+                edge_selbool = block.edge_weights[('tracks', 'to', 'tracks')].squeeze()[edge_mask] > self.edge_prune
+                edge_pruning(edge_selbool, graph, ('tracks', 'to', 'tracks'))
+
+            self.sig_df, self.evt_df = reco_event(graph, batch_idx, self.config, self.signal, self.sig_df,
+                                                  self.evt_df, ft_des)
 
         """Logging"""
         log = loss_logging(log, loss, self.config)
@@ -212,6 +206,14 @@ class HGNNLightningModule(L.LightningModule):
             self.version = self.logger.version
         self.sig_df.to_csv(f'lightning_logs/version_{self.version}/signal_df_{self.signal}.csv', index=False)
         self.evt_df.to_csv(f'lightning_logs/version_{self.version}/event_df_{self.signal}.csv', index=False)
+        if self.config["node_prune"]:
+            for i in range(len(self.model.dfei_model._blocks)):
+                plot_weights(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],
+                             [f"NN_nodes_{i}", "sig", "bkg"], self.version, channel=self.channel)
+        if self.config["edge_prune"]:
+            for i in range(len(self.model.dfei_model._blocks)):
+                plot_weights(self.tst_log[f"sig_edges_score_{i}"], self.tst_log[f"bkg_edges_score_{i}"],
+                             [f"NN_edges_{i}", "sig", "bkg"], self.version, channel=self.channel)
         if self.config["LCA"]:
             obtain_reco_accuracy(self.sig_df, self.version, self.signal)
         if self.config["FT"]:
@@ -274,7 +276,7 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
     trainer = Trainer(
         logger=[csv_logger, tb_logger],
         max_epochs=config["epochs"],
-        accelerator="cpu",
+        accelerator="gpu",
         devices=config["ngpu"],
         strategy="auto",
         callbacks=[early_stopping, best_model_callback],
