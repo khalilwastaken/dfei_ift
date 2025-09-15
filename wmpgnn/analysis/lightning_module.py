@@ -44,7 +44,17 @@ class HGNNLightningModule(L.LightningModule):
         self.optimizer_class = optimizer_class
         self.optimizer_params = optimizer_params
 
-        self.criterion = get_loss_functions(self.config, pos_weights)
+        # Loss functions
+        if self.config["LCA"]:
+            self.lca_criterion = nn.CrossEntropyLoss(weight=pos_weights["LCA"])
+        if self.config["node_prune"]:
+            self.node_criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights["nodes"])
+        if self.config["edge_prune"]:
+            self.edge_criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights["edges"])
+        if self.config["frag"]:
+            self.frag_criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights["frag"])
+        if self.config["FT"]:
+            self.ft_criterion = nn.CrossEntropyLoss(weight=pos_weights["FT"])
 
         self.trn_log, self.val_log = init_logs(config)
         self.tst_log = init_logs(config, mode="test")
@@ -91,7 +101,7 @@ class HGNNLightningModule(L.LightningModule):
 
             if self.config["LCA"]:
                 y_LCA = data[('tracks', 'to', 'tracks')].y.to(torch.int64)
-                loss["LCA"] = self.criterion["LCA"](outputs[('tracks', 'to', 'tracks')].lca, y_LCA)
+                loss["LCA"] = self.lca_criterion(outputs[('tracks', 'to', 'tracks')].lca, y_LCA)
                 log["LCA_loss"].append(loss["LCA"].item())
                 acc_LCA = acc_four_class(outputs[('tracks', 'to', 'tracks')].lca, y_LCA)
                 for key, values in acc_LCA.items():
@@ -116,21 +126,21 @@ class HGNNLightningModule(L.LightningModule):
 
             for i, block in enumerate(self.model.dfei_model._blocks):
                 if self.config["node_prune"]:
-                    loss["t_nodes"] += self.criterion["nodes"](block.node_logits['tracks'], y_nodes)
+                    loss["t_nodes"] += self.node_criterion(block.node_logits['tracks'], y_nodes)
                     if mode == "test":
                         get_node_score(log, block.node_weights['tracks'].squeeze(), y_nodes, i)
 
                 if self.config["edge_prune"]:
-                    loss["tt_edges"] += self.criterion["edges"](block.edge_logits[('tracks', 'to', 'tracks')], y_edges)
+                    loss["tt_edges"] += self.edge_criterion(block.edge_logits[('tracks', 'to', 'tracks')], y_edges)
                     if mode == "test":
                         get_edge_score(log, block.edge_weights[('tracks', 'to', 'tracks')].squeeze(), y_edges, i)
 
                 if i >= len(self.model.dfei_model._blocks) - self.nFT_layers:
                     if self.config["frag"]:
-                        loss["frag_nodes"] += self.criterion["frag"](block.node_logits['frag'], y_frag)
+                        loss["frag_nodes"] += self.frag_criterion(block.node_logits['frag'], y_frag)
                     if self.config["FT"]:
                         selbool = y_ft != 1
-                        loss["ft_nodes"] += self.criterion["FT"](block.node_logits['ft'][selbool], y_ft[selbool])
+                        loss["ft_nodes"] +=self.ft_criterion(block.node_logits['ft'][selbool], y_ft[selbool])
 
         # Combined loss of the FT model
         combined_loss = loss["LCA"] + loss["t_nodes"] + loss["tt_edges"] + loss["frag_nodes"] + loss["ft_nodes"]
@@ -143,7 +153,7 @@ class HGNNLightningModule(L.LightningModule):
             outputs_ft = self.model(batch)
 
             selbool = y_ft != 1
-            ift_loss = self.criterion["FT"](outputs_ft["tracks"].x[selbool], y_ft[selbool])
+            ift_loss = self.ft_criterion(outputs_ft["tracks"].x[selbool], y_ft[selbool])
             loss["ft_nodes"] += ift_loss
             combined_loss += ift_loss
             if mode == "test":

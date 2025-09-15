@@ -6,23 +6,6 @@ import torch
 from torch import nn
 
 
-def get_loss_functions(config, pos_weights):
-    criterion = {}
-
-    if config["LCA"]:
-        criterion["LCA"] = nn.CrossEntropyLoss(weight=pos_weights["LCA"])
-    if config["node_prune"]:
-        criterion["nodes"] = nn.BCEWithLogitsLoss(pos_weight=pos_weights["nodes"])
-    if config["edge_prune"]:
-        criterion["edges"] = nn.BCEWithLogitsLoss(pos_weight=pos_weights["edges"])
-    if config["frag"]:
-        criterion["frag"] = nn.BCEWithLogitsLoss(pos_weight=pos_weights["frag"])
-    if config["FT"]:
-        criterion["FT"] = nn.CrossEntropyLoss(weight=pos_weights["FT"])
-
-    return criterion
-
-
 def init_logs(configs, mode="train"):
     loss_config = configs["training"]["infer"]
     gn_blocks = configs["model"]["DFEI"]["GNblocks"]["nBlocks"]
