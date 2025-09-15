@@ -79,7 +79,7 @@ def plot_weights(pos_weight, neg_weights, labels, version, channel="inclusive"):
     plt.close()
 
 
-def plot_LCA_acc(df, version, channel="inclusive"):
+def plot_LCA_acc(df, version):
     trn_LCA_acc0 = np.array(df["train_LCA_class0_pred_class0"])
     trn_LCA_acc1 = np.array(df["train_LCA_class1_pred_class1"])
     trn_LCA_acc2 = np.array(df["train_LCA_class2_pred_class2"])
@@ -93,7 +93,7 @@ def plot_LCA_acc(df, version, channel="inclusive"):
     epochs = np.arange(len(trn_LCA_acc0))
 
     # Plot dir
-    outdir = f"lightning_logs/version_{version}/plots_{channel}"
+    outdir = f"lightning_logs/version_{version}/plots"
     os.makedirs(outdir, exist_ok=True)
 
     # Plot LCA acc

@@ -219,11 +219,11 @@ class HGNNLightningModule(L.LightningModule):
         if self.config["node_prune"]:
             for i in range(len(self.model.dfei_model._blocks)):
                 plot_weights(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],
-                             [f"NN_nodes_{i}", "sig", "bkg"], self.version, channel=self.channel)
+                             [f"NN_nodes_{i}", "sig", "bkg"], self.version, channel=self.signal)
         if self.config["edge_prune"]:
             for i in range(len(self.model.dfei_model._blocks)):
                 plot_weights(self.tst_log[f"sig_edges_score_{i}"], self.tst_log[f"bkg_edges_score_{i}"],
-                             [f"NN_edges_{i}", "sig", "bkg"], self.version, channel=self.channel)
+                             [f"NN_edges_{i}", "sig", "bkg"], self.version, channel=self.signal)
         if self.config["LCA"]:
             obtain_reco_accuracy(self.sig_df, self.version, self.signal)
         if self.config["FT"]:
