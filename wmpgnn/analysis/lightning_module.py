@@ -176,6 +176,7 @@ class HGNNLightningModule(L.LightningModule):
                 ft_des = ft_des[node_selbool]
                 edge_selbool = block.edge_weights[('tracks', 'to', 'tracks')].squeeze()[edge_mask] > self.edge_prune
                 edge_pruning(edge_selbool, graph, ('tracks', 'to', 'tracks'))
+                graph[("tracks", "to", "tracks")].lca = graph[("tracks", "to", "tracks")].lca[edge_mask][edge_selbool]
 
             self.sig_df, self.evt_df = reco_event(graph, batch_idx, self.config, self.signal, self.sig_df,
                                                   self.evt_df, ft_des)
