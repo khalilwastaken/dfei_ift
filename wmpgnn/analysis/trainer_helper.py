@@ -116,12 +116,12 @@ def transform_pos_weight(weights, config, mode="train"):
         pos_weight["LCA"] = torch.ones(4)
 
     if config["node"]:
-        pos_weight["nodes"] = torch.tensor(summed["neg_nodes"] / summed["pos_nodes"])
+        pos_weight["nodes"] = torch.tensor([summed["neg_nodes"] / summed["pos_nodes"]])
     else:
         pos_weight["nodes"] = torch.ones(1)
 
     if config["edge"]:
-        pos_weight["edges"] = torch.tensor(summed["neg_edges"] / summed["pos_edges"])
+        pos_weight["edges"] = torch.tensor([summed["neg_edges"] / summed["pos_edges"]])
     else:
         pos_weight["edges"] = torch.ones(1)
 
@@ -141,9 +141,12 @@ def transform_pos_weight(weights, config, mode="train"):
 
 
 def adjust_config(configs):
-    if configs["data_dir"].split("_")[2] in ["LHCb", "pythia"]:
-        configs["training"]["data"] = configs["data_dir"].split("_")[2]
-        configs["training"]["infer"]["sim"] = configs["data_dir"].split("_")[2]
+    data_dir = configs.get("data_dir", "")
+    match = re.search(r"(LHCb|pythia)", data_dir)
+    if match:
+        sim_type = match.group(1)
+        configs["training"]["data"] = sim_type
+        configs["training"]["infer"]["sim"] = sim_type
     else:
         raise ValueError("Data type cannot be inferred. Please check.")
     configs["training"]["weights"]["weights"] = any(configs["training"]["weights"].values())
