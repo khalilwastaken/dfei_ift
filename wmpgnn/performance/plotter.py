@@ -261,11 +261,11 @@ def obtain_tagging_power(df, version, signal):
     B_pid = np.sign(np.array(os_bpm_df_non_sig["B_id"]))
     res = []
     for i in range(len(B_pid)):
-        if not pid[i] == "":
+        try:
             charge = np.sign(list(map(int, re.findall(r'-?\d+', pid[i]))))
             res.append(B_pid[i] == np.sum(charge))
-        else:
-            res.append(0)
+        except:
+            res.append(False)
     # Last sanity check: tagging power for the OS B+/- which are fully reco based on sum of charge
     charge_reco_bpm = os_bpm_df_non_sig[res]
     w_frac_bpm_cor_q, eff_bpm_cor_q, combined_bpm_cor_q = tagging_power_per_eta(charge_reco_bpm, eta_centers, eta_bins)
