@@ -79,7 +79,7 @@ def plot_weights(pos_weight, neg_weights, labels, version, channel="inclusive"):
     plt.close()
 
 
-def plot_LCA_acc(df, version):
+def plot_LCA_acc(df, version, channel="inclusive"):
     trn_LCA_acc0 = np.array(df["train_LCA_class0_pred_class0"])
     trn_LCA_acc1 = np.array(df["train_LCA_class1_pred_class1"])
     trn_LCA_acc2 = np.array(df["train_LCA_class2_pred_class2"])
@@ -93,7 +93,7 @@ def plot_LCA_acc(df, version):
     epochs = np.arange(len(trn_LCA_acc0))
 
     # Plot dir
-    outdir = f"lightning_logs/version_{version}/plots"
+    outdir = f"lightning_logs/version_{version}/plots_{channel}"
     os.makedirs(outdir, exist_ok=True)
 
     # Plot LCA acc
@@ -221,10 +221,23 @@ def obtain_tagging_power(df, version, signal):
     # Single B correctness fraction
     pred_b = np.argmax(signal_b_df[["ft_b_score", "ft_bbar_score"]], axis=1) * 2 - 1
     true_b = np.sign(signal_b_df["B_id"])
+    # Full
     one_b_corr = np.sum(pred_b == true_b)
     one_b_tot = len(true_b)
     one_b_ratio = one_b_corr / one_b_tot
     one_b_ratio_err = one_b_ratio * np.sqrt(1 / one_b_corr + 1 / one_b_tot)
+
+    # Has frag and has not frag
+    has_frag_selbool = signal_b_df["frags"].notna() & (signal_b_df["frags"] != "")
+    one_b_corr = np.sum(pred_b[has_frag_selbool] == true_b[has_frag_selbool])
+    one_b_tot = len(true_b[has_frag_selbool])
+    one_b_ratio_wfrag = one_b_corr / one_b_tot
+    one_b_ratio_wfrag_err = one_b_ratio * np.sqrt(1 / one_b_corr + 1 / one_b_tot)
+
+    one_b_corr = np.sum(pred_b[~has_frag_selbool] == true_b[~has_frag_selbool])
+    one_b_tot = len(true_b[~has_frag_selbool])
+    one_b_ratio_wofrag = one_b_corr / one_b_tot
+    one_b_ratio_wofrag_err = one_b_ratio * np.sqrt(1 / one_b_corr + 1 / one_b_tot)
 
     # Tagging power where there is an OS B
     two_b_df = df[df["EventNumber"].isin(event_ids[event_counts == 2])]
@@ -266,6 +279,7 @@ def obtain_tagging_power(df, version, signal):
             res.append(B_pid[i] == np.sum(charge))
         except:
             res.append(False)
+
     # Last sanity check: tagging power for the OS B+/- which are fully reco based on sum of charge
     charge_reco_bpm = os_bpm_df_non_sig[res]
     w_frac_bpm_cor_q, eff_bpm_cor_q, combined_bpm_cor_q = tagging_power_per_eta(charge_reco_bpm, eta_centers, eta_bins)
@@ -281,6 +295,8 @@ def obtain_tagging_power(df, version, signal):
         f.write(f"Full tagging power: {combined_full}\n")
         f.write(f"One B events: {np.sum(event_counts == 1)}\n")
         f.write(f"One B ratio: {one_b_ratio * 100} +/- {one_b_ratio_err * 100}\n")
+        f.write(f"One B wfrag ratio: {one_b_ratio_wfrag * 100} +/- {one_b_ratio_wfrag_err * 100}\n")
+        f.write(f"One B wofrag ratio: {one_b_ratio_wofrag * 100} +/- {one_b_ratio_wofrag_err * 100}\n")
         f.write(f"Two B events: {np.sum(event_counts == 2)}\n")
         f.write(f"Two B ratio: {two_b_ratio * 100} +/- {two_b_ratio_err * 100}\n")
         f.write(f"One B tagging power: {combined_one_b}\n")
@@ -298,10 +314,12 @@ def obtain_reco_accuracy(df, version, signal):
     nevents = len(sig_df)
     all_particles = np.sum(sig_df["AllParticles"])
     all_particles_ratio = all_particles / nevents * 100
-    all_particles_ratio_err = np.nan if all_particles == 0 else all_particles_ratio * np.sqrt(1 / all_particles + 1 / nevents)
+    all_particles_ratio_err = np.nan if all_particles == 0 else all_particles_ratio * np.sqrt(
+        1 / all_particles + 1 / nevents)
     perfect_reco = np.sum(sig_df["PerfectReco"])
     perfect_reco_ratio = perfect_reco / nevents * 100
-    perfect_reco_ratio_err = np.nan if perfect_reco == 0 else perfect_reco_ratio * np.sqrt(1 / perfect_reco + 1 / nevents)
+    perfect_reco_ratio_err = np.nan if perfect_reco == 0 else perfect_reco_ratio * np.sqrt(
+        1 / perfect_reco + 1 / nevents)
     none_iso = np.sum(sig_df["NoneIso"])
     none_iso_ratio = none_iso / nevents * 100
     none_iso_ratio_err = np.nan if none_iso == 0 else none_iso_ratio * np.sqrt(1 / none_iso + 1 / nevents)
