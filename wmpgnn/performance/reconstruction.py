@@ -50,6 +50,22 @@ def lca_truth_matrix(graph):
     return truth_lca
 
 
+def get_asso_frag(sig_dict, graph, cluster):
+    res_dict = sig_dict
+
+    cluster_keys = cluster['node_keys']
+    keys = graph['final_keys']
+    b_daugthers_mask = np.isin(keys, cluster_keys)
+    b_idx = str(graph["tracks"].asso_hh[b_daugthers_mask][0].item())
+
+    int_list = graph["frag_y"].tolist()
+    first_two = np.array([str(num)[:2] for num in int_list])
+    rest_digits = np.array([str(num)[2:] for num in int_list])
+
+    res_dict["frags"] = "_".join(first_two[rest_digits == b_idx])
+    return res_dict
+
+
 def get_pred_ft(sig_dict, graph, cluster, ft_score):
     res_dict = sig_dict
     # Save combined b bbar score, save individual scores, save pid of final
@@ -157,6 +173,7 @@ def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des):
                         sig_dict["PerfectReco"] = 1
                     sig_dict["NoneIso"] = sig_dict["PartReco"] = 0
                     sig_dict = get_pred_ft(sig_dict, graph, rc, ft_des)
+                    sig_dict = get_asso_frag(sig_dict, graph, rc)
                     break
                 elif true_in_reco == 1 and len(rc['node_keys']) > len(tc['node_keys']):
                     sig_dict["NoneIso"] = 1  # background tracks in signal

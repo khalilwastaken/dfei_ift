@@ -144,7 +144,7 @@ class HGNNLightningModule(L.LightningModule):
                         loss["ft_nodes"] +=self.ft_criterion(block.node_logits['ft'][selbool], y_ft[selbool])
 
         # Combined loss of the FT model
-        combined_loss = loss["LCA"] + loss["t_nodes"] + loss["tt_edges"] + loss["frag_nodes"] + loss["ft_nodes"]
+        combined_loss = loss["LCA"] + loss["t_nodes"] + 33 * loss["tt_edges"] + loss["frag_nodes"] + loss["ft_nodes"]
         if mode == "train" and self.dfei_usage:
             optimizers[0].zero_grad()
             self.manual_backward(combined_loss, retain_graph=True)
@@ -170,6 +170,8 @@ class HGNNLightningModule(L.LightningModule):
             elif self.ft_usage:
                 graph = outputs_ft
 
+            frag_in_evt = graph["tracks"].frag[graph["tracks"].frag != -1]
+
             if self.config["node_prune"] or self.config["edge_prune"]:
                 node_selbool = block.node_weights["tracks"].squeeze() > self.node_prune
                 edge_mask = true_node_pruning(node_selbool, graph, "tracks", [('tracks', 'to', 'tracks')])
@@ -177,7 +179,7 @@ class HGNNLightningModule(L.LightningModule):
                 edge_selbool = block.edge_weights[('tracks', 'to', 'tracks')].squeeze()[edge_mask] > self.edge_prune
                 edge_pruning(edge_selbool, graph, ('tracks', 'to', 'tracks'))
                 graph[("tracks", "to", "tracks")].lca = graph[("tracks", "to", "tracks")].lca[edge_mask][edge_selbool]
-
+            graph["frag_y"] = frag_in_evt
             self.sig_df, self.evt_df = reco_event(graph, batch_idx, self.config, self.signal, self.sig_df,
                                                   self.evt_df, ft_des)
 
