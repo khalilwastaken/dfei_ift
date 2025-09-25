@@ -151,6 +151,7 @@ class HGNNLightningModule(L.LightningModule):
             optimizers[0].step()
 
         if self.ft_usage and self.config["FT"]:
+            # here the model is actually updated, by the first one
             outputs_ft = self.model(batch)
 
             selbool = y_ft != 1
@@ -170,7 +171,9 @@ class HGNNLightningModule(L.LightningModule):
             elif self.ft_usage:
                 graph = outputs_ft
 
-            frag_in_evt = graph["tracks"].frag[graph["tracks"].frag != -1]
+            frag_selbool = graph["tracks"].frag != -1
+            frag_in_evt = graph["tracks"].frag[frag_selbool]
+            frag_pid = graph["part_ids"][frag_selbool]
 
             if self.config["node_prune"] or self.config["edge_prune"]:
                 node_selbool = block.node_weights["tracks"].squeeze() > self.node_prune
@@ -180,6 +183,7 @@ class HGNNLightningModule(L.LightningModule):
                 edge_pruning(edge_selbool, graph, ('tracks', 'to', 'tracks'))
                 graph[("tracks", "to", "tracks")].lca = graph[("tracks", "to", "tracks")].lca[edge_mask][edge_selbool]
             graph["frag_y"] = frag_in_evt
+            graph["frag_pid"] = frag_pid
             self.sig_df, self.evt_df = reco_event(graph, batch_idx, self.config, self.signal, self.sig_df,
                                                   self.evt_df, ft_des)
 

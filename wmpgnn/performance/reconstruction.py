@@ -60,9 +60,11 @@ def get_asso_frag(sig_dict, graph, cluster):
 
     int_list = graph["frag_y"].tolist()
     first_two = np.array([str(num)[:2] for num in int_list])
-    rest_digits = np.array([str(num)[2:] for num in int_list])
+    rest_digits = np.array([str(num)[2:] if len(str(num)) > 2 else '' for num in int_list])
 
-    res_dict["frags"] = "_".join(first_two[rest_digits == b_idx])
+    frag_selbool = rest_digits == b_idx
+    res_dict["frags"] = "_".join(first_two[frag_selbool])
+    res_dict["frags_pid"] = "_".join(str(x.item()) for x in graph["frag_pid"][rest_digits == b_idx])
     return res_dict
 
 
