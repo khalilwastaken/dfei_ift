@@ -44,9 +44,10 @@ def test_node_pruning(valid_mask, graph, node_type, edge_types):
 
 def true_node_pruning(node_mask, graph, node_type, edge_types):
     # Removes the nodes and associated edges from the graph
-    node_indx = torch.arange(len(node_mask))[node_mask]
-    indx_proj = torch.arange(len(node_indx))
-    lookup = torch.full((len(node_mask),), -1, dtype=torch.long)
+    device = node_mask.device
+    node_indx = torch.arange(len(node_mask), device=device)[node_mask]
+    indx_proj = torch.arange(len(node_indx), device=device)
+    lookup = torch.full((len(node_mask),), -1, device=device, dtype=torch.long)
     lookup[node_indx] = indx_proj
 
     # Removing the edges nodes
@@ -77,4 +78,5 @@ def true_node_pruning(node_mask, graph, node_type, edge_types):
             graph[edge_type].edge_index[1] = lookup[graph[edge_type].edge_index[1]]
         graph[edge_type].edges = graph[edge_type].edges[mask, :]
         graph[edge_type].y = graph[edge_type].y[mask]
-        return mask
+    # here we need to be careful since it only return 1 mask even though it creates multiple
+    return mask

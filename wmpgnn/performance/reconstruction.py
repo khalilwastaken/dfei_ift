@@ -181,11 +181,14 @@ def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des):
                     sig_dict["NoneIso"] = 1  # background tracks in signal
                     sig_dict["PartReco"] = 0
                     sig_dict = get_pred_ft(sig_dict, graph, rc, ft_des)
+                    sig_dict = get_asso_frag(sig_dict, graph, rc)
                     break
                 elif 0.2 <= true_in_reco < 1:
                     sig_dict["PartReco"] = 1  # FT decision can not be trusted
                     sig_dict["NumBkgParticles_noniso"] = len(rc['node_keys']) - len(tc['node_keys'])
                     sig_dict = get_pred_ft(sig_dict, graph, rc, ft_des)
+                    sig_dict = get_asso_frag(sig_dict, graph, rc)
+                    break
                 else:
                     sig_dict["final_pid"] = sig_dict["final_b_score"] = sig_dict["final_bbar_score"] = ""
                     sig_dict["ft_b_score"] = sig_dict["ft_bbar_score"] = 0
