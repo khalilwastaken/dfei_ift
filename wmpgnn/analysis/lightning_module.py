@@ -224,6 +224,16 @@ class HGNNLightningModule(L.LightningModule):
             self.version = self.logger.version
         self.sig_df.to_csv(f'lightning_logs/version_{self.version}/signal_df_{self.signal}.csv', index=False)
         self.evt_df.to_csv(f'lightning_logs/version_{self.version}/event_df_{self.signal}.csv', index=False)
+        # Remove wrongly classified signal events (Ds in Bs->Dspi for example)
+        if self.signal.startswith("Bs"):
+            sig_id = 531
+        elif self.signal.startswith("Bd"):
+            sig_id = 511
+        else:
+            ValueError("Currently undefined")
+        sig_selbool = self.sig_df["SigMatch"] == 1
+        sig_id_selbool = np.abs(self.sig_df["B_id"]) != sig_id
+        self.sig_df = self.sig_df[~(sig_selbool * sig_id_selbool)]
         if self.config["node_prune"]:
             for i in range(len(self.model.dfei_model._blocks)):
                 plot_weights(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],

@@ -141,16 +141,6 @@ def plot_loss(df, version, loss):
 
 
 def obtain_tagging_power(df, version, signal):
-    # Remove wrongly classified signal events (Ds in Bs->Dspi for example)
-    if signal.startswith("Bs"):
-        sig_id = 531
-    elif signal.startswith("Bd"):
-        sig_id = 511
-    else:
-        ValueError("Currently undefined")
-    sig_selbool = df["SigMatch"] == 1
-    sig_id_selbool = np.abs(df["B_id"]) != sig_id
-    df = df[~(sig_selbool * sig_id_selbool)]
     # Three cases
     # 1. Full on signal B
     # 2. Requirement of OS B exists
