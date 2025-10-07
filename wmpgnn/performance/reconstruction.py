@@ -15,6 +15,10 @@ def get_ref_signal(ref_signal):  # Here we can define them all
         signal_decay = {'daughters': ['mu+', 'mu-', 'pi+', 'pi-'], 'mothers': ['B0']}
         cc_signal_decay = {'daughters': ['mu+', 'mu-', 'pi+', 'pi-'], 'mothers': ['B~0']}
         return signal_decay, cc_signal_decay
+    elif ref_signal == "Bs_Dspi":
+        signal_decay = {'daughters': ['K+', 'K-', 'pi+', 'pi-'], 'mothers': ['B(s)0']}
+        cc_signal_decay = {'daughters': ['K+', 'K-', 'pi+', 'pi-'], 'mothers': ['B(s)~0']}
+        return signal_decay, cc_signal_decay
     return {}
 
 

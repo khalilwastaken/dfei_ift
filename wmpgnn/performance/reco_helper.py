@@ -15,6 +15,10 @@ def particle_name(id_):
         return 'D1(2420)+'
     elif id_ == -10413:
         return 'D1(2420)-'
+    elif id_ == 4412:
+        return 'Sigma_cc+'
+    elif id_ == -4412:
+        return 'Sigma_cc-'
     elif id_ == 4422:
         return 'Chi_cc++'
     elif id_ == -4422:
