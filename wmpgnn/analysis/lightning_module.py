@@ -14,6 +14,7 @@ from lightning_module_helper import *
 from wmpgnn.util.functions import acc_four_class
 from wmpgnn.util.pruners import edge_pruning, true_node_pruning
 from wmpgnn.performance.plotter import *
+from wmpgnn.performance.tagging_power import analyze_tagging_power
 from wmpgnn.performance.reconstruction import reco_event
 
 torch.set_float32_matmul_precision("high")
@@ -224,7 +225,15 @@ class HGNNLightningModule(L.LightningModule):
             self.version = self.logger.version
         self.sig_df.to_csv(f'lightning_logs/version_{self.version}/signal_df_{self.signal}.csv', index=False)
         self.evt_df.to_csv(f'lightning_logs/version_{self.version}/event_df_{self.signal}.csv', index=False)
-        # Remove wrongly classified signal events (Ds in Bs->Dspi for example)
+        if self.config["node_prune"]:
+            for i in range(len(self.model.dfei_model._blocks)):
+                plot_weights(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],
+                             [f"NN_nodes_{i}", "sig", "bkg"], self.version, channel=self.signal)
+        if self.config["edge_prune"]:
+            for i in range(len(self.model.dfei_model._blocks)):
+                plot_weights(self.tst_log[f"sig_edges_score_{i}"], self.tst_log[f"bkg_edges_score_{i}"],
+                             [f"NN_edges_{i}", "sig", "bkg"], self.version, channel=self.signal)
+        # Removing heavy hadron daughters of B since they are classified as signal (Ds in Bs->Dspi for example)
         if self.signal.startswith("Bs"):
             sig_id = 531
         elif self.signal.startswith("Bd"):
@@ -234,19 +243,12 @@ class HGNNLightningModule(L.LightningModule):
         sig_selbool = self.sig_df["SigMatch"] == 1
         sig_id_selbool = np.abs(self.sig_df["B_id"]) != sig_id
         self.sig_df = self.sig_df[~(sig_selbool * sig_id_selbool)]
-        if self.config["node_prune"]:
-            for i in range(len(self.model.dfei_model._blocks)):
-                plot_weights(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],
-                             [f"NN_nodes_{i}", "sig", "bkg"], self.version, channel=self.signal)
-        if self.config["edge_prune"]:
-            for i in range(len(self.model.dfei_model._blocks)):
-                plot_weights(self.tst_log[f"sig_edges_score_{i}"], self.tst_log[f"bkg_edges_score_{i}"],
-                             [f"NN_edges_{i}", "sig", "bkg"], self.version, channel=self.signal)
+
         if self.config["LCA"]:
             obtain_reco_accuracy(self.sig_df, self.version, self.signal)
         if self.config["FT"]:
             process_ft(self.tst_log, self.sig_df, self.version, self.signal)
-            obtain_tagging_power(self.sig_df, self.version, self.signal)
+            analyze_tagging_power(self.sig_df, self.version, self.signal)
 
 
 # Here we define a wrapper to do the training
