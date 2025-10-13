@@ -8,13 +8,18 @@ from typing import Tuple, List
 
 hep.style.use(hep.style.LHCb2)
 
+
 @dataclass
 class TaggingMetrics:
-    """Container for tagging performance metrics."""
+    """Container for tagging performance metrics with uncertainties."""
     wrong_fraction: np.ndarray
+    wrong_fraction_err: np.ndarray
     power: np.ndarray
+    power_err: np.ndarray
     combined_wrong_fraction: float
+    combined_wrong_fraction_err: float
     combined_power: float
+    combined_power_err: float
 
 
 class TaggingPowerAnalyzer:
@@ -38,10 +43,17 @@ class TaggingPowerAnalyzer:
         total_events = total_classified + num_unclassified
 
         efficiency = total_classified / total_events
-        wrong_fraction = num_wrong / total_classified
-        power = efficiency * (1 - 2 * wrong_fraction) ** 2
+        defficiency = efficiency * np.sqrt(1/total_classified + 1/total_events)
 
-        return wrong_fraction, power
+        wrong_fraction = num_wrong / total_classified
+        dwrong_fraction = wrong_fraction * (1/np.sqrt(num_wrong) + 1/np.sqrt(total_classified))
+
+        power = efficiency * (1 - 2 * wrong_fraction) ** 2
+        dp_deff = (1 - 2 * wrong_fraction) ** 2
+        dp_dw = -4 * efficiency * (1 - 2 * wrong_fraction)
+        dpower = np.sqrt((dp_deff * defficiency)**2 + (dp_dw * dwrong_fraction)**2)
+
+        return wrong_fraction, dwrong_fraction, power, dpower
 
     @staticmethod
     def process_df(df: pd.DataFrame) -> pd.DataFrame:
@@ -210,7 +222,7 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
     calc = CorrectnessCalculator()
 
     # Prepare data
-    df = analyzer.process_df(df)
+    df = analyzer.add_misstag(df)
     event_ids, event_counts = classifier.get_event_counts(df)
 
     file = f"lightning_logs/version_{version}/info_{signal}_FT.txt"
@@ -249,8 +261,10 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
                 f"{frag_results['with_frag'][1] * 100:.2f}%\n")
         f.write(f"Without fragmentation: {frag_results['without_frag'][0] * 100:.2f}% +/- "
                 f"{frag_results['without_frag'][1] * 100:.2f}%\n")
-        f.write(f"Combined tagging power: {metrics_single.combined_wrong_fraction:.4f}, "
-                f"{metrics_single.combined_power:.4f}\n")
+        f.write(
+            f"Combined wrong fraction: {metrics_single.combined_wrong_fraction:.4f} +/- {metrics_single.combined_wrong_fraction_err:.4f}\n")
+        f.write(
+            f"Combined tagging power: {metrics_single.combined_power:.4f} +/- {metrics_single.combined_power_err:.4f}\n")
 
         # 3. Two B events (opposite-side tagging)
         two_b_df = classifier.filter_n_b_events(df, 2, event_ids, event_counts)
@@ -272,8 +286,9 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
                 f"{frag_two_results['with_frag'][1] * 100:.2f}%\n")
         f.write(f"Without fragmentation: {frag_two_results['without_frag'][0] * 100:.2f}% +/- "
                 f"{frag_two_results['without_frag'][1] * 100:.2f}%\n")
-        f.write(f"Combined tagging power: {metrics_two.combined_wrong_fraction:.4f}, "
-                f"{metrics_two.combined_power:.4f}\n")
+        f.write(
+            f"Combined wrong fraction: {metrics_two.combined_wrong_fraction:.4f} +/- {metrics_two.combined_wrong_fraction_err:.4f}\n")
+        f.write(f"Combined tagging power: {metrics_two.combined_power:.4f} +/- {metrics_two.combined_power_err:.4f}\n")
 
         # 4. B+/- specific analysis
         bpm_df = classifier.filter_bpm_events(two_b_df)
@@ -302,10 +317,10 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
         f.write(f"OS B+/- tagging power: {metrics_bpm_os.combined_wrong_fraction:.4f}, "
                 f"{metrics_bpm_os.combined_power:.4f}\n")
         f.write(f"Charge reconstruction correctness: {charge_frac * 100:.2f}%\n")
-        f.write(f"Charge-verified tagging power: {metrics_charge.combined_wrong_fraction:.4f}, "
-                f"{metrics_charge.combined_power:.4f}\n")
-
-
+        f.write(
+            f"Combined wrong fraction: {metrics_charge.combined_wrong_fraction:.4f} +/- {metrics_charge.combined_wrong_fraction_err:.4f}\n")
+        f.write(
+            f"Combined tagging power: {metrics_charge.combined_power:.4f} +/- {metrics_charge.combined_power_err:.4f}\n")
 
 
 def obtain_tagging_power(df, version, signal):
