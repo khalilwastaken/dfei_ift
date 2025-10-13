@@ -238,7 +238,10 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
         analyzer.plot_tagging_power(metrics_single, signal_single_b["eta"], "singleB_tagging_power")
 
         ratio, ratio_err = calc.calculate_prediction_correctness(signal_single_b)
-        frag_results = calc.calculate_by_fragmentation(signal_single_b)
+        try:
+            frag_results = calc.calculate_by_fragmentation(signal_single_b)
+        except:
+            frag_results = {'with_frag': [-1, -1], "without_frag": [-1, -1]}
 
         f.write(f"\nSingle B Events: {np.sum(event_counts == 1)}\n")
         f.write(f"Correctness ratio: {ratio * 100:.2f}% +/- {ratio_err * 100:.2f}%\n")
@@ -258,7 +261,10 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
                                     "doubleB_tagging_power")
 
         ratio_two, ratio_two_err = calc.calculate_prediction_correctness(signal_two_b)
-        frag_two_results = calc.calculate_by_fragmentation(signal_two_b)
+        try:
+            frag_two_results = calc.calculate_by_fragmentation(signal_two_b)
+        except:
+            frag_two_results = {'with_frag': [-1, -1], "without_frag": [-1, -1]}
 
         f.write(f"\nDouble B Events: {np.sum(event_counts == 2)}\n")
         f.write(f"Correctness ratio: {ratio_two * 100:.2f}% +/- {ratio_two_err * 100:.2f}%\n")
