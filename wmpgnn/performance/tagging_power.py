@@ -231,7 +231,7 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
     cond = "a" if os.path.exists(file) else "w"
 
     with open(file, cond) as f:
-        f.write("=" * 50 + "\n")
+        f.write("\n" + "=" * 50 + "\n")
         f.write("FLAVOUR TAGGING POWER \n")
 
         # 1. Full tagging power (all signal-matched events)
@@ -239,8 +239,9 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
         metrics_full = analyzer.compute_tagging_power_per_eta(full_df)
         analyzer.plot_tagging_power(metrics_full, full_df["eta"], "full_tagging_power")
 
-        f.write(f"\nFull tagging power: {metrics_full.combined_wrong_fraction:.4f}, "
-                f"{metrics_full.combined_power:.4f}\n")
+        f.write(
+            f"\nFull wrong fraction: {metrics_full.combined_wrong_fraction:.4f} +/- {metrics_full.combined_wrong_fraction_err:.4f}\n")
+        f.write(f"Full tagging power: {metrics_full.combined_power:.4f} +/- {metrics_full.combined_power_err:.4f}\n")
 
         # 2. Single B events
         single_b_df = classifier.filter_n_b_events(df, 1, event_ids, event_counts)
