@@ -9,7 +9,6 @@ from typing import Tuple, List
 import matplotlib.pyplot as plt
 import mplhep as hep
 
-
 hep.style.use(hep.style.LHCb2)
 
 
@@ -41,23 +40,23 @@ class TaggingPowerAnalyzer:
 
     @staticmethod
     def calculate_tagging_power(num_right: np.ndarray, num_wrong: np.ndarray,
-                                num_unclassified: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+                                num_unclassified: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Calculate tagging efficiency and power metrics."""
         total_classified = num_right + num_wrong
         total_events = total_classified + num_unclassified
 
         efficiency = total_classified / total_events
-        defficiency = efficiency * np.sqrt(1/total_classified + 1/total_events)
+        defficiency = efficiency * np.sqrt(1 / total_classified + 1 / total_events)
 
         wrong_fraction = num_wrong / total_classified
-        dwrong_fraction = wrong_fraction * (1/np.sqrt(num_wrong) + 1/np.sqrt(total_classified))
+        dwrong_fraction = wrong_fraction * (1 / np.sqrt(num_wrong) + 1 / np.sqrt(total_classified))
 
         power = efficiency * (1 - 2 * wrong_fraction) ** 2
         dp_deff = (1 - 2 * wrong_fraction) ** 2
         dp_dw = -4 * efficiency * (1 - 2 * wrong_fraction)
-        dpower = np.sqrt((dp_deff * defficiency)**2 + (dp_dw * dwrong_fraction)**2)
+        dpower = np.sqrt((dp_deff * defficiency) ** 2 + (dp_dw * dwrong_fraction) ** 2)
 
-        return wrong_fraction, dwrong_fraction, power, dpower
+        return wrong_fraction*100, dwrong_fraction*100, power*100, dpower*100
 
     @staticmethod
     def process_df(df: pd.DataFrame) -> pd.DataFrame:
@@ -98,16 +97,17 @@ class TaggingPowerAnalyzer:
         num_right, num_wrong, num_unclassified = self._calculate_per_eta_bin(df)
 
         # Per-bin metrics
-        wrong_frac, power = self.calculate_tagging_power(
+        wrong_frac, wrong_frac_err, power, power_err = self.calculate_tagging_power(
             np.array(num_right), np.array(num_wrong), np.array(num_unclassified)
         )
 
         # Combined metrics
-        combined_wrong_frac, combined_power = self.calculate_tagging_power(
+        combined_wrong_frac, combined_wrong_frac_err, combined_power, combined_power_err = self.calculate_tagging_power(
             np.sum(num_right), np.sum(num_wrong), np.sum(num_unclassified)
         )
 
-        return TaggingMetrics(wrong_frac, power, combined_wrong_frac, combined_power)
+        return TaggingMetrics(wrong_frac, wrong_frac_err, power, power_err, combined_wrong_frac,
+                              combined_wrong_frac_err, combined_power, combined_power_err)
 
     def plot_tagging_power(self, metrics: TaggingMetrics, eta_dist: np.ndarray,
                            label: str = "tagging_power"):
@@ -121,14 +121,15 @@ class TaggingPowerAnalyzer:
                 color="grey", weights=weights / 2 * 100)
 
         # Plot metrics
-        ax.errorbar(self.eta_centers, metrics.power * 100, xerr=self.x_err,
+        ax.errorbar(self.eta_centers, metrics.power, xerr=self.x_err, yerr=metrics.power_err,
                     fmt='o', color="red", label="Tagging Power")
-        ax.errorbar(self.eta_centers, metrics.wrong_fraction * 100, xerr=self.x_err,
+        ax.errorbar(self.eta_centers, metrics.wrong_fraction, xerr=self.x_err,
+                    yerr=metrics.wrong_fraction_err,
                     fmt='o', color="blue", label="Wrong Fraction")
 
         ax.set_xlim(0, 0.5)
         ax.set_ylim(0, 105)
-        ax.set_xlabel(r"$\eta$")
+        ax.set_xlabel(r"Predicted mistag $\eta$")
         ax.set_ylabel("[%]")
         ax.legend()
         plt.savefig(f"{self.outdir}/{label}.pdf")
@@ -227,7 +228,7 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
     calc = CorrectnessCalculator()
 
     # Prepare data
-    df = analyzer.add_misstag(df)
+    df = analyzer.process_df(df)
     event_ids, event_counts = classifier.get_event_counts(df)
 
     file = f"lightning_logs/version_{version}/info_{signal}_FT.txt"
@@ -236,7 +237,7 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
     cond = "a" if os.path.exists(file) else "w"
 
     with open(file, cond) as f:
-        f.write("\n" + "=" * 50 + "\n")
+        f.write("=" * 50 + "\n")
         f.write("FLAVOUR TAGGING POWER \n")
 
         # 1. Full tagging power (all signal-matched events)
@@ -245,8 +246,8 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
         analyzer.plot_tagging_power(metrics_full, full_df["eta"], "full_tagging_power")
 
         f.write(
-            f"\nFull wrong fraction: {metrics_full.combined_wrong_fraction:.4f} +/- {metrics_full.combined_wrong_fraction_err:.4f}\n")
-        f.write(f"Full tagging power: {metrics_full.combined_power:.4f} +/- {metrics_full.combined_power_err:.4f}\n")
+            f"\nFull wrong fraction: ({metrics_full.combined_wrong_fraction:.4f} +/- {metrics_full.combined_wrong_fraction_err:.4f})%\n")
+        f.write(f"Full tagging power: ({metrics_full.combined_power:.4f} +/- {metrics_full.combined_power_err:.4f})%\n")
 
         # 2. Single B events
         single_b_df = classifier.filter_n_b_events(df, 1, event_ids, event_counts)
@@ -262,15 +263,15 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
             frag_results = {'with_frag': [-1, -1], "without_frag": [-1, -1]}
 
         f.write(f"\nSingle B Events: {np.sum(event_counts == 1)}\n")
-        f.write(f"Correctness ratio: {ratio * 100:.2f}% +/- {ratio_err * 100:.2f}%\n")
-        f.write(f"With fragmentation: {frag_results['with_frag'][0] * 100:.2f}% +/- "
-                f"{frag_results['with_frag'][1] * 100:.2f}%\n")
-        f.write(f"Without fragmentation: {frag_results['without_frag'][0] * 100:.2f}% +/- "
-                f"{frag_results['without_frag'][1] * 100:.2f}%\n")
+        f.write(f"Correctness ratio: ({ratio * 100:.2f} +/- {ratio_err * 100:.2f})%\n")
+        f.write(f"With fragmentation: ({frag_results['with_frag'][0] * 100:.2f} +/- "
+                f"{frag_results['with_frag'][1] * 100:.2f})%\n")
+        f.write(f"Without fragmentation: ({frag_results['without_frag'][0] * 100:.2f} +/- "
+                f"{frag_results['without_frag'][1] * 100:.2f})%\n")
         f.write(
-            f"Combined wrong fraction: {metrics_single.combined_wrong_fraction:.4f} +/- {metrics_single.combined_wrong_fraction_err:.4f}\n")
+            f"Combined wrong fraction: ({metrics_single.combined_wrong_fraction:.4f} +/- {metrics_single.combined_wrong_fraction_err:.4f})%\n")
         f.write(
-            f"Combined tagging power: {metrics_single.combined_power:.4f} +/- {metrics_single.combined_power_err:.4f}\n")
+            f"Combined tagging power: ({metrics_single.combined_power:.4f} +/- {metrics_single.combined_power_err:.4f})%\n")
 
         # 3. Two B events (opposite-side tagging)
         two_b_df = classifier.filter_n_b_events(df, 2, event_ids, event_counts)
@@ -287,14 +288,14 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
             frag_two_results = {'with_frag': [-1, -1], "without_frag": [-1, -1]}
 
         f.write(f"\nDouble B Events: {np.sum(event_counts == 2)}\n")
-        f.write(f"Correctness ratio: {ratio_two * 100:.2f}% +/- {ratio_two_err * 100:.2f}%\n")
-        f.write(f"With fragmentation: {frag_two_results['with_frag'][0] * 100:.2f}% +/- "
-                f"{frag_two_results['with_frag'][1] * 100:.2f}%\n")
-        f.write(f"Without fragmentation: {frag_two_results['without_frag'][0] * 100:.2f}% +/- "
-                f"{frag_two_results['without_frag'][1] * 100:.2f}%\n")
+        f.write(f"Correctness ratio: ({ratio_two * 100:.2f} +/- {ratio_two_err * 100:.2f})%\n")
+        f.write(f"With fragmentation: ({frag_two_results['with_frag'][0] * 100:.2f} +/- "
+                f"{frag_two_results['with_frag'][1] * 100:.2f})%\n")
+        f.write(f"Without fragmentation: ({frag_two_results['without_frag'][0] * 100:.2f} +/- "
+                f"{frag_two_results['without_frag'][1] * 100:.2f})%\n")
         f.write(
-            f"Combined wrong fraction: {metrics_two.combined_wrong_fraction:.4f} +/- {metrics_two.combined_wrong_fraction_err:.4f}\n")
-        f.write(f"Combined tagging power: {metrics_two.combined_power:.4f} +/- {metrics_two.combined_power_err:.4f}\n")
+            f"Combined wrong fraction: ({metrics_two.combined_wrong_fraction:.4f} +/- {metrics_two.combined_wrong_fraction_err:.4f})%\n")
+        f.write(f"Combined tagging power: ({metrics_two.combined_power:.4f} +/- {metrics_two.combined_power_err:.4f})%\n")
 
         # 4. B+/- specific analysis
         bpm_df = classifier.filter_bpm_events(two_b_df)
@@ -318,181 +319,16 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
                                     "osB_pm_true_charge_tagging_power")
 
         f.write(f"\nB+/- Events: {len(bpm_signal)}\n")
-        f.write(f"Signal B+/- tagging power: {metrics_bpm_sig.combined_wrong_fraction:.4f}, "
-                f"{metrics_bpm_sig.combined_power:.4f}\n")
-        f.write(f"OS B+/- tagging power: {metrics_bpm_os.combined_wrong_fraction:.4f}, "
-                f"{metrics_bpm_os.combined_power:.4f}\n")
-        f.write(f"Charge reconstruction correctness: {charge_frac * 100:.2f}%\n")
+        f.write(f"Signal has OS B+/- wrong fraction: ({metrics_bpm_sig.combined_wrong_fraction:.4f} +/- "
+                f"{metrics_bpm_sig.combined_wrong_fraction_err:.4f})%\n")
+        f.write(f"Signal has OS B+/- tagging power: ({metrics_bpm_sig.combined_power:.4f} +/- "
+                f"{metrics_bpm_sig.combined_power_err:.4f})%\n")
+        f.write(f"OS B+/- wrong fraction: ({metrics_bpm_os.combined_wrong_fraction:.4f} +/- "
+                f"{metrics_bpm_os.combined_wrong_fraction_err:.4f})%\n")
+        f.write(f"OS B+/- tagging power: ({metrics_bpm_os.combined_power:.4f} +/- "
+                f"{metrics_bpm_os.combined_power_err:.4f})%\n")
+        f.write(f"B+/- charge reconstruction correctness: {charge_frac * 100:.2f}%\n")
         f.write(
-            f"Combined wrong fraction: {metrics_charge.combined_wrong_fraction:.4f} +/- {metrics_charge.combined_wrong_fraction_err:.4f}\n")
+            f"Charged correct wrong fraction: ({metrics_charge.combined_wrong_fraction:.4f} +/- {metrics_charge.combined_wrong_fraction_err:.4f})%\n")
         f.write(
-            f"Combined tagging power: {metrics_charge.combined_power:.4f} +/- {metrics_charge.combined_power_err:.4f}\n")
-
-
-def obtain_tagging_power(df, version, signal):
-    # Legacy version
-    # Three cases
-    # 1. Full on signal B
-    # 2. Requirement of OS B exists
-    # 3. additional requirement of OS B being B+/-
-    def calculate_tagging_power(num_right, num_wrong, num_unclassified):
-        efficiency = (num_right + num_wrong) / (num_right + num_wrong + num_unclassified)
-        wrong_fra = num_wrong / (num_right + num_wrong)
-        power = efficiency * (1 - 2 * wrong_fra) ** 2
-        return wrong_fra, power
-
-    def tagging_power_per_eta(df, eta_centers, eta_bins):
-        num_right, num_wrong, num_unclassified = [], [], []
-
-        for i in range(len(eta_centers)):
-            in_bin = (df["eta"] >= eta_bins[i]) & (df["eta"] < eta_bins[i + 1])
-            bin_df = df[in_bin]
-
-            unclassified = len(bin_df) - np.sum((bin_df["ft_b_score"] > 0.5) | (bin_df["ft_bbar_score"] > 0.5))
-            true_tag = np.sign(bin_df["B_id"])
-            predicted_tag = np.argmax(bin_df[["ft_b_score", "ft_bbar_score"]], axis=1) * 2 - 1
-
-            num_right.append(np.sum(true_tag == predicted_tag))
-            num_wrong.append(np.sum(true_tag != predicted_tag))
-            num_unclassified.append(unclassified)
-
-        wrong_fra, power = calculate_tagging_power(
-            np.array(num_right), np.array(num_wrong), np.array(num_unclassified)
-        )
-        combined_wrong_fra, combined_power = calculate_tagging_power(
-            np.sum(num_right), np.sum(num_wrong), np.sum(num_unclassified)
-        )
-
-        return wrong_fra, power, (combined_wrong_fra, combined_power)
-
-    def plot_tagging_power(eta_centers, eta_bins, power, wrong_fra, eta_dist, version, channel, label):
-        xerr_lower = [center - eta_bins[i] for i, center in enumerate(eta_centers)]
-        xerr_upper = [eta_bins[i + 1] - center for i, center in enumerate(eta_centers)]
-        xerr = [xerr_lower, xerr_upper]
-
-        outdir = f"lightning_logs/version_{version}/plots_{channel}"
-        os.makedirs(outdir, exist_ok=True)
-
-        fig, ax = plt.subplots(figsize=(9, 6))
-        weights = np.ones_like(eta_dist) / len(eta_dist)
-        ax.hist(eta_dist, bins=eta_bins, label=r"Underlying $\eta$ distribution", color="grey", weights=weights / 2)
-        ax.errorbar(eta_centers, power, xerr=xerr, fmt='o', color="red", label="Tagging Power")
-        ax.errorbar(eta_centers, wrong_fra, xerr=xerr, fmt='o', color="blue", label="Wrong Fraction")
-        ax.set_xlim(0, 0.5)
-        ax.set_xlabel(r"$\eta$")
-        ax.set_ylabel("[%]")
-        ax.legend()
-        plt.savefig(f"{outdir}/{label}.pdf")
-        plt.savefig(f"{outdir}/{label}.png")
-        plt.close()
-
-    eta_centers = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55]
-    eta_bins = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 1]
-
-    df = df.copy()
-    df["eta"] = 1 - np.max(df[["ft_b_score", "ft_bbar_score"]], axis=1)
-
-    # Full tagging power
-    full_df = df[df["SigMatch"] == 1]
-    wrong_frac_full, power_full, combined_full = tagging_power_per_eta(full_df, eta_centers, eta_bins)
-    plot_tagging_power(eta_centers, eta_bins, power_full, wrong_frac_full, full_df["eta"], version, signal,
-                       "full_tagging_power")
-
-    # Tagging power for only signal B in event and the case where OS exists
-    event_ids, event_counts = np.unique(df["EventNumber"], return_counts=True)
-
-    # Tagging power for only signal B in event
-    single_b_df = df[df["EventNumber"].isin(event_ids[event_counts == 1])]
-    signal_b_df = single_b_df[single_b_df["SigMatch"] == 1]
-
-    wrong_frac_one_b, power_one_b, combined_one_b = tagging_power_per_eta(signal_b_df, eta_centers, eta_bins)
-    plot_tagging_power(eta_centers, eta_bins, power_one_b, wrong_frac_one_b, signal_b_df["eta"], version, signal,
-                       "only_signal_B_tagging_power")
-    # Single B correctness fraction
-    pred_b = np.argmax(signal_b_df[["ft_b_score", "ft_bbar_score"]], axis=1) * 2 - 1
-    true_b = np.sign(signal_b_df["B_id"])
-    # Full
-    one_b_corr = np.sum(pred_b == true_b)
-    one_b_tot = len(true_b)
-    one_b_ratio = one_b_corr / one_b_tot
-    one_b_ratio_err = one_b_ratio * np.sqrt(1 / one_b_corr + 1 / one_b_tot)
-
-    # Has frag and has not frag
-    has_frag_selbool = signal_b_df["frags"].notna() & (signal_b_df["frags"] != "")
-    one_b_corr = np.sum(pred_b[has_frag_selbool] == true_b[has_frag_selbool])
-    one_b_tot = len(true_b[has_frag_selbool])
-    one_b_ratio_wfrag = one_b_corr / one_b_tot
-    one_b_ratio_wfrag_err = one_b_ratio * np.sqrt(1 / one_b_corr + 1 / one_b_tot)
-
-    one_b_corr = np.sum(pred_b[~has_frag_selbool] == true_b[~has_frag_selbool])
-    one_b_tot = len(true_b[~has_frag_selbool])
-    one_b_ratio_wofrag = one_b_corr / one_b_tot
-    one_b_ratio_wofrag_err = one_b_ratio * np.sqrt(1 / one_b_corr + 1 / one_b_tot)
-
-    # Tagging power where there is an OS B
-    two_b_df = df[df["EventNumber"].isin(event_ids[event_counts == 2])]
-    signal_b_df = two_b_df[two_b_df["SigMatch"] == 1]
-
-    wrong_frac_two_b, power_two_b, combined_two_b = tagging_power_per_eta(signal_b_df, eta_centers, eta_bins)
-    plot_tagging_power(eta_centers, eta_bins, power_two_b, wrong_frac_two_b, signal_b_df["eta"], version, signal,
-                       "os_b_exists_tagging_power")
-    # Tw0 B correctness fraction
-    pred_b = np.argmax(signal_b_df[["ft_b_score", "ft_bbar_score"]], axis=1) * 2 - 1
-    true_b = np.sign(signal_b_df["B_id"])
-    two_b_corr = np.sum(pred_b == true_b)
-    two_b_tot = len(true_b)
-    two_b_ratio = two_b_corr / two_b_tot
-    two_b_ratio_err = two_b_ratio * np.sqrt(1 / two_b_corr + 1 / two_b_tot)
-
-    # Third case:
-    is_bpm = np.abs(two_b_df["B_id"]) == 521
-    two_b_bpm_df = two_b_df[two_b_df["EventNumber"].isin(two_b_df["EventNumber"][is_bpm])]
-
-    os_bpm_df_sig = two_b_bpm_df[two_b_bpm_df["SigMatch"] == 1]
-    wrong_frac_bpm, power_bpm, combined_bpm = tagging_power_per_eta(os_bpm_df_sig, eta_centers, eta_bins)
-    plot_tagging_power(eta_centers, eta_bins, power_bpm, wrong_frac_bpm, os_bpm_df_sig["eta"], version, signal,
-                       "os_bpm_exists_tagging_power")
-
-    # For opposite-side Bpm
-    os_bpm_df_non_sig = two_b_bpm_df[two_b_bpm_df["SigMatch"] == 0]
-    wrong_frac_bpm_non, power_bpm_non, combined_bpm_non = tagging_power_per_eta(os_bpm_df_non_sig, eta_centers,
-                                                                                eta_bins)
-    plot_tagging_power(eta_centers, eta_bins, power_bpm_non, wrong_frac_bpm_non, os_bpm_df_non_sig["eta"], version,
-                       signal, "os_bpm_tagging_power")
-    # Sanity check: determine flavour from charge predictions
-    pid = np.array(os_bpm_df_non_sig["final_pid"])
-    B_pid = np.sign(np.array(os_bpm_df_non_sig["B_id"]))
-    res = []
-    for i in range(len(B_pid)):
-        try:
-            charge = np.sign(list(map(int, re.findall(r'-?\d+', pid[i]))))
-            res.append(B_pid[i] == np.sum(charge))
-        except:
-            res.append(False)
-
-    # Last sanity check: tagging power for the OS B+/- which are fully reco based on sum of charge
-    charge_reco_bpm = os_bpm_df_non_sig[res]
-    w_frac_bpm_cor_q, eff_bpm_cor_q, combined_bpm_cor_q = tagging_power_per_eta(charge_reco_bpm, eta_centers, eta_bins)
-    plot_tagging_power(eta_centers, eta_bins, eff_bpm_cor_q, w_frac_bpm_cor_q, charge_reco_bpm["eta"], version,
-                       signal, "os_bpm_tagging_power_true_charge")
-
-    # also save some numbers
-    file = f"lightning_logs/version_{version}/info_{signal}_FT.txt"
-    cond = "a" if os.path.exists(file) else "w"
-    with open(file, cond) as f:
-        f.write("=" * 30 + "\n")
-        f.write("Tagging decision:\n")
-        f.write(f"Full tagging power: {combined_full}\n")
-        f.write(f"One B events: {np.sum(event_counts == 1)}\n")
-        f.write(f"One B ratio: {one_b_ratio * 100} +/- {one_b_ratio_err * 100}\n")
-        f.write(f"One B wfrag ratio: {one_b_ratio_wfrag * 100} +/- {one_b_ratio_wfrag_err * 100}\n")
-        f.write(f"One B wofrag ratio: {one_b_ratio_wofrag * 100} +/- {one_b_ratio_wofrag_err * 100}\n")
-        f.write(f"Two B events: {np.sum(event_counts == 2)}\n")
-        f.write(f"Two B ratio: {two_b_ratio * 100} +/- {two_b_ratio_err * 100}\n")
-        f.write(f"One B tagging power: {combined_one_b}\n")
-        f.write(f"Two B tagging power: {combined_two_b}\n")
-        f.write(f"#OS B+/- events: {len(os_bpm_df_sig)}\n")
-        f.write(f"OS B = B+/- tagging power (combined): {combined_bpm}\n")
-        f.write(f"OS B+/- tagging power (combined): {combined_bpm_non}\n")
-        f.write(f"Charge based B+/- correct: {np.sum(res) / len(res)}\n")
-        f.write(f"Correct q by sum: {combined_bpm_cor_q}")
+            f"Charged correct tagging power: ({metrics_charge.combined_power:.4f} +/- {metrics_charge.combined_power_err:.4f})%\n")
