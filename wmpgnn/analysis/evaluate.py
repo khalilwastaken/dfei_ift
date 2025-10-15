@@ -11,7 +11,7 @@ from functools import partial
 from torch_geometric.loader import DataLoader
 
 from trainer_helper import *
-from model import DFEI_HGNN
+from wmpgnn.model.model import DFEI_HGNN, FT_HGNN, DFEIFT
 from lightning_module import evaluate
 
 if __name__ == "__main__":
@@ -29,8 +29,8 @@ if __name__ == "__main__":
         config = adjust_config(yaml.safe_load(file))
 
     # Load model
-    DFEI_model = DFEI_HGNN(config["model"])
-    print(DFEI_model)
+    model = DFEIFT(config["model"])
+    print(model)
     print("=" * 30)
 
     # Get dataset
@@ -56,7 +56,7 @@ if __name__ == "__main__":
                             num_workers=config["training"]["ncpu"] * 2, drop_last=True)
     pos_weights = transform_pos_weight(None, None, mode="eval")
 
-    metrics, version = evaluate(DFEI_model, tst_loader, config, pos_weights)
+    metrics, version = evaluate(model, tst_loader, config, pos_weights)
 
     """Evaluate the output metrics"""
     metrics_eval(metrics, config["training"]["infer"], version, config["evaluate"]["sample"])
