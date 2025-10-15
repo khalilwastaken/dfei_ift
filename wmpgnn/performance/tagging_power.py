@@ -123,6 +123,7 @@ class TaggingPowerAnalyzer:
                     fmt='o', color="blue", label="Wrong Fraction")
 
         ax.set_xlim(0, 0.5)
+        ax.set_ylim(0, 105)
         ax.set_xlabel(r"$\eta$")
         ax.set_ylabel("[%]")
         ax.legend()
