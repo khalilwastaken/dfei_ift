@@ -2,7 +2,7 @@ import pytorch_lightning as pl
 
 import torch
 
-from wmpgnn.util.helper import create_mlp
+from wmpgnn.model.mlp_class import create_mlp
 
 
 class HeteroGraphCoder(pl.LightningModule):
@@ -15,21 +15,22 @@ class HeteroGraphCoder(pl.LightningModule):
         self._node_models = {}
         self._endecoder = endecoder
 
+        vars = config.keys()
         for node_type in self._node_types:
-            if node_type in config["vars"]:
-                self._node_models[node_type] = create_mlp(config["MLP"])
+            if node_type in vars:
+                self._node_models[node_type] = create_mlp(config[node_type])
             else:
                 self._node_models[node_type] = nn.Identity()
 
         for edge_type in self._edge_types:
             edge_config_def = f"{edge_type[0]}_{edge_type[2]}"
-            if edge_config_def in config["vars"]:
-                self._edge_models[edge_type] = create_mlp(config["MLP"])
+            if edge_config_def in vars:
+                self._edge_models[edge_type] = create_mlp(config[edge_config_def])
             else:
                 self._edge_models[edge_type] = nn.Identity()
 
-        if "global" in config["vars"]:
-            self._global_model = create_mlp(config["MLP"])
+        if "global" in vars:
+            self._global_model = create_mlp(config["global"])
         else:
             self._global_model = nn.Identity()
 
@@ -38,7 +39,7 @@ class HeteroGraphCoder(pl.LightningModule):
 
     def forward(self, graph):
         if self._endecoder:
-            # Functions as an decoder
+            # Functions as a decoder
             for node_type in self._node_types:
                 graph[node_type].x = self._node_models[node_type](graph[node_type].x, graph[node_type].batch)
             for edge_type in self._edge_types:
