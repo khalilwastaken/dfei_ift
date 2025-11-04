@@ -280,6 +280,7 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
             optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
             config=config
         )
+    module = torch.compile(module)
 
     early_stopping = EarlyStopping(
         monitor="val_combined_loss",
@@ -292,7 +293,7 @@ def training(model, trn_loader, val_loader, tst_loader, config, pos_weights):
         filename="best-{epoch:02d}-{val_combined_loss:.2f}",
         monitor="val_combined_loss",
         mode="min",
-        save_top_k=1
+        save_top_k=5
     )
 
     log_dir = "lightning_logs"
@@ -351,6 +352,7 @@ def evaluate(model, tst_loader, config, pos_weight):
             config=config,
             is_train=False
         )
+        module = torch.compile(module)
     version = config["training"]["cpt"]["model"].split("_")[0]
     trainer = Trainer(
         default_root_dir=f'lightning_logs/version_{version}',  # save the eval stuff in the dir of the model
