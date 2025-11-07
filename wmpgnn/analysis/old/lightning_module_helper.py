@@ -74,9 +74,7 @@ def get_edge_score(log, edge_weights, y_edges, i):
 
 def init_test_df():
     signal_df = pd.DataFrame()
-
     event_df = pd.DataFrame()
-
     return signal_df, event_df
 
 

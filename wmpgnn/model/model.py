@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torch_geometric.nn.models import MLP
 
 from wmpgnn.model.model_helper import *
 from wmpgnn.gnn.hetero_graphcoder import HeteroGraphCoder
@@ -44,7 +43,6 @@ class DFEI_HGNN(pl.LightningModule):
 
     def forward(self, data):
         init_graph_pid = data['tracks'].x[:, -6:]  # charge + 5 pid, hard coded be careful
-
         # Latent graph
         if self.encode:
             data = self._encoder(data)
