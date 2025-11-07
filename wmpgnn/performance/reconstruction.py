@@ -1,4 +1,5 @@
 import torch
+import torch
 
 import pandas as pd
 import numpy as np
@@ -92,7 +93,7 @@ def get_pred_ft(sig_dict, graph, cluster, ft_score):
     return res_dict
 
 
-def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des):
+def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des=None):
     ref_signal = get_ref_signal(signal)
     graph = graph.cpu()
 
@@ -115,8 +116,7 @@ def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des):
 
     particle_keys = graph["truth_part_keys"].tolist()
     particle_ids = list(map(particle_name, graph['truth_part_ids'].numpy()))
-    tc_dict, t_nclust_order, max_chain_depth = reconstruct_decay(true_LCA, particle_keys,
-                                                                 particle_ids=particle_ids, truth_level_simulation=1)
+    tc_dict, t_nclust_order, max_chain_depth = reconstruct_decay(true_LCA, particle_keys,particle_ids=particle_ids, truth_level_simulation=1)
     if tc_dict != {}:
         part_heavy_h = flatten([tc_dict[tc_firstkey]['node_keys'] for tc_firstkey in tc_dict.keys()])
         n_part_heavy_h = len(part_heavy_h)
@@ -178,20 +178,23 @@ def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des):
                     if rc['LCA_values'] == tc['LCA_values']:
                         sig_dict["PerfectReco"] = 1
                     sig_dict["NoneIso"] = sig_dict["PartReco"] = 0
-                    sig_dict = get_pred_ft(sig_dict, graph, rc, ft_des)
-                    sig_dict = get_asso_frag(sig_dict, graph, rc)
+                    if ft_des != None:
+                        sig_dict = get_pred_ft(sig_dict, graph, rc, ft_des)
+                        sig_dict = get_asso_frag(sig_dict, graph, rc)
                     break
                 elif true_in_reco == 1 and len(rc['node_keys']) > len(tc['node_keys']):
                     sig_dict["NoneIso"] = 1  # background tracks in signal
                     sig_dict["PartReco"] = 0
-                    sig_dict = get_pred_ft(sig_dict, graph, rc, ft_des)
-                    sig_dict = get_asso_frag(sig_dict, graph, rc)
+                    if ft_des != None:
+                        sig_dict = get_pred_ft(sig_dict, graph, rc, ft_des)
+                        sig_dict = get_asso_frag(sig_dict, graph, rc)
                     break
                 elif 0.2 <= true_in_reco < 1:
                     sig_dict["PartReco"] = 1  # FT decision can not be trusted
                     sig_dict["NumBkgParticles_noniso"] = len(rc['node_keys']) - len(tc['node_keys'])
-                    sig_dict = get_pred_ft(sig_dict, graph, rc, ft_des)
-                    sig_dict = get_asso_frag(sig_dict, graph, rc)
+                    if ft_des != None:
+                        sig_dict = get_pred_ft(sig_dict, graph, rc, ft_des)
+                        sig_dict = get_asso_frag(sig_dict, graph, rc)
                     break
                 else:
                     sig_dict["final_pid"] = sig_dict["final_b_score"] = sig_dict["final_bbar_score"] = ""

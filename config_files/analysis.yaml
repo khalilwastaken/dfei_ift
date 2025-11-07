@@ -1,14 +1,14 @@
 model:
   DFEI:
     usage: True
-    node_types: [ 'tracks' ]  # pvs
-    edge_types: [ "tracks_tracks" ]  #, "tracks_pvs"
+    node_types: [ 'tracks', 'pvs' ]
+    edge_types: [ "tracks_tracks", "tracks_pvs" ]
     encoder:
       usage: True
-      vars: [ "global", "tracks" ,"tracks_tracks" ] # variables which are encoded
+      vars: [ "global", "tracks" ,"tracks_tracks", "pvs", "tracks_pvs" ] # variables which are encoded
       MLP:
         layers: [ -1, 128, 128, 16 ]
-        norm: "batch_norm"
+        norm: ["batch_norm"]
         dropout: 0.01
     GNblocks:
       nBlocks: 2
@@ -19,15 +19,15 @@ model:
       weighted_pass: True # Whether to pass the weights, requires above
       MLP_forward:
         layers: [ -1, 128, 128, 16 ]
-        norm: "batch_norm"
-        dropout: 0.01
+        norm: "batch_norm" # or layers - 2 specific norms
+        dropout: 0.01 # or layers - 1 specific dropout values
       MLP_infer:
         layers: [ -1, 16, 16, 16, 1 ]
         norm: "batch_norm"
         dropout: 0.01
     decoder:
       usage: True
-      vars: [ "global", "tracks" ,"tracks_tracks" ] # variables which are encoded
+      vars: [ "global", "tracks" ,"tracks_tracks" , "pvs", "tracks_pvs" ] # variables which are encoded
       MLP:
         layers: [ -1, 128, 128, 16 ]
         norm: "batch_norm"
@@ -46,11 +46,11 @@ model:
 
   FT_inferer: # FT model
     usage: False
-    node_types: [ 'tracks' ]  # pvs
-    edge_types: [ "tracks_tracks" ]  #, "tracks_pvs"
+    node_types: [ 'tracks', 'pvs' ]
+    edge_types: [ "tracks_tracks", "tracks_pvs" ]
     encoder:
       usage: True
-      vars: [ "global", "tracks" ,"tracks_tracks" ] # variables which are encoded
+      vars: [ "global", "tracks" ,"tracks_tracks", "pvs", "tracks_pvs" ] # variables which are encoded
       MLP:
         layers: [ -1, 128, 128, 16 ]
         norm: "batch_norm"
@@ -72,7 +72,7 @@ model:
         dropout: 0.01
     decoder:
       usage: True
-      vars: [ "global", "tracks" ,"tracks_tracks" ] # variables which are encoded
+      vars: [ "global", "tracks" ,"tracks_tracks" , "pvs", "tracks_pvs" ] # variables which are encoded
       MLP:
         layers: [ -1, 128, 128, 16 ]
         norm: "batch_norm"
@@ -95,7 +95,7 @@ training:
   graph_mode: "None"  # true: True graph
   node_sel: "true"  # Conditioned on graph_mode
   sample: [ "Bs_Jpsiphi", "Bd_JpsiKs", "inclusive" ]
-  nfiles: [10, 10, 100]
+  nfiles: [ 1, 0, 0 ]
   batch_size: 128
   epochs: 100
   gacc: 1  # gradient accumulation if using smaller batch size
@@ -120,4 +120,4 @@ training:
 
 evaluate:
   sample: "Bs_Jpsiphi"
-  nfiles: 100
+  nfiles: 1

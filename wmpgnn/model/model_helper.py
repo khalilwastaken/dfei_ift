@@ -1,16 +1,19 @@
 import os, sys
 
 import torch.nn as nn
-from torch_geometric.nn.models import MLP
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from wmpgnn.model.mlp_class import MLP
 from wmpgnn.gnn.hetero_graphcoder import HeteroGraphCoder
 from wmpgnn.gnn.hetero_graph_network import HeteroGraphNetwork
 
 
 def get_blocks(config, node_types, edge_types):
     n_gn_blocks = config["nBlocks"]
-    n_ft_layers = config["FTlayers"]
+    if "FTLayers" in config.keys():
+        n_ft_layers = config["FTlayers"]
+    else:
+        n_ft_layers = 0
 
     add_ft_layer = False
     blocks = []

@@ -1,12 +1,7 @@
 import torch
-from torch_scatter import scatter_add
-
-from tqdm import tqdm
-
 
 
 def acc_four_class(pred, label):
-
     pred_argmax = torch.argmax(pred, dim=1)
 
     res = {}

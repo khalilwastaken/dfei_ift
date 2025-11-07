@@ -1,7 +1,7 @@
 from typing import Dict, Any
 
 import torch.nn as nn
-from torch_geometric.nn.models import MLP
+from wmpgnn.model.mlp_class import MLP
 
 
 def create_mlp(config: Dict[str, Any], outdim: int = -1) -> nn.Module:

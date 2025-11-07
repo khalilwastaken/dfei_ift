@@ -57,7 +57,7 @@ def process_ft(df, sig_df, version, signal):
         plot_weights(b_dec_final, bbar_dec_final, [f"{b}_id_decision_final", "b", "bbar"], version, channel=signal)
 
 
-def plot_weights(pos_weight, neg_weights, labels, version, channel="inclusive"):
+def plot_weights(pos_weight, neg_weights, labels, version, model="DFEI", channel="inclusive"):
     true_weights = np.ones_like(pos_weight) / len(pos_weight)
     fake_weights = np.ones_like(neg_weights) / len(neg_weights)
 
@@ -67,7 +67,7 @@ def plot_weights(pos_weight, neg_weights, labels, version, channel="inclusive"):
     ax.hist(neg_weights, bins=100, range=[0, 1], alpha=.8, label=labels[2], color='#4169E1',
             weights=fake_weights)
 
-    outdir = f"lightning_logs/version_{version}/plots_{channel}"
+    outdir = f"lightning_logs/{model}/version_{version}/plots_{channel}"
     os.makedirs(outdir, exist_ok=True)
 
     ax.set_xlabel("NN weights [a.u.]")
@@ -140,9 +140,6 @@ def plot_loss(df, version, loss):
     plt.close()
 
 
-
-
-
 def obtain_reco_accuracy(df, version, signal):
     sig_df = df[df["SigMatch"] == 1]
 
@@ -162,7 +159,7 @@ def obtain_reco_accuracy(df, version, signal):
     part_reco_ratio = part_reco / nevents * 100
     part_reco_ratio_err = np.nan if part_reco == 0 else part_reco_ratio * np.sqrt(1 / part_reco + 1 / nevents)
 
-    file = f"lightning_logs/version_{version}/info_{signal}_FT.txt"
+    file = f"lightning_logs/DFEI/version_{version}/info_{signal}_FT.txt"
     cond = "a" if os.path.exists(file) else "w"
     with open(file, cond) as f:
         f.write("=" * 30 + "\n")
