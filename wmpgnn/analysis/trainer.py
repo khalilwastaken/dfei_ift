@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, glob
 
 import pandas as pd
 
@@ -13,6 +13,8 @@ from wmpgnn.analysis.data_loader import get_trn_val_loaders, get_tst_loaders
 
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
 from wmpgnn.lightning_module.exec_lightning import load_module, training, evaluate
+
+import pdb
 
 if __name__ == "__main__":
     # python trainer.py  --config  ../../config_files/lightning.yaml
@@ -60,20 +62,26 @@ if __name__ == "__main__":
         # Start testing
         run_test = any(value for key, value in configs["DFEI"]["inference"].items() if not key.endswith("weights"))
         if run_test:
-            print("="*30)
+            print("=" * 30)
             print("Loading data")
             tst_loader, nevts = get_tst_loaders(configs, model="DFEI")
             configs["DFEI"].update({"num_events": nevts})
-            print("="*30)
+            print("=" * 30)
             evaluate(trainer, module, tst_loader)
             version = trainer.logger.version
             metric_path = f"lightning_logs/DFEI/version_{version}/metrics.csv"
             df = pd.read_csv(metric_path)
             df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
 
-        import pdb;
+        dfei_model = module.model
+    else:
+        if configs['IFT']['dfei_model'] != "None":
+            dfei_path = configs["IFT"]["dfei_model"]
+            # here we need to load the model
+            print("Using DFEI model:", dfei_path)
+        else:
+            raise RuntimeError("No dfei model specified, either load or train")
 
-        pdb.set_trace()
 
     """Start IFT training"""
     if not data_loaded:
@@ -81,20 +89,7 @@ if __name__ == "__main__":
         configs["IFT"].update({"num_events": nevts})
         pos_weights = transform_pos_weight(weights, configs["IFT"]["inference"])
 
-    # Check if DFEI model exists
-    if configs['DFEI']['mode'] == "train":
-        dfei_path = glob.glob(f"lightning_logs/DFEI/version_{version}/checkpoints/best*")
-    else:
-        if configs['IFT']['dfei_model'] != "None":
-            dfei_path = configs["IFT"]["dfei_model"]
-        else:
-            raise RuntimeError("No dfei model specified, either load or train")
-    print("Using DFEI model:", dfei_path)
-
-    dfei_model = DFEILightningModule.load_from_checkpoint(dfei_path)
 
     # Load IFT model
-    module = load_module(configs, pos_weights, model="IFT")
+    module = load_module(configs, pos_weights, model="IFT", dfei_model=dfei_model)
     trainer = training(module, trn_loader, val_loader, configs, model="IFT")
-
-
