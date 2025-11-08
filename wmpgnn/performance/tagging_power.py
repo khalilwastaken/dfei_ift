@@ -35,7 +35,7 @@ class TaggingPowerAnalyzer:
         x_err_upper = [self.eta_bins[i + 1] - center for i, center in enumerate(self.eta_centers)]
         self.x_err = [x_err_lower, x_err_upper]
 
-        self.outdir = f"lightning_logs/version_{version}/plots_{channel}"
+        self.outdir = f"lightning_logs/IFT/version_{version}/plots_{channel}"
         os.makedirs(self.outdir, exist_ok=True)
 
     @staticmethod
@@ -171,8 +171,10 @@ class CorrectnessCalculator:
         num_total = len(true_tag)
         ratio = num_correct / num_total
 
-        # Binomial uncertainty
-        uncertainty = ratio * np.sqrt(1 / num_correct + 1 / num_total)
+        try:
+            uncertainty = ratio * np.sqrt(1 / num_correct + 1 / num_total)
+        except:
+            uncertainty = -1
 
         return ratio, uncertainty
 

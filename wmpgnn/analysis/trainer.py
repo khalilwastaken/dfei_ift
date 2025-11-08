@@ -10,7 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from wmpgnn.analysis.trainer_helper import *
 from wmpgnn.analysis.weights_calculator import transform_pos_weight
 from wmpgnn.analysis.data_loader import get_trn_val_loaders, get_tst_loaders
-
+from wmpgnn.performance.plotter import metrics_eval
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
 from wmpgnn.lightning_module.exec_lightning import load_module, training, evaluate
 
@@ -47,6 +47,7 @@ if __name__ == "__main__":
         configs.update({"num_events": nevts})
         pos_weights = transform_pos_weight(weights, configs["DFEI"]["inference"])
         data_loaded = True
+    tst_loader = None
 
     """Start DFEI training"""
     if configs['DFEI']['mode'] == "train":
@@ -72,7 +73,7 @@ if __name__ == "__main__":
             metric_path = f"lightning_logs/DFEI/version_{version}/metrics.csv"
             df = pd.read_csv(metric_path)
             df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
-
+            metrics_eval(df, configs["DFEI"]["inference"], version, configs["evaluate"]["sample"], mode="DFEI")
         dfei_model = module.model
     else:
         if configs['IFT']['dfei_model'] != "None":
@@ -93,3 +94,13 @@ if __name__ == "__main__":
     # Load IFT model
     module = load_module(configs, pos_weights, model="IFT", dfei_model=dfei_model)
     trainer = training(module, trn_loader, val_loader, configs, model="IFT")
+    evaluate(trainer, module, tst_loader)
+
+    run_test = any(value for key, value in configs["IFT"]["inference"].items() if not key.endswith("weights"))
+    if run_test:
+        print("=" * 30)
+        print("Loading data")
+        tst_loader, nevts = get_tst_loaders(configs, model="IFT")
+        configs["IFT"].update({"num_events": nevts})
+        print("=" * 30)
+        evaluate(trainer, module, tst_loader)

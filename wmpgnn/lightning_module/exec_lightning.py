@@ -102,9 +102,9 @@ def training(module, trn_loader, val_loader, configs, model="DFEI"):
         num_sanity_val_steps=0,
         gradient_clip_val=1.0,
         benchmark=True,
-        limit_train_batches=1,
-        limit_val_batches=1,
-        limit_test_batches=1,
+        #limit_train_batches=1,
+        #limit_val_batches=1,
+        #limit_test_batches=1,
     )
 
     """Start training"""

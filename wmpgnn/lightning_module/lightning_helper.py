@@ -43,6 +43,9 @@ def init_logs(configs, mode="train"):
             for i in range(gn_blocks):
                 log[f"sig_edges_score_{i}"] = torch.tensor([])
                 log[f"bkg_edges_score_{i}"] = torch.tensor([])
+
+    if loss_config["FT"]:
+        log["ft_loss"] = []
     if mode == "train":
         return log, log
     elif mode == "test":
@@ -55,7 +58,8 @@ def init_loss(device):
     loss = {"LCA": torch.tensor(0., device=device),
             "t_nodes": torch.tensor(0., device=device),
             "tt_edges": torch.tensor(0., device=device),
-            "tPV_edges": torch.tensor(0., device=device)}
+            "tPV_edges": torch.tensor(0., device=device),
+            "ft_nodes": torch.tensor(0., device=device)}
     return loss
 
 
