@@ -40,8 +40,8 @@ class IFTLightningModule(L.LightningModule):
         if self.configs["FT"]:
             self.ft_criterion = nn.CrossEntropyLoss(weight=pos_weights["FT"])
 
-        self.trn_log, self.val_log = init_logs(configs)
-        self.tst_log = init_logs(configs, mode="test")
+        self.trn_log, self.val_log = init_logs(configs, model="IFT")
+        self.tst_log = init_logs(configs, mode="test", model="IFT")
         self.sig_df, self.evt_df = None, None
 
         # Pruning threshold for reco

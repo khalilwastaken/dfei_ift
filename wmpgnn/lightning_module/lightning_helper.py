@@ -18,34 +18,36 @@ def make_loggable(hparams_dict):
     return loggable
 
 
-def init_logs(configs, mode="train"):
-    loss_config = configs["DFEI"]["inference"]
+def init_logs(configs, mode="train", model="DFEI"):
+    loss_config = configs[model]["inference"]
 
-    log = {"combined_loss": []}
-    gn_blocks = configs["DFEI"]["GNblocks"]["nBlocks"]
-    if loss_config["LCA"]:
-        log["LCA_loss"] = []
-        for i in range(4):  # something like num classes in config file
-            log[f"LCA_class{i}_num"] = []
-            for j in range(4):
-                log[f"LCA_class{i}_pred_class{j}"] = []
+    log = {}
+    if model == "DFEI":
+        log["combined_loss"] = []
+        gn_blocks = configs[model]["GNblocks"]["nBlocks"]
+        if loss_config["LCA"]:
+            log["LCA_loss"] = []
+            for i in range(4):  # something like num classes in config file
+                log[f"LCA_class{i}_num"] = []
+                for j in range(4):
+                    log[f"LCA_class{i}_pred_class{j}"] = []
 
-    if loss_config["node_prune"]:
-        log["t_nodes_loss"] = []
-        if mode == "test":
-            for i in range(gn_blocks):
-                log[f"sig_nodes_score_{i}"] = torch.tensor([])
-                log[f"bkg_nodes_score_{i}"] = torch.tensor([])
+        if loss_config["node_prune"]:
+            log["t_nodes_loss"] = []
+            if mode == "test":
+                for i in range(gn_blocks):
+                    log[f"sig_nodes_score_{i}"] = torch.tensor([])
+                    log[f"bkg_nodes_score_{i}"] = torch.tensor([])
 
-    if loss_config["edge_prune"]:
-        log["tt_edges_loss"] = []
-        if mode == "test":
-            for i in range(gn_blocks):
-                log[f"sig_edges_score_{i}"] = torch.tensor([])
-                log[f"bkg_edges_score_{i}"] = torch.tensor([])
-
-    if loss_config["FT"]:
-        log["ft_loss"] = []
+        if loss_config["edge_prune"]:
+            log["tt_edges_loss"] = []
+            if mode == "test":
+                for i in range(gn_blocks):
+                    log[f"sig_edges_score_{i}"] = torch.tensor([])
+                    log[f"bkg_edges_score_{i}"] = torch.tensor([])
+    elif model == "IFT":
+        if loss_config["FT"]:
+            log["ft_loss"] = []
     if mode == "train":
         return log, log
     elif mode == "test":
