@@ -4,6 +4,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 
 import torch
+torch.set_float32_matmul_precision("high")
 
 from wmpgnn.model.model import DFEI_HGNN, FT_HGNN
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
@@ -71,8 +72,10 @@ def load_module(configs, pos_weights, model, dfei_model=None):
 def training(module, trn_loader, val_loader, configs, model="DFEI"):
     #module = torch.compile(module)
 
+    monitoring_loss = "val_combined_loss" if model =="DFEI" else "val_ft_loss"
+
     early_stopping = EarlyStopping(
-        monitor="val_combined_loss",
+        monitor=monitoring_loss,
         verbose=True,
         mode="min",
         patience=10,
@@ -80,7 +83,7 @@ def training(module, trn_loader, val_loader, configs, model="DFEI"):
 
     best_model_callback = ModelCheckpoint(
         filename="best-{epoch:02d}-{val_combined_loss:.2f}",
-        monitor="val_combined_loss",
+        monitor=monitoring_loss,
         mode="min",
         save_top_k=5
     )
@@ -97,7 +100,7 @@ def training(module, trn_loader, val_loader, configs, model="DFEI"):
         devices=configs["ngpu"],
         strategy="auto",
         callbacks=[early_stopping, best_model_callback],
-        precision="32",
+        precision="bf16-mixed",
         accumulate_grad_batches=configs["gacc"],
         num_sanity_val_steps=0,
         gradient_clip_val=1.0,
