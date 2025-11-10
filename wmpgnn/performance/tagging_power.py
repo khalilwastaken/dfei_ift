@@ -233,7 +233,7 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
     df = analyzer.process_df(df)
     event_ids, event_counts = classifier.get_event_counts(df)
 
-    file = f"lightning_logs/version_{version}/info_{signal}_FT.txt"
+    file = f"lightning_logs/IFT/version_{version}/info_{signal}_FT.txt"
 
     os.makedirs(os.path.dirname(file), exist_ok=True)
     cond = "a" if os.path.exists(file) else "w"
