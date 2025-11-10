@@ -14,8 +14,6 @@ from wmpgnn.performance.plotter import metrics_eval
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
 from wmpgnn.lightning_module.exec_lightning import load_module, training, evaluate
 
-import pdb
-
 if __name__ == "__main__":
     # python trainer.py  --config  ../../config_files/lightning.yaml
     usage = "usage: %prog [options]"
@@ -50,6 +48,7 @@ if __name__ == "__main__":
     tst_loader = None
 
     """Start DFEI training"""
+    dfei_model = None
     if configs['DFEI']['mode'] == "train":
         if not data_loaded:
             trn_loader, val_loader, weights, nevts = get_trn_val_loaders(configs["DFEI"])
@@ -59,6 +58,7 @@ if __name__ == "__main__":
         # Start training DFEI
         module = load_module(configs, pos_weights, model="DFEI")
         trainer = training(module, trn_loader, val_loader, configs, model="DFEI")
+        version = trainer.logger.version
 
         # Start testing
         run_test = any(value for key, value in configs["DFEI"]["inference"].items() if not key.endswith("weights"))
@@ -69,20 +69,25 @@ if __name__ == "__main__":
             configs["DFEI"].update({"num_events": nevts})
             print("=" * 30)
             evaluate(trainer, module, tst_loader)
-            version = trainer.logger.version
             metric_path = f"lightning_logs/DFEI/version_{version}/metrics.csv"
             df = pd.read_csv(metric_path)
             df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
             metrics_eval(df, configs["DFEI"]["inference"], version, configs["evaluate"]["sample"], mode="DFEI")
-        dfei_model = module.model
-    else:
-        if configs['IFT']['dfei_model'] != "None":
-            dfei_path = configs["IFT"]["dfei_model"]
-            # here we need to load the model
-            print("Using DFEI model:", dfei_path)
-        else:
-            raise RuntimeError("No dfei model specified, either load or train")
 
+        dfei_bis_model = get_bis_model(version, "DFEI")
+        print("Obtained best DFEI model:", dfei_bis_model)
+    elif configs['DFEI']['mode'] == "usage":
+        load_dfei = configs['IFT']['dfei_model']
+        if isinstance(load_dfei, int):
+            dfei_bis_model = get_bis_model(load_dfei, "DFEI")
+        elif isinstance(load_dfei, str):
+            dfei_bis_model = load_dfei
+        else:
+            raise RuntimeError(f"Unsupported load_dfei: {type(load_dfei)}")
+        print("Using DFEI model:", dfei_bis_model)
+        configs["DFEI"]["cpt"] = dfei_bis_model
+        module = load_module(configs, pos_weights, model="DFEI")
+        dfei_model = module.model
 
     """Start IFT training"""
     if not data_loaded:
@@ -90,11 +95,10 @@ if __name__ == "__main__":
         configs["IFT"].update({"num_events": nevts})
         pos_weights = transform_pos_weight(weights, configs["IFT"]["inference"])
 
-
     # Load IFT model
     module = load_module(configs, pos_weights, model="IFT", dfei_model=dfei_model)
     trainer = training(module, trn_loader, val_loader, configs, model="IFT")
-    evaluate(trainer, module, tst_loader)
+    version = trainer.logger.version
 
     run_test = any(value for key, value in configs["IFT"]["inference"].items() if not key.endswith("weights"))
     if run_test:
@@ -104,3 +108,7 @@ if __name__ == "__main__":
         configs["IFT"].update({"num_events": nevts})
         print("=" * 30)
         evaluate(trainer, module, tst_loader)
+        metric_path = f"lightning_logs/IFT/version_{version}/metrics.csv"
+        df = pd.read_csv(metric_path)
+        df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
+        metrics_eval(df, configs["IFT"]["inference"], version, configs["evaluate"]["sample"], mode="IFT")

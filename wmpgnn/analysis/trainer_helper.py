@@ -1,3 +1,6 @@
+import glob
+import re
+
 def adjust_config(_configs):
     # Check if weights need to be calculated
     _configs["inference"]["get_weights"] = any(
@@ -18,3 +21,10 @@ def adjust_config(_configs):
 
     del _configs["settings"], _configs["inference"]
     return _configs
+
+
+def get_bis_model(version, model="DFEI"):
+    files = glob.glob(f"lightning_logs/{model}/version_{version}/checkpoints/*.ckpt")
+    pattern = re.compile(r"val_combined_loss=([\d.]+)")
+    bis = min(files, key=lambda s: float(pattern.search(s).group(1)[:-1]))
+    return bis
