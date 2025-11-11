@@ -84,10 +84,12 @@ if __name__ == "__main__":
             dfei_bis_model = load_dfei
         else:
             raise RuntimeError(f"Unsupported load_dfei: {type(load_dfei)}")
-        print("Using DFEI model:", dfei_bis_model)
-        configs["DFEI"]["cpt"] = dfei_bis_model
-        module = load_module(configs, pos_weights, model="DFEI")
-        dfei_model = module.model
+    else:
+        raise RuntimeError(f"either train or pass dfei model, not usage currently not implemented")
+    print("Using DFEI model:", dfei_bis_model)
+    configs["DFEI"]["cpt"] = dfei_bis_model
+    module = load_module(configs, pos_weights, model="DFEI")
+    dfei_model = module.model
 
     """Start IFT training"""
     if not data_loaded:
