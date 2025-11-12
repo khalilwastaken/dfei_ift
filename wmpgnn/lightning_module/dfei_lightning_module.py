@@ -22,7 +22,7 @@ class DFEILightningModule(L.LightningModule):
                 "pos_weights": make_loggable(pos_weights)
             })
         else:
-            self.version = configs["DFEI"]["cpt"].split("_")[0]
+            self.version = re.search(r'version_(\d+)', configs["DFEI"]["cpt"]).group(1)
         self.signal = configs["evaluate"]["sample"]
 
         self.configs = configs["DFEI"]["inference"]

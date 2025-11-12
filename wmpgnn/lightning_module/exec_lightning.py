@@ -6,42 +6,51 @@ from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 import torch
 torch.set_float32_matmul_precision("high")
 
+from wmpgnn.analysis.trainer_helper import *
 from wmpgnn.model.model import DFEI_HGNN, FT_HGNN
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
 from wmpgnn.lightning_module.ift_lightning_module import IFTLightningModule
 
+seed_everything(42, workers=True)
 
-def load_module(configs, pos_weights, model, dfei_model=None):
-    seed_everything(42, workers=True)
-    print("=" * 30)
+def load_module(configs, pos_weights, model, dfei_model=None, is_train=True):
+
+    # Checking if need to load from cpt
+    load_from_cpt = configs[model]["cpt"]
+    if isinstance(load_from_cpt, int):
+        bis_model = get_bis_model(load_from_cpt, model)
+    elif isinstance(load_from_cpt, str):
+        bis_model = load_from_cpt
+    else:
+       bis_model = "None"
+    configs[model]["cpt"] = bis_model
+
     if model == "DFEI":
         model = DFEI_HGNN(configs["DFEI"])
-
-        load_from_cpt = configs["DFEI"]["cpt"]
         if load_from_cpt == "None":
             module = DFEILightningModule(
                 model=model,
                 optimizer_class=torch.optim.Adam,
                 optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
                 configs=configs,
-                pos_weights=pos_weights
+                pos_weights=pos_weights,
+                is_train=is_train
             )
         else:
             print("Loading from checkpoint")
-            print(load_from_cpt)
+            print(bis_model)
             print("=" * 30)
             module = DFEILightningModule.load_from_checkpoint(
-                checkpoint_path=load_from_cpt,
+                checkpoint_path=bis_model,
                 model=model,
                 pos_weights=pos_weights,
                 optimizer_class=torch.optim.Adam,
                 optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
-                configs=configs
+                configs=configs,
+                is_train=is_train
             )
     elif model == "IFT":
         model = FT_HGNN(configs["IFT"])
-
-        load_from_cpt = configs["IFT"]["cpt"]
         if load_from_cpt == "None":
             module = IFTLightningModule(
                 model=model,
@@ -49,20 +58,22 @@ def load_module(configs, pos_weights, model, dfei_model=None):
                 optimizer_class=torch.optim.Adam,
                 optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
                 configs=configs,
-                pos_weights=pos_weights
+                pos_weights=pos_weights,
+                is_train=is_train
             )
         else:
             print("Loading from checkpoint")
-            print(load_from_cpt)
+            print(bis_model)
             print("=" * 30)
             module = IFTLightningModule.load_from_checkpoint(
-                checkpoint_path=load_from_cpt,
+                checkpoint_path=bis_model,
                 model=model,
                 dfei_model=dfei_model,
                 pos_weights=pos_weights,
                 optimizer_class=torch.optim.Adam,
                 optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
-                configs=configs
+                configs=configs,
+                is_train=is_train
             )
     else:
         raise ValueError("Invalid model")
@@ -82,7 +93,7 @@ def training(module, trn_loader, val_loader, configs, model="DFEI"):
     )
 
     best_model_callback = ModelCheckpoint(
-        filename="best-{epoch:02d}-{val_combined_loss:.2f}",
+        filename=f"best-{{epoch:02d}}-{{{monitoring_loss}:.2f}}",
         monitor=monitoring_loss,
         mode="min",
         save_top_k=5
@@ -116,37 +127,10 @@ def training(module, trn_loader, val_loader, configs, model="DFEI"):
     return trainer
 
 def evaluate(trainer, module, tst_loader):
-    trainer.test(module, dataloaders=tst_loader)
-
-
-def old_evaluate(model, tst_loader, config, pos_weight):
-    load_from_cpt = config["training"]["cpt"]["model"]
-
-    if load_from_cpt == "None":
-        raise RuntimeError("No model defined")
-    else:
-        print("Loading from checkpoint")
-        cpt = get_model_path(load_from_cpt)[0]
-        print(cpt)
-        module = HGNNLightningModule.load_from_checkpoint(
-            checkpoint_path=cpt,
-            model=model,
-            pos_weights=pos_weight,
-            optimizer_class=torch.optim.Adam,
-            optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
-            scheduler_params={"min_lr": 1e-4, "patience": 5},
-            config=config,
-            is_train=False
+    if trainer is None:
+        trainer = Trainer(
+            default_root_dir=f'lightning_logs/version_0',  # save the eval stuff in the dir of the model
         )
-        module = torch.compile(module)
-    version = config["training"]["cpt"]["model"].split("_")[0]
-    trainer = Trainer(
-        default_root_dir=f'lightning_logs/version_{version}',  # save the eval stuff in the dir of the model
-        limit_tst_batches=1
-    )
-
     trainer.test(module, dataloaders=tst_loader)
-    csv_path = os.path.join("lightning_logs", f"version_{version}", "metrics.csv")
-    df = pd.read_csv(csv_path)
-    df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
-    return df, version
+
+
