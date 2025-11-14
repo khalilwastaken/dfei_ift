@@ -8,6 +8,13 @@ from typing import Tuple, List
 
 import matplotlib.pyplot as plt
 import mplhep as hep
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    message="divide by zero encountered in divide",
+    category=RuntimeWarning
+)
 
 hep.style.use(hep.style.LHCb2)
 
@@ -56,7 +63,7 @@ class TaggingPowerAnalyzer:
         dp_dw = -4 * efficiency * (1 - 2 * wrong_fraction)
         dpower = np.sqrt((dp_deff * defficiency) ** 2 + (dp_dw * dwrong_fraction) ** 2)
 
-        return wrong_fraction*100, dwrong_fraction*100, power*100, dpower*100
+        return wrong_fraction * 100, dwrong_fraction * 100, power * 100, dpower * 100
 
     @staticmethod
     def process_df(df: pd.DataFrame) -> pd.DataFrame:
@@ -297,7 +304,8 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
                 f"{frag_two_results['without_frag'][1] * 100:.2f})%\n")
         f.write(
             f"Combined wrong fraction: ({metrics_two.combined_wrong_fraction:.4f} +/- {metrics_two.combined_wrong_fraction_err:.4f})%\n")
-        f.write(f"Combined tagging power: ({metrics_two.combined_power:.4f} +/- {metrics_two.combined_power_err:.4f})%\n")
+        f.write(
+            f"Combined tagging power: ({metrics_two.combined_power:.4f} +/- {metrics_two.combined_power_err:.4f})%\n")
 
         # 4. B+/- specific analysis
         bpm_df = classifier.filter_bpm_events(two_b_df)

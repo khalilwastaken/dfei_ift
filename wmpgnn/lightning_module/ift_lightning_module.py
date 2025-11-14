@@ -114,13 +114,13 @@ class IFTLightningModule(L.LightningModule):
     def on_train_epoch_end(self):
         avg_losses = epoch_end_loggable(self.trn_log)
         for key, val in avg_losses.items():
-            self.log(f"train_{key}", val, prog_bar=(key == "combined_loss"), on_epoch=True, on_step=False)
+            self.log(f"train_{key}", val, prog_bar=(key == "ft_loss"), on_epoch=True, on_step=False)
         self.trn_log = defaultdict(list)
 
     def on_validation_epoch_end(self):
         avg_losses = epoch_end_loggable(self.val_log)
         for key, val in avg_losses.items():
-            self.log(f"val_{key}", val, prog_bar=(key == "combined_loss"), on_epoch=True, on_step=False)
+            self.log(f"val_{key}", val, prog_bar=(key == "ft_loss"), on_epoch=True, on_step=False)
         self.val_log = defaultdict(list)
 
     def on_test_epoch_end(self):

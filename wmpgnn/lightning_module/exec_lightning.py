@@ -14,7 +14,6 @@ from wmpgnn.lightning_module.ift_lightning_module import IFTLightningModule
 seed_everything(42, workers=True)
 
 def load_module(configs, pos_weights, model, dfei_model=None, is_train=True):
-
     # Checking if need to load from cpt
     load_from_cpt = configs[model]["cpt"]
     if isinstance(load_from_cpt, int):
@@ -24,6 +23,8 @@ def load_module(configs, pos_weights, model, dfei_model=None, is_train=True):
     else:
        bis_model = "None"
     configs[model]["cpt"] = bis_model
+    lr = float(configs[model]["settings"]["lr"])
+    weight_decay = float(configs[model]["settings"]["weight_decay"])
 
     if model == "DFEI":
         model = DFEI_HGNN(configs["DFEI"])
@@ -31,7 +32,7 @@ def load_module(configs, pos_weights, model, dfei_model=None, is_train=True):
             module = DFEILightningModule(
                 model=model,
                 optimizer_class=torch.optim.Adam,
-                optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
+                optimizer_params={"lr": lr, "weight_decay": weight_decay},
                 configs=configs,
                 pos_weights=pos_weights,
                 is_train=is_train
@@ -45,7 +46,7 @@ def load_module(configs, pos_weights, model, dfei_model=None, is_train=True):
                 model=model,
                 pos_weights=pos_weights,
                 optimizer_class=torch.optim.Adam,
-                optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
+                optimizer_params={"lr": lr, "weight_decay": weight_decay},
                 configs=configs,
                 is_train=is_train
             )
@@ -56,7 +57,7 @@ def load_module(configs, pos_weights, model, dfei_model=None, is_train=True):
                 model=model,
                 dfei_model=dfei_model,
                 optimizer_class=torch.optim.Adam,
-                optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
+                optimizer_params={"lr": lr, "weight_decay": weight_decay},
                 configs=configs,
                 pos_weights=pos_weights,
                 is_train=is_train
@@ -71,7 +72,7 @@ def load_module(configs, pos_weights, model, dfei_model=None, is_train=True):
                 dfei_model=dfei_model,
                 pos_weights=pos_weights,
                 optimizer_class=torch.optim.Adam,
-                optimizer_params={"lr": 1e-3, "weight_decay": 1e-5},
+                optimizer_params={"lr": lr, "weight_decay": weight_decay},
                 configs=configs,
                 is_train=is_train
             )
@@ -89,11 +90,11 @@ def training(module, trn_loader, val_loader, configs, model="DFEI"):
         monitor=monitoring_loss,
         verbose=True,
         mode="min",
-        patience=10,
+        patience=5,
     )
 
     best_model_callback = ModelCheckpoint(
-        filename=f"best-{{epoch:02d}}-{{{monitoring_loss}:.2f}}",
+        filename=f"best-{{epoch:02d}}-{{{monitoring_loss}:.3f}}",
         monitor=monitoring_loss,
         mode="min",
         save_top_k=5
