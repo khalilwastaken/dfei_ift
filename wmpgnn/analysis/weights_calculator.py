@@ -39,6 +39,11 @@ def get_hetero_weight(data, _configs):
                 y = y[selbool]
             raw_weights["FT"] += torch.bincount(y, minlength=3)
 
+        if config["pv_asso_weights"]:
+            selbool = evt[("tracks", "to", "pvs")].y.squeeze() == 0
+            raw_weights["pos_pv_asso"] = torch.sum(~selbool).item()
+            raw_weights["neg_pv_asso"] = torch.sum(selbool).item()
+
     return raw_weights
 
 
@@ -79,5 +84,8 @@ def transform_pos_weight(weights, config, mode="train"):
         ft_weights = torch.sum(summed["FT"]) / (3 * summed["FT"])
         ft_weights[torch.isinf(ft_weights)] = 1.0
         pos_weight["FT"] = ft_weights
+
+    if config["pv_asso_weights"] and summed["neg_pv_asso"] != 0:
+        pos_weight["pv_asso"] = torch.tensor([summed["neg_pv_asso"] / summed["pos_pv_asso"]])
 
     return pos_weight
