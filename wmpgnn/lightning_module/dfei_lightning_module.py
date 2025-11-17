@@ -27,6 +27,7 @@ class DFEILightningModule(L.LightningModule):
 
         self.configs = configs["DFEI"]["inference"]
         self.model = model
+        print(model)
         self.optimizer_class = optimizer_class
         self.optimizer_params = optimizer_params
 
@@ -37,6 +38,8 @@ class DFEILightningModule(L.LightningModule):
             self.node_criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights["nodes"])
         if self.configs["edge_prune"]:
             self.edge_criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights["edges"])
+        if self.configs["pv_asso"]:
+            self.pv_asso_criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights["pv_asso"])
 
         self.trn_log, self.val_log = init_logs(configs)
         self.tst_log = init_logs(configs, mode="test")
@@ -71,6 +74,8 @@ class DFEILightningModule(L.LightningModule):
         if self.configs["edge_prune"]:
             y_edges = batch[('tracks', 'to', 'tracks')].y > 0
             y_edges = y_edges.to(torch.float32).unsqueeze(-1)
+        if self.configs["pv_asso"]:
+            y_pv_asso = batch[("tracks", "to", "pvs")].y.to(torch.float32)
 
         for i, block in enumerate(self.model._blocks):
             if self.configs["node_prune"]:
@@ -83,8 +88,13 @@ class DFEILightningModule(L.LightningModule):
                 if mode == "test":
                     get_block_score(log, block.edge_weights[('tracks', 'to', 'tracks')].squeeze(), y_edges, i,
                                     var="edges")
+            if self.configs["pv_asso"]:
+                loss["pv_asso"] *= self.pv_asso_criterion(block.edge_logits[("tracks", "to", "pvs")], y_pv_asso)
+                if mode == "test":
+                    get_block_score(log, block.edge_weights[("tracks", "to", "pvs")].squeeze(), y_pv_asso, i,
+                                    var="pv_asso")
 
-        combined_loss = loss["LCA"] + loss["t_nodes"] + 33 * loss["tt_edges"]
+        combined_loss = loss["LCA"] + loss["t_nodes"] + 33 * loss["tt_edges"] + loss["pv_asso"]
 
         # Apply reco
         if mode == "test":
@@ -93,9 +103,10 @@ class DFEILightningModule(L.LightningModule):
                 edge_mask = true_node_pruning(node_selbool, outputs, "tracks", [('tracks', 'to', 'tracks')])
                 edge_selbool = block.edge_weights[('tracks', 'to', 'tracks')].squeeze()[edge_mask] > self.edge_prune
                 edge_pruning(edge_selbool, outputs, ('tracks', 'to', 'tracks'))
-                outputs[("tracks", "to", "tracks")].lca = outputs[("tracks", "to", "tracks")].lca[edge_mask][edge_selbool]
+                outputs[("tracks", "to", "tracks")].lca = outputs[("tracks", "to", "tracks")].lca[edge_mask][
+                    edge_selbool]
             self.sig_df, self.evt_df = reco_event(outputs, batch_idx, self.configs, self.signal,
-                                                  self.sig_df,self.evt_df)
+                                                  self.sig_df, self.evt_df)
 
         """Logging"""
         log = loss_logging(log, loss, self.configs, mode="DFEI")
@@ -142,5 +153,9 @@ class DFEILightningModule(L.LightningModule):
             for i in range(len(self.model._blocks)):
                 plot_weights(self.tst_log[f"sig_edges_score_{i}"], self.tst_log[f"bkg_edges_score_{i}"],
                              [f"NN_edges_{i}", "sig", "bkg"], self.version, model="DFEI", channel=self.signal)
+        if self.configs["pv_asso"]:
+            for i in range(len(self.model._blocks)):
+                plot_weights(self.tst_log[f"sig_pv_asso_score_{i}"], self.tst_log[f"bkg_pv_asso_score_{i}"],
+                             [f"NN_pv_asso_{i}", "correct", "false"], self.version, model="DFEI", channel=self.signal)
         if self.configs["LCA"]:
             obtain_reco_accuracy(self.sig_df, self.version, self.signal)

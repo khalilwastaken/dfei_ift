@@ -2,11 +2,11 @@
 settings:
   data_dir: "/eos/user/y/yukaiz/DFEI_data/DFEI_pythia_singlecollision_normed_pt_data"
   sample: [ "Bs_Jpsiphi", "Bd_JpsiKs", "inclusive" ]
-  nfiles: [ 80, 80, 100 ]
+  nfiles: [ 0, 0, 1 ]
   batch_size: 32
   lr: 1e-4
   weight_decay: 1e-5
-  epochs: 100
+  epochs: 1
   gacc: 1  # gradient accumulation if using smaller batch size
   ngpu: 1  # need roughly 40 Gb for bs of 12
   ncpu: 8  # NCPUs for data loader
@@ -26,6 +26,8 @@ inference:
   FT_weights: False
   frag: False
   frag_weights: False
+  pv_asso: True
+  pv_asso_weights: True
 
 
 evaluate:
@@ -34,7 +36,7 @@ evaluate:
 
 
 DFEI:
-  mode: "usage"  # or absolute file path
+  mode: "train"  # or absolute file path: train
   cpt: "None"
   node_types: [ 'tracks', 'pvs' ]  # Graph node settings
   edge_types: [ "tracks_tracks", "tracks_pvs" ]  # Graph edge settings
@@ -110,8 +112,8 @@ DFEI:
 
 IFT:
   mode: "train"
-  cpt: 2
-  dfei_model: 2 # or
+  cpt: None # Version number of None
+  dfei_model: None # Version number or None
   node_types: [ 'tracks', 'pvs' ]  # Graph node settings
   edge_types: [ "tracks_tracks", "tracks_pvs" ]  # Graph edge settings
   encoder:

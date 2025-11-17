@@ -48,7 +48,8 @@ def transform_pos_weight(weights, config, mode="train"):
         "nodes": torch.ones(1),
         "edges": torch.ones(1),
         "FT": torch.ones(3),
-        "frag": torch.ones(1)
+        "frag": torch.ones(1),
+        "pv_asso": torch.ones(1)
     }
 
     if mode == "eval":

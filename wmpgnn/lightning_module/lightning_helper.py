@@ -45,6 +45,13 @@ def init_logs(configs, mode="train", model="DFEI"):
                 for i in range(gn_blocks):
                     log[f"sig_edges_score_{i}"] = torch.tensor([])
                     log[f"bkg_edges_score_{i}"] = torch.tensor([])
+
+        if  loss_config["pv_asso"]:
+            log["tpv_edges_loss"] = []
+            if mode == "test":
+                for i in range(gn_blocks):
+                    log[f"sig_pv_asso_score_{i}"] = torch.tensor([])
+                    log[f"bkg_pv_asso_score_{i}"] = torch.tensor([])
     elif model == "IFT":
         if loss_config["FT"]:
             log["ft_loss"] = []
@@ -61,7 +68,8 @@ def init_loss(device):
             "t_nodes": torch.tensor(0., device=device),
             "tt_edges": torch.tensor(0., device=device),
             "tPV_edges": torch.tensor(0., device=device),
-            "ft_nodes": torch.tensor(0., device=device)}
+            "ft_nodes": torch.tensor(0., device=device),
+            "pv_asso": torch.tensor(0., device=device)}
     return loss
 
 
@@ -83,6 +91,8 @@ def loss_logging(log, loss, configs, mode="DFEI"):
             log["t_nodes_loss"].append(loss["t_nodes"].item())
         if configs["edge_prune"]:
             log["tt_edges_loss"].append(loss["tt_edges"].item())
+        if configs["pv_asso"]:
+            log["tpv_edges_loss"].append(loss["pv_asso"].item())
     elif mode == "IFT":
         if configs["frag"]:
             log["frag_loss"].append(loss["frag_nodes"].item())
