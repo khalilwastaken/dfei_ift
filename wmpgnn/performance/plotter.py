@@ -146,7 +146,10 @@ def plot_loss(df, version, loss, mode="DFEI"):
 
 
 def obtain_reco_accuracy(df, version, signal):
-    sig_df = df[df["SigMatch"] == 1]
+    if signal != "inclusive":
+        sig_df = df[df["SigMatch"] == 1]
+    else:
+        sig_df = df
 
     nevents = len(sig_df)
     all_particles = np.sum(sig_df["AllParticles"])
@@ -164,7 +167,7 @@ def obtain_reco_accuracy(df, version, signal):
     part_reco_ratio = part_reco / nevents * 100
     part_reco_ratio_err = np.nan if part_reco == 0 else part_reco_ratio * np.sqrt(1 / part_reco + 1 / nevents)
 
-    file = f"lightning_logs/DFEI/version_{version}/info_{signal}_FT.txt"
+    file = f"lightning_logs/DFEI/version_{version}/info_{signal}_reco.txt"
     cond = "a" if os.path.exists(file) else "w"
     with open(file, cond) as f:
         f.write("=" * 30 + "\n")
