@@ -14,7 +14,7 @@ from wmpgnn.analysis.weights_calculator import get_hetero_weight
 from wmpgnn.util.pruners import *
 
 
-def get_trn_val_loaders(configs):
+def get_trn_val_loaders(configs, model="DFEI"):
     samples = configs["settings"]["sample"]
     nfiles = {}
     for sample, nfile in zip(samples, configs["settings"]["nfiles"]):
@@ -27,7 +27,7 @@ def get_trn_val_loaders(configs):
 
     start = time.time()
     print("Training:")
-    load_train_dataset = partial(load_dataset, _configs=configs, mode="train")
+    load_train_dataset = partial(load_dataset, _configs=configs, mode="train", model=model)
     trn_dataset = []
     weights = []
     for sample in samples:
@@ -42,7 +42,7 @@ def get_trn_val_loaders(configs):
             nevts["training"][sample] += len(r[0])
 
     print("Validation:")
-    load_val_dataset = partial(load_dataset, _configs=configs, mode="val")
+    load_val_dataset = partial(load_dataset, _configs=configs, mode="val", model=model)
     val_dataset = []
     for sample in samples:
         nevts["validation"][sample] = 0
@@ -80,7 +80,7 @@ def get_tst_loaders(configs, model="DFEI"):
     nevts = {"testing": {sample: 0}}
 
     print("Testing:")
-    load_tst_dataset = partial(load_dataset, _configs=configs, mode="val")
+    load_tst_dataset = partial(load_dataset, _configs=configs, mode="val", model=model)
     tst_dataset = []
     tst_paths = sorted(glob.glob(f'{configs["settings"]["data_dir"]}/{sample}/tst_data_*'))[:nfiles]
     with ThreadPool(processes=configs["settings"]["ncpu"]) as pool:
@@ -100,9 +100,11 @@ def get_tst_loaders(configs, model="DFEI"):
     return tst_loader, nevts
 
 
-def load_dataset(path, _configs, mode):
+def load_dataset(path, _configs, mode, model):
     with open(path, "rb") as f:
         data = torch.load(f, weights_only=False)
+
+    """Applying pruning for different using truth pruning intially""" # add here pruning from pv asso
     if "true" in _configs["settings"]["graph_mode"]:
         data_selbool = torch.ones(len(data))
         for i, evt in enumerate(data):
@@ -121,6 +123,16 @@ def load_dataset(path, _configs, mode):
         filtered_data = [d for d, sel in zip(data, data_selbool) if sel]
     else:
         filtered_data = data
+
+    """Adding pid information as a node feature for IFT"""
+    if model == "IFT":
+        for i in range(len(filtered_data)):
+            filtered_data[i]["tracks"].x = torch.cat([filtered_data[i]["tracks"].x, filtered_data[i]["tracks"].pid], dim=1)
+    # pid info is only used within the nodes, remove it as a feature
+    for item in filtered_data:
+        del item["tracks"].pid
+
+    """Obtain the weights"""
     if _configs["inference"]["get_weights"] and mode == "train":
         weights = get_hetero_weight(filtered_data, _configs)
     else:

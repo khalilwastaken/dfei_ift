@@ -35,25 +35,13 @@ if __name__ == "__main__":
     print(f"IFT mode : {configs['IFT']['mode']}")
     print("=" * 30)
 
-    # Check if both use the same dataset
-    data_loaded = False
-    same_sample = configs["DFEI"]["settings"]["sample"] == configs["IFT"]["settings"]["sample"]
-    same_nfiles = configs["DFEI"]["settings"]["nfiles"] == configs["IFT"]["settings"]["nfiles"]
-    if same_sample and same_nfiles:
-        # Since same, we pass the DFEI model
-        trn_loader, val_loader, weights, nevts = get_trn_val_loaders(configs["DFEI"])
-        configs.update({"num_events": nevts})
-        pos_weights = transform_pos_weight(weights, configs["DFEI"]["inference"])
-        data_loaded = True
-    tst_loader = None
 
     """Start DFEI training"""
     dfei_model = None
     if configs['DFEI']['mode'] == "train":
-        if not data_loaded:
-            trn_loader, val_loader, weights, nevts = get_trn_val_loaders(configs["DFEI"])
-            configs["DFEI"].update({"num_events": nevts})
-            pos_weights = transform_pos_weight(weights, configs["DFEI"]["inference"])
+        trn_loader, val_loader, weights, nevts = get_trn_val_loaders(configs["DFEI"])
+        configs["DFEI"].update({"num_events": nevts})
+        pos_weights = transform_pos_weight(weights, configs["DFEI"]["inference"])
 
         # Start training DFEI
         module = load_module(configs, pos_weights, model="DFEI")
@@ -92,10 +80,9 @@ if __name__ == "__main__":
     dfei_model = module.model
 
     """Start IFT training"""
-    if not data_loaded:
-        trn_loader, val_loader, weights, nevts = get_trn_val_loaders(configs["IFT"])
-        configs["IFT"].update({"num_events": nevts})
-        pos_weights = transform_pos_weight(weights, configs["IFT"]["inference"])
+    trn_loader, val_loader, weights, nevts = get_trn_val_loaders(configs["IFT"], model="IFT")
+    configs["IFT"].update({"num_events": nevts})
+    pos_weights = transform_pos_weight(weights, configs["IFT"]["inference"])
 
     # Load IFT model
     module = load_module(configs, pos_weights, model="IFT", dfei_model=dfei_model)
