@@ -80,24 +80,25 @@ if __name__ == "__main__":
     dfei_model = module.model
 
     """Start IFT training"""
-    trn_loader, val_loader, weights, nevts = get_trn_val_loaders(configs["IFT"], model="IFT")
-    configs["IFT"].update({"num_events": nevts})
-    pos_weights = transform_pos_weight(weights, configs["IFT"]["inference"])
-
-    # Load IFT model
-    module = load_module(configs, pos_weights, model="IFT", dfei_model=dfei_model)
-    trainer = training(module, trn_loader, val_loader, configs, model="IFT")
-    version = trainer.logger.version
-
-    run_test = any(value for key, value in configs["IFT"]["inference"].items() if not key.endswith("weights"))
-    if run_test:
-        print("=" * 30)
-        print("Loading data")
-        tst_loader, nevts = get_tst_loaders(configs, model="IFT")
+    if configs['IFT']['mode'] == "train":
+        trn_loader, val_loader, weights, nevts = get_trn_val_loaders(configs["IFT"], model="IFT")
         configs["IFT"].update({"num_events": nevts})
-        print("=" * 30)
-        evaluate(trainer, module, tst_loader)
-        metric_path = f"lightning_logs/IFT/version_{version}/metrics.csv"
-        df = pd.read_csv(metric_path)
-        df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
-        metrics_eval(df, configs["IFT"]["inference"], version, configs["evaluate"]["sample"], mode="IFT")
+        pos_weights = transform_pos_weight(weights, configs["IFT"]["inference"])
+
+        # Load IFT model
+        module = load_module(configs, pos_weights, model="IFT", dfei_model=dfei_model)
+        trainer = training(module, trn_loader, val_loader, configs, model="IFT")
+        version = trainer.logger.version
+
+        run_test = any(value for key, value in configs["IFT"]["inference"].items() if not key.endswith("weights"))
+        if run_test:
+            print("=" * 30)
+            print("Loading data")
+            tst_loader, nevts = get_tst_loaders(configs, model="IFT")
+            configs["IFT"].update({"num_events": nevts})
+            print("=" * 30)
+            evaluate(trainer, module, tst_loader)
+            metric_path = f"lightning_logs/IFT/version_{version}/metrics.csv"
+            df = pd.read_csv(metric_path)
+            df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
+            metrics_eval(df, configs["IFT"]["inference"], version, configs["evaluate"]["sample"], mode="IFT")

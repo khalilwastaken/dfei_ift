@@ -1,0 +1,20 @@
+# PyTorch CPU version
+torch==2.8.0
+torchvision==0.23.0
+torchaudio==2.8.0
+
+# PyTorch Geometric and dependencies
+torch_geometric
+pyg_lib
+torch_scatter
+torch_sparse
+torch_cluster
+torch_spline_conv
+-f https://data.pyg.org/whl/torch-2.8.0+cpu.html
+
+# Other required libraries
+pytorch_lightning
+mplhep
+particle
+nvitop
+tensorboard
