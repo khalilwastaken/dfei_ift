@@ -1,5 +1,5 @@
 import torch
-
+from collections import defaultdict
 
 def get_hetero_weight(data, _configs):
     config = _configs["inference"]
@@ -60,13 +60,18 @@ def transform_pos_weight(weights, config, mode="train"):
     if mode == "eval":
         return pos_weight
 
-    summed = {}
-    for d in weights:
-        for key, value in d.items():
-            if key not in summed:
-                summed[key] = value.clone() if isinstance(value, torch.Tensor) else value
+
+    combined = defaultdict(int)
+    tensor_keys = {'LCA', 'FT'}
+
+    for sample_name, sample_weights in weights.items():
+        for key, value in sample_weights.items():
+            if key not in combined:
+                combined[key] = value.clone() if key in tensor_keys else value
             else:
-                summed[key] += value
+                combined[key] += value
+
+    summed = dict(combined)
 
     if config["LCA_weights"]:
         pos_weight["LCA"] = torch.sum(summed["LCA"]) / (4 * summed["LCA"])
