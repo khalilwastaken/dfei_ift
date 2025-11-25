@@ -42,12 +42,14 @@ if __name__ == "__main__":
     # Loading data
     tst_loader, nevts = get_tst_loaders(configs, model=model)
     configs[model].update({"num_events": nevts})
-    version = re.search(r'version_(\d+)', configs[model]["cpt"]).group(1)
+    
 
     # Getting the DFEI model
     pos_weights = transform_pos_weight(None, None, mode="eval")
     print("DFEI module:")
     module = load_module(configs, pos_weights, model="DFEI", is_train=False)
+    import pdb; pdb.set_trace()
+    version = re.search(r'version_(\d+)', configs[model]["cpt"]).group(1)
     dfei_model = module.model
     if model == "DFEI":
         evaluate(None, module, tst_loader)
