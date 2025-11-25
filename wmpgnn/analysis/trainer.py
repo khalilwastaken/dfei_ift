@@ -9,7 +9,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 
 from wmpgnn.analysis.trainer_helper import *
 from wmpgnn.analysis.weights_calculator import transform_pos_weight
-from wmpgnn.analysis.data_loader import get_trn_val_loaders, get_tst_loaders
+from wmpgnn.analysis.data_loader import get_tst_loaders
+from wmpgnn.analysis.lazy_loader import get_trn_val_loaders
 from wmpgnn.performance.plotter import metrics_eval
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
 from wmpgnn.lightning_module.exec_lightning import load_module, training, evaluate
