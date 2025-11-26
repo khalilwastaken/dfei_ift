@@ -5,44 +5,44 @@ def get_hetero_weight(data, _configs):
     config = _configs["inference"]
 
     raw_weights = {
-        "LCA": torch.zeros(4),
-        "FT": torch.zeros(3),
-        "pos_nodes": 0, "neg_nodes": 0,
-        "pos_edges": 0, "neg_edges": 0,
-        "pos_frag": 0, "neg_frag": 0,
+        "LCA": torch.zeros(4, dtype=torch.int64),
+        "FT": torch.zeros(3, dtype=torch.int64),
+        "pos_nodes":  torch.zeros(1, dtype=torch.int64), "neg_nodes":  torch.zeros(1, dtype=torch.int64),
+        "pos_edges":  torch.zeros(1, dtype=torch.int64), "neg_edges":  torch.zeros(1, dtype=torch.int64),
+        "pos_frag":  torch.zeros(1, dtype=torch.int64), "neg_frag":  torch.zeros(1, dtype=torch.int64),
     }
 
     for evt in data:
         if config["LCA_weights"]:
             y = evt[('tracks', 'to', 'tracks')].y
-            raw_weights["LCA"] += torch.bincount(y, minlength=4)
+            raw_weights["LCA"] += torch.bincount(y, minlength=4).to(torch.int64)
 
         if config["node_prune_weights"]:
             selbool = evt["tracks"].ft == 0
-            raw_weights["pos_nodes"] += torch.sum(~selbool).item()
-            raw_weights["neg_nodes"] += torch.sum(selbool).item()
+            raw_weights["pos_nodes"] += torch.sum(~selbool).to(torch.int64)
+            raw_weights["neg_nodes"] += torch.sum(selbool).to(torch.int64)
 
         if config["edge_prune_weights"]:
             selbool = evt[('tracks', 'to', 'tracks')].y == 0
-            raw_weights["pos_edges"] += torch.sum(~selbool).item()
-            raw_weights["neg_edges"] += torch.sum(selbool).item()
+            raw_weights["pos_edges"] += torch.sum(~selbool).to(torch.int64)
+            raw_weights["neg_edges"] += torch.sum(selbool).to(torch.int64)
 
         if config["frag_weights"]:
             selbool = evt["tracks"].frag == 0
-            raw_weights["pos_frag"] += torch.sum(~selbool).item()
-            raw_weights["neg_frag"] += torch.sum(selbool).item()
+            raw_weights["pos_frag"] += torch.sum(~selbool).to(torch.int64)
+            raw_weights["neg_frag"] += torch.sum(selbool).to(torch.int64)
 
         if config["FT_weights"]:
-            y = evt['tracks'].ft
+            y = evt['tracks'].ft.to(torch.int64)
             if _configs["settings"]["graph_mode"] == "true":  # Consider frag nodes later on
                 selbool = evt["tracks"].ft != 1
-                y = y[selbool]
+                y = y[selbool].to(torch.int64)
             raw_weights["FT"] += torch.bincount(y, minlength=3)
 
         if config["pv_asso_weights"]:
             selbool = evt[("tracks", "to", "pvs")].y.squeeze() == 0
-            raw_weights["pos_pv_asso"] = torch.sum(~selbool).item()
-            raw_weights["neg_pv_asso"] = torch.sum(selbool).item()
+            raw_weights["pos_pv_asso"] = torch.sum(~selbool,).to(torch.int64)
+            raw_weights["neg_pv_asso"] = torch.sum(selbool).to(torch.int64)
 
     return raw_weights
 
