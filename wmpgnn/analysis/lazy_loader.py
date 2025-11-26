@@ -23,35 +23,40 @@ class LazyGraphDataset(Dataset):
         self.model = model
 
         self.nevnts = {}
-        self.cumulative_sizes = []
+        self.cumulative_sizes = torch.tensor([], dtype=torch.int64)
         self.weights = {}
-        load_dataset = partial(self._load_dataset, mode=mode)
         total = 0
         sample_order = list(self.file_paths.keys())
         for sample in sample_order:
-            weights = []
+            if sample == "inclusive":
+                load_dataset = partial(self._load_dataset, mode="val")
+            else:
+                load_dataset = partial(self._load_dataset, mode=mode)
             with ThreadPool(processes=configs["settings"]["ncpu"] * 2) as pool:
                 results = list(
                     tqdm(pool.imap(load_dataset, file_paths[sample]), total=len(file_paths[sample]),
                          desc=f"  Indexing {sample} dataset files"))
+
             sample_length = 0
+            self.weights[sample] = {}
+
             for r in results:
                 filtered_length = len(r[0])
-                weights.append(r[1])
+                weight_dict = r[1]
+
                 total += filtered_length
                 sample_length += filtered_length
-                self.cumulative_sizes.append(total)
+                self.cumulative_sizes = torch.cat([self.cumulative_sizes, torch.tensor([total], dtype=torch.int64)])
 
-            self.nevnts[sample] = sample_length
-
-            tensor_keys = {'LCA', 'FT'}
-            self.weights[sample] = {}
-            for d in weights:
-                for key, value in d.items():
+                # immediately combine weights
+                for key, value in weight_dict.items():
                     if key not in self.weights[sample]:
-                        self.weights[sample][key] = value.clone() if key in tensor_keys else value
+                        self.weights[sample][key] = value
                     else:
                         self.weights[sample][key] += value
+
+
+            self.nevnts[sample] = sample_length
         print(f"  Total samples after filtering: {total}")
         self.file_paths = list(chain.from_iterable(self.file_paths[sample] for sample in sample_order))
 
