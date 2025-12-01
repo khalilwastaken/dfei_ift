@@ -89,7 +89,7 @@ class DFEILightningModule(L.LightningModule):
                     get_block_score(log, block.edge_weights[('tracks', 'to', 'tracks')].squeeze(), y_edges, i,
                                     var="edges")
             if self.configs["pv_asso"]:
-                loss["pv_asso"] *= self.pv_asso_criterion(block.edge_logits[("tracks", "to", "pvs")], y_pv_asso)
+                loss["pv_asso"] += self.pv_asso_criterion(block.edge_logits[("tracks", "to", "pvs")], y_pv_asso)
                 if mode == "test":
                     get_block_score(log, block.edge_weights[("tracks", "to", "pvs")].squeeze(), y_pv_asso, i,
                                     var="pv_asso")
@@ -110,6 +110,7 @@ class DFEILightningModule(L.LightningModule):
 
         """Logging"""
         log = loss_logging(log, loss, self.configs, mode="DFEI")
+
         log["combined_loss"].append(combined_loss.item())
         return combined_loss
 
