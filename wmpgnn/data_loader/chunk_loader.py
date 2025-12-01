@@ -114,12 +114,16 @@ class ChunkDataset(IterableDataset):
                     dataset.extend(r)
             return dataset
         elif mode == "weights":
-            weights = []
+            weights = {}
             load_dataset = partial(self._load_dataset, mode=mode)
             with ThreadPool(processes=self.configs["settings"]["ncpu"]) as pool:
                 for r in tqdm(pool.imap(load_dataset, files), total=len(files),
                               desc=f"Loading chunk {chunk_number + 1}/{self.n_chunks} ({self.files_per_chunk} files, ~{self.files_per_chunk * nevnts} events)"):
-                    weights.append(r)
+                    for key, value in r.items():
+                        if key not in weights:
+                            weights[key] = value
+                        else:
+                            weights[key] += value
 
             return weights
         else:

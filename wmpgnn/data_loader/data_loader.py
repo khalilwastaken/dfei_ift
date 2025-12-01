@@ -29,7 +29,7 @@ def get_trn_val_loaders(configs, model="DFEI"):
     print("Training:")
     load_train_dataset = partial(load_dataset, _configs=configs, mode="train", model=model)
     trn_dataset = []
-    weights = []
+    weights = {}
     for sample in samples:
         nevts["training"][sample] = 0
         trn_paths = sorted(glob.glob(f'{data_dir}/{sample}/trn_data_*'))[:nfiles[sample]]
@@ -38,7 +38,11 @@ def get_trn_val_loaders(configs, model="DFEI"):
                                 desc=f"Loading {sample} training dataset"))
         for r in results:
             trn_dataset.extend(r[0])
-            weights.append(r[1])
+            for key, value in r.items():
+                if key not in self.weights[sample]:
+                    weights[sample][key] = value
+                else:
+                    weights[sample][key] += value
             nevts["training"][sample] += len(r[0])
 
     print("Validation:")

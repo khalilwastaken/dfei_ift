@@ -42,8 +42,9 @@ if __name__ == "__main__":
             from wmpgnn.data_loader.chunk_loader import get_trn_val_loaders, get_tst_loader
 
             chunkloader = get_trn_val_loaders(configs["DFEI"])
+            print("Obtaining weights:")
             weights = chunkloader.trn_dataset.get_weights()
-            configs["DFEI"].update({"num_files":  chunkloader.trn_dataset.n_files})
+            configs["DFEI"].update({"num_files": chunkloader.trn_dataset.n_files})
         else:
             from wmpgnn.data_loader.data_loader import get_trn_val_loaders, get_tst_loader
 
@@ -53,7 +54,8 @@ if __name__ == "__main__":
 
         # Start training DFEI
         module = load_module(configs, pos_weights, model="DFEI")
-        trainer = training(module, trn_loader, val_loader, configs, model="DFEI")
+        trainer = training(module, configs, model="DFEI",
+                           trn_loader=trn_loader, val_loader=val_loader, chunkloader=chunkloader)
         version = trainer.logger.version
 
         # Start testing

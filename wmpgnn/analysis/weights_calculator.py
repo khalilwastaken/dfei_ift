@@ -1,15 +1,16 @@
 import torch
 from collections import defaultdict
 
+
 def get_hetero_weight(data, _configs):
     config = _configs["inference"]
 
     raw_weights = {
         "LCA": torch.zeros(4, dtype=torch.int64),
         "FT": torch.zeros(3, dtype=torch.int64),
-        "pos_nodes":  torch.zeros(1, dtype=torch.int64), "neg_nodes":  torch.zeros(1, dtype=torch.int64),
-        "pos_edges":  torch.zeros(1, dtype=torch.int64), "neg_edges":  torch.zeros(1, dtype=torch.int64),
-        "pos_frag":  torch.zeros(1, dtype=torch.int64), "neg_frag":  torch.zeros(1, dtype=torch.int64),
+        "pos_nodes": torch.zeros(1, dtype=torch.int64), "neg_nodes": torch.zeros(1, dtype=torch.int64),
+        "pos_edges": torch.zeros(1, dtype=torch.int64), "neg_edges": torch.zeros(1, dtype=torch.int64),
+        "pos_frag": torch.zeros(1, dtype=torch.int64), "neg_frag": torch.zeros(1, dtype=torch.int64),
     }
 
     for evt in data:
@@ -41,7 +42,7 @@ def get_hetero_weight(data, _configs):
 
         if config["pv_asso_weights"]:
             selbool = evt[("tracks", "to", "pvs")].y.squeeze() == 0
-            raw_weights["pos_pv_asso"] = torch.sum(~selbool,).to(torch.int64)
+            raw_weights["pos_pv_asso"] = torch.sum(~selbool, ).to(torch.int64)
             raw_weights["neg_pv_asso"] = torch.sum(selbool).to(torch.int64)
 
     return raw_weights
@@ -60,18 +61,17 @@ def transform_pos_weight(weights, config, mode="train"):
     if mode == "eval":
         return pos_weight
 
-
-    combined = defaultdict(int)
-    tensor_keys = {'LCA', 'FT'}
-
-    for sample_name, sample_weights in weights.items():
-        for key, value in sample_weights.items():
-            if key not in combined:
-                combined[key] = value.clone() if key in tensor_keys else value
-            else:
-                combined[key] += value
-
-    summed = dict(combined)
+    if "LCA" not in weights.keys():
+        combined = defaultdict(int)
+        for sample_name, sample_weights in weights.items():
+            for key, value in sample_weights.items():
+                if key not in combined:
+                    combined[key] = value
+                else:
+                    combined[key] += value
+        summed = dict(combined)
+    else:
+        summed = weights
 
     if config["LCA_weights"]:
         pos_weight["LCA"] = torch.sum(summed["LCA"]) / (4 * summed["LCA"])
