@@ -39,13 +39,13 @@ if __name__ == "__main__":
     dfei_model = None
     if configs['DFEI']['mode'] == "train":
         if "nu7p6" in configs["DFEI"]["settings"]["data_dir"]:
-            from wmpgnn.data_loader.chunk_loader import get_trn_val_loaders, get_tst_loaders
+            from wmpgnn.data_loader.chunk_loader import get_trn_val_loaders, get_tst_loader
 
             chunkloader = get_trn_val_loaders(configs["DFEI"])
             weights = chunkloader.trn_dataset.get_weights()
             configs["DFEI"].update({"num_files":  chunkloader.trn_dataset.n_files})
         else:
-            from wmpgnn.data_loader.data_loader import get_trn_val_loaders, get_tst_loaders
+            from wmpgnn.data_loader.data_loader import get_trn_val_loaders, get_tst_loader
 
             trn_loader, val_loader, weights, nevts = get_trn_val_loaders(configs["DFEI"])
             configs["DFEI"].update({"num_events": nevts})

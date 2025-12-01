@@ -73,7 +73,7 @@ def get_trn_val_loaders(configs, model="DFEI"):
     return trn_loader, val_loader, weights, nevts
 
 
-def get_tst_loaders(configs, model="DFEI"):
+def get_tst_loader(configs, model="DFEI"):
     sample = configs["evaluate"]["sample"]
     nfiles = configs["evaluate"]["nfiles"]
     configs = configs[model]
