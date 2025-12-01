@@ -19,7 +19,7 @@ from wmpgnn.util.pruners import *
 
 
 class ChunkDataset(IterableDataset):
-    def __init__(self, file_paths, configs, mode="train", n_chunks=20):
+    def __init__(self, file_paths, configs, mode="train", n_chunks=40):
         super().__init__()
         self.file_paths = file_paths
         self.n_chunks = n_chunks
@@ -41,6 +41,9 @@ class ChunkDataset(IterableDataset):
         for sample in  self.file_paths.keys():
             self.n_files[sample] = len(self.file_paths[sample])
         self.file_paths = list(chain.from_iterable(self.file_paths[sample] for sample in self.file_paths.keys()))
+
+        self.seeds = torch.randint(0, 1000, (1000,))
+        self.seed_tracker = 0
 
     @staticmethod
     def _generate_groups(n_chunks=20, low=0, high=80):
@@ -124,7 +127,6 @@ class ChunkDataset(IterableDataset):
                             weights[key] = value
                         else:
                             weights[key] += value
-
             return weights
         else:
             raise NotImplementedError
@@ -136,17 +138,22 @@ class ChunkDataset(IterableDataset):
             # create index
             idx = torch.arange(0, len(chunk_events))
             # we always shuffle val not sure if this is correct or only in the initial one
-            idx = idx[torch.randperm(len(idx))]
+            g = torch.Generator()
+            g.seed(self.seeds[self.seed_tracker])
+            self.seed_tracker += 1
+            idx = idx[torch.randperm(len(idx), generator=g)]
 
             # Yield events in shuffled order
             for i in idx:
                 yield chunk_events[i]
 
-            # del chunk_events
-            # gc.collect()
+            del chunk_events
+            gc.collect()
 
     def get_weights(self):
-        return self._load_chunk(1, mode="weights")
+        weights = {0: self._load_chunk(0, mode="weights"),
+                   1: self._load_chunk(1, mode="weights")}
+        return weights
 
 
 class ChunkLoader(pl.LightningDataModule):
@@ -167,7 +174,7 @@ class ChunkLoader(pl.LightningDataModule):
     def train_dataloader(self):
         if not isinstance(self.trn_dataset, type(None)):
             trn_loader = DataLoader(self.trn_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
-                                    drop_last=True, shuffle=True, persistent_workers=True, pin_memory=False)
+                                    drop_last=True, persistent_workers=True, pin_memory=False)
         else:
             raise ValueError("trn_dataset must be None")
         return trn_loader
