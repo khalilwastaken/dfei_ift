@@ -4,6 +4,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 
 import torch
+
 torch.set_float32_matmul_precision("high")
 
 from wmpgnn.analysis.trainer_helper import *
@@ -13,6 +14,7 @@ from wmpgnn.lightning_module.ift_lightning_module import IFTLightningModule
 
 seed_everything(42, workers=True)
 
+
 def load_module(configs, pos_weights, model, dfei_model=None, is_train=True):
     # Checking if need to load from cpt
     load_from_cpt = configs[model]["cpt"]
@@ -21,7 +23,7 @@ def load_module(configs, pos_weights, model, dfei_model=None, is_train=True):
     elif isinstance(load_from_cpt, str):
         bis_model = load_from_cpt
     else:
-       bis_model = "None"
+        bis_model = "None"
     configs[model]["cpt"] = bis_model
     lr = float(configs[model]["settings"]["lr"])
     weight_decay = float(configs[model]["settings"]["weight_decay"])
@@ -81,10 +83,10 @@ def load_module(configs, pos_weights, model, dfei_model=None, is_train=True):
     return module
 
 
-def training(module, trn_loader, val_loader, configs, model="DFEI"):
-    #module = torch.compile(module)
+def training(module, configs, model="DFEI", trn_loader=None, val_loader=None, chunkloader=None):
+    # module = torch.compile(module)
 
-    monitoring_loss = "val_combined_loss" if model =="DFEI" else "val_ft_loss"
+    monitoring_loss = "val_combined_loss" if model == "DFEI" else "val_ft_loss"
 
     early_stopping = EarlyStopping(
         monitor=monitoring_loss,
@@ -117,21 +119,28 @@ def training(module, trn_loader, val_loader, configs, model="DFEI"):
         num_sanity_val_steps=0,
         gradient_clip_val=1.0,
         benchmark=True,
-        #limit_train_batches=1,
-        #limit_val_batches=1,
-        #limit_test_batches=1,
+        # limit_train_batches=1,
+        # limit_val_batches=1,
+        # limit_test_batches=1,
     )
 
     """Start training"""
-    trainer.fit(module, trn_loader, val_loader)
+    if trn_loader is not None and val_loader is not None:
+        trainer.fit(module, trn_loader, val_loader)
+    elif chunkloader is not None:
+        trainer.fit(module, chunkloader)
+    else:
+        raise NotImplemented
     _ = trainer.logger.version
     return trainer
 
-def evaluate(trainer, module, tst_loader):
+
+def evaluate(trainer, module, tst_loader=None, chunkloader=None):
     if trainer is None:
         trainer = Trainer(
             default_root_dir=f'lightning_logs/version_0',  # save the eval stuff in the dir of the model
         )
-    trainer.test(module, dataloaders=tst_loader)
-
-
+    if tst_loader is not None:
+        trainer.test(module, dataloaders=tst_loader)
+    else:
+        trainer.test(module, dataloaders=chunkloader)

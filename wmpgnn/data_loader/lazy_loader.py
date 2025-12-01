@@ -23,44 +23,41 @@ class LazyGraphDataset(Dataset):
         self.model = model
 
         self.nevnts = {}
-        self.cumulative_sizes = torch.tensor([], dtype=torch.int64)
+        self.cumulative_sizes = []
         self.weights = {}
         total = 0
         sample_order = list(self.file_paths.keys())
         for sample in sample_order:
             if sample == "inclusive":
-                load_dataset = partial(self._load_dataset, mode="val")
+                load_dataset = partial(self._load_dataset, mode="val", return_indx=True)
             else:
-                load_dataset = partial(self._load_dataset, mode=mode)
-            with ThreadPool(processes=configs["settings"]["ncpu"] * 2) as pool:
-                results = list(
-                    tqdm(pool.imap(load_dataset, file_paths[sample]), total=len(file_paths[sample]),
-                         desc=f"  Indexing {sample} dataset files"))
+                load_dataset = partial(self._load_dataset, mode=mode, return_indx=True)
 
             sample_length = 0
             self.weights[sample] = {}
 
-            for r in results:
-                filtered_length = len(r[0])
-                weight_dict = r[1]
+            with ThreadPool(processes=configs["settings"]["ncpu"] * 2) as pool:
+                for r in tqdm(pool.imap(load_dataset, file_paths[sample]),
+                              total=len(file_paths[sample]), desc=f"  Indexing {sample} dataset files"):
+                    filtered_length = r[0]
+                    weight_dict = r[1]
 
-                total += filtered_length
-                sample_length += filtered_length
-                self.cumulative_sizes = torch.cat([self.cumulative_sizes, torch.tensor([total], dtype=torch.int64)])
+                    total += filtered_length
+                    sample_length += filtered_length
+                    self.cumulative_sizes.append(total)
 
-                # immediately combine weights
-                for key, value in weight_dict.items():
-                    if key not in self.weights[sample]:
-                        self.weights[sample][key] = value
-                    else:
-                        self.weights[sample][key] += value
-
+                    # immediately combine weights
+                    for key, value in weight_dict.items():
+                        if key not in self.weights[sample]:
+                            self.weights[sample][key] = value
+                        else:
+                            self.weights[sample][key] += value
 
             self.nevnts[sample] = sample_length
         print(f"  Total samples after filtering: {total}")
         self.file_paths = list(chain.from_iterable(self.file_paths[sample] for sample in sample_order))
 
-    def _load_dataset(self, path, mode):
+    def _load_dataset(self, path, mode, return_indx=False):
         with open(path, "rb") as f:
             data = torch.load(f, weights_only=False)
 
@@ -89,6 +86,8 @@ class LazyGraphDataset(Dataset):
             weights = get_hetero_weight(filtered_data, self.configs)
         else:
             weights = {}
+        if return_indx:
+            return len(filtered_data), weights
         return filtered_data, weights
 
     def __len__(self):
@@ -164,7 +163,6 @@ def get_trn_val_loaders(configs, model="DFEI"):
     trn_loader = DataLoader(trn_dataset, batch_size=batch_size, num_workers=num_workers,
                             drop_last=True, shuffle=True, persistent_workers=True if num_workers > 0 else False,
                             pin_memory=False)
-
 
     # Shuffle validation dataset
     generator = torch.Generator()

@@ -9,8 +9,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 
 from wmpgnn.analysis.trainer_helper import *
 from wmpgnn.analysis.weights_calculator import transform_pos_weight
-from wmpgnn.analysis.data_loader import get_tst_loaders
-from wmpgnn.analysis.lazy_loader import get_trn_val_loaders
 from wmpgnn.performance.plotter import metrics_eval
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
 from wmpgnn.lightning_module.exec_lightning import load_module, training, evaluate
@@ -36,12 +34,21 @@ if __name__ == "__main__":
     print(f"IFT mode : {configs['IFT']['mode']}")
     print("=" * 30)
 
-
+    trn_loader, val_loader, tst_loader, chunkloader = None, None, None, None
     """Start DFEI training"""
     dfei_model = None
     if configs['DFEI']['mode'] == "train":
-        trn_loader, val_loader, weights, nevts = get_trn_val_loaders(configs["DFEI"])
-        configs["DFEI"].update({"num_events": nevts})
+        if "nu7p6" in configs["DFEI"]["settings"]["data_dir"]:
+            from wmpgnn.data_loader.chunk_loader import get_trn_val_loaders, get_tst_loaders
+
+            chunkloader = get_trn_val_loaders(configs["DFEI"])
+            weights = chunkloader.trn_dataset.get_weights()
+            configs["DFEI"].update({"num_files":  chunkloader.trn_dataset.n_files})
+        else:
+            from wmpgnn.data_loader.data_loader import get_trn_val_loaders, get_tst_loaders
+
+            trn_loader, val_loader, weights, nevts = get_trn_val_loaders(configs["DFEI"])
+            configs["DFEI"].update({"num_events": nevts})
         pos_weights = transform_pos_weight(weights, configs["DFEI"]["inference"])
 
         # Start training DFEI
@@ -54,10 +61,13 @@ if __name__ == "__main__":
         if run_test:
             print("=" * 30)
             print("Loading data")
-            tst_loader, nevts = get_tst_loaders(configs, model="DFEI")
-            configs["DFEI"].update({"num_events": nevts})
+            if "nu7p6" in configs["DFEI"]["settings"]["data_dir"]:
+                chunkloader = get_tst_loaders(configs["DFEI"])
+            else:
+                tst_loader, nevts = get_tst_loaders(configs, model="DFEI")
+                configs["DFEI"].update({"num_events": nevts})
             print("=" * 30)
-            evaluate(trainer, module, tst_loader)
+            evaluate(trainer, module, tst_loader=tst_loader, chunkloader=chunkloader)
             metric_path = f"lightning_logs/DFEI/version_{version}/metrics.csv"
             df = pd.read_csv(metric_path)
             df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
