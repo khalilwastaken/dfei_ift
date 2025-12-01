@@ -1,3 +1,4 @@
+import gc
 import os
 from optparse import OptionParser
 import yaml
@@ -38,7 +39,7 @@ class ChunkDataset(IterableDataset):
         self.chunk_index = torch.cat(file_index, dim=1)
         self.files_per_chunk = self.chunk_index.shape[1]
         self.n_files = {}
-        for sample in  self.file_paths.keys():
+        for sample in self.file_paths.keys():
             self.n_files[sample] = len(self.file_paths[sample])
         self.file_paths = list(chain.from_iterable(self.file_paths[sample] for sample in self.file_paths.keys()))
 
@@ -132,16 +133,31 @@ class ChunkDataset(IterableDataset):
             raise NotImplementedError
 
     def __iter__(self):
-        for chunk_number in range(self.n_chunks):
+        # assuming 4 num workers which each want to load a chunk
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is None:
+            iter_start = 0
+            iter_end = self.n_chunks
+        else:
+            worker_id = worker_info.id
+            per_worker = int(np.ceil(self.n_chunks / worker_info.num_workers))
+            iter_start = worker_id * per_worker
+            iter_end = min(iter_start + per_worker, self.n_chunks)
+
+        for chunk_number in range(iter_start, iter_end):
+            # for chunk_number in range(self.n_chunks):
             chunk_events = self._load_chunk(chunk_number)
 
             # create index
             idx = torch.arange(0, len(chunk_events))
             # we always shuffle val not sure if this is correct or only in the initial one
-            g = torch.Generator()
-            g.seed(self.seeds[self.seed_tracker])
-            self.seed_tracker += 1
-            idx = idx[torch.randperm(len(idx), generator=g)]
+            if self.mode == "train":
+                g = torch.Generator()
+                g.manual_seed(self.seeds[self.seed_tracker].item())
+                self.seed_tracker += 1
+                idx = idx[torch.randperm(len(idx), generator=g)]
+            else:
+                idx = idx[torch.randperm(len(idx))]
 
             # Yield events in shuffled order
             for i in idx:
@@ -169,12 +185,14 @@ class ChunkLoader(pl.LightningDataModule):
             self.batchsize = batchsize
         else:
             self.batch_size = self.configs["settings"]["batch_size"]
-        self.num_workers = self.configs["settings"]["ncpu"] * 2
+        self.num_workers = 8  # lets test with 4
+        # self.num_workers = self.configs["settings"]["ncpu"] * 2
 
     def train_dataloader(self):
         if not isinstance(self.trn_dataset, type(None)):
             trn_loader = DataLoader(self.trn_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
-                                    drop_last=True, persistent_workers=True, pin_memory=False)
+                                    drop_last=True, persistent_workers=True if self.num_workers > 0 else False,
+                                    pin_memory=False)
         else:
             raise ValueError("trn_dataset must be None")
         return trn_loader
@@ -182,7 +200,8 @@ class ChunkLoader(pl.LightningDataModule):
     def val_dataloader(self):
         if not isinstance(self.val_dataset, type(None)):
             val_loader = DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
-                                    drop_last=True, persistent_workers=True, pin_memory=False)
+                                    drop_last=True, persistent_workers=True if self.num_workers > 0 else False,
+                                    pin_memory=False)
         else:
             raise ValueError("val_dataset must be None")
         return val_loader
@@ -190,7 +209,8 @@ class ChunkLoader(pl.LightningDataModule):
     def test_dataloader(self):
         if not isinstance(self.tst_dataset, type(None)):
             val_loader = DataLoader(self.tst_dataset, batch_size=1, num_workers=self.num_workers,
-                                    drop_last=True, persistent_workers=True, pin_memory=False)
+                                    drop_last=True, persistent_workers=True if self.num_workers > 0 else False,
+                                    pin_memory=False)
         else:
             raise ValueError("tst_dataset must be None")
         return val_loader
@@ -208,7 +228,7 @@ def get_trn_val_loaders(configs):
     path_dict = {}
     for sample in samples:
         path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/trn_data_*'))[:nfiles[sample]]
-    trn_dataset = ChunkDataset(path_dict, configs)
+    trn_dataset = ChunkDataset(path_dict, configs, mode="train")
 
     """Validation"""
     path_dict = {}
@@ -218,6 +238,7 @@ def get_trn_val_loaders(configs):
 
     return ChunkLoader(configs, trn_dataset=trn_dataset, val_dataset=val_dataset)
 
+
 def get_tst_loader(configs):
     sample = configs["evaluate"]["sample"]
     nfiles = configs["evaluate"]["nfiles"]
@@ -225,7 +246,7 @@ def get_tst_loader(configs):
 
     path_dict = {}
     path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/tst_data_*'))[:nfiles]
-    tst_dataset = ChunkDataset(path_dict, configs)
+    tst_dataset = ChunkDataset(path_dict, configs, mode="test")
 
     return ChunkLoader(configs, tst_dataset=tst_dataset, batchsize=1)
 
