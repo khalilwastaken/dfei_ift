@@ -8,6 +8,7 @@ from optparse import OptionParser
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from wmpgnn.analysis.trainer_helper import *
+from wmpgnn.data_loader.data_loader_helper import load_trn_val_data
 from wmpgnn.analysis.weights_calculator import transform_pos_weight
 from wmpgnn.performance.plotter import metrics_eval
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
@@ -34,22 +35,11 @@ if __name__ == "__main__":
     print(f"IFT mode : {configs['IFT']['mode']}")
     print("=" * 30)
 
-    trn_loader, val_loader, tst_loader, chunkloader = None, None, None, None
     """Start DFEI training"""
     dfei_model = None
     if configs['DFEI']['mode'] == "train":
-        if "nu7p6" in configs["DFEI"]["settings"]["data_dir"]:
-            from wmpgnn.data_loader.chunk_loader import get_trn_val_loaders, get_tst_loader
-
-            chunkloader = get_trn_val_loaders(configs["DFEI"])
-            print("Obtaining weights:")
-            weights = chunkloader.trn_dataset.get_weights()
-            configs["DFEI"].update({"num_files": chunkloader.trn_dataset.n_files})
-        else:
-            from wmpgnn.data_loader.data_loader import get_trn_val_loaders, get_tst_loader
-
-            trn_loader, val_loader, weights, nevts = get_trn_val_loaders(configs["DFEI"])
-            configs["DFEI"].update({"num_events": nevts})
+        # Obtaining train and validation dataloaders
+        configs, weights, trn_loader, val_loader, chunkloader = load_trn_val_loader(configs, model="DFEI")
         pos_weights = transform_pos_weight(weights, configs["DFEI"]["inference"])
 
         # Start training DFEI
@@ -59,21 +49,12 @@ if __name__ == "__main__":
         version = trainer.logger.version
 
         # Start testing
-        run_test = any(value for key, value in configs["DFEI"]["inference"].items() if not key.endswith("weights"))
-        if run_test:
-            print("=" * 30)
-            print("Loading data")
-            if "nu7p6" in configs["DFEI"]["settings"]["data_dir"]:
-                chunkloader = get_tst_loaders(configs["DFEI"])
-            else:
-                tst_loader, nevts = get_tst_loaders(configs, model="DFEI")
-                configs["DFEI"].update({"num_events": nevts})
-            print("=" * 30)
-            evaluate(trainer, module, tst_loader=tst_loader, chunkloader=chunkloader)
-            metric_path = f"lightning_logs/DFEI/version_{version}/metrics.csv"
-            df = pd.read_csv(metric_path)
-            df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
-            metrics_eval(df, configs["DFEI"]["inference"], version, configs["evaluate"]["sample"], mode="DFEI")
+        configs, tst_loader, chunkloader = load_tst_loader(configs, model="DFEI")
+        evaluate(trainer, module, tst_loader=tst_loader, chunkloader=chunkloader)
+        metric_path = f"lightning_logs/DFEI/version_{version}/metrics.csv"
+        df = pd.read_csv(metric_path)
+        df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
+        metrics_eval(df, configs["DFEI"]["inference"], version, configs["evaluate"]["sample"], mode="DFEI")
 
         dfei_bis_model = get_bis_model(version, "DFEI")
         print("Obtained best DFEI model:", dfei_bis_model)
@@ -85,33 +66,31 @@ if __name__ == "__main__":
             dfei_bis_model = load_dfei
         else:
             raise RuntimeError(f"Unsupported load_dfei: {type(load_dfei)}")
+        pos_weights = transform_pos_weight(None, None, mode="eval")
     else:
-        raise RuntimeError(f"either train or pass dfei model, not usage currently not implemented")
-    print("Using DFEI model:", dfei_bis_model)
-    configs["DFEI"]["cpt"] = dfei_bis_model
-    module = load_module(configs, pos_weights, model="DFEI")
-    dfei_model = module.model
+        raise RuntimeError(f"either train or pass DFEI model, not usage currently not possible for IFT")
 
     """Start IFT training"""
     if configs['IFT']['mode'] == "train":
-        trn_loader, val_loader, weights, nevts = get_trn_val_loaders(configs["IFT"], model="IFT")
-        configs["IFT"].update({"num_events": nevts})
+        # Loading the DFEI model
+        print("Using DFEI model:", dfei_bis_model)
+        configs["DFEI"]["cpt"] = dfei_bis_model
+        module = load_module(configs, pos_weights, model="DFEI")
+        dfei_model = module.model
+
+        # Loading in IFT model
+        configs, weights, trn_loader, val_loader, chunkloader = load_trn_val_loader(configs, model="IFT")
         pos_weights = transform_pos_weight(weights, configs["IFT"]["inference"])
 
         # Load IFT model
         module = load_module(configs, pos_weights, model="IFT", dfei_model=dfei_model)
-        trainer = training(module, trn_loader, val_loader, configs, model="IFT")
+        trainer = training(module, configs, model="IFT",
+                           trn_loader=trn_loader, val_loader=val_loader, chunkloader=chunkloader)
         version = trainer.logger.version
 
-        run_test = any(value for key, value in configs["IFT"]["inference"].items() if not key.endswith("weights"))
-        if run_test:
-            print("=" * 30)
-            print("Loading data")
-            tst_loader, nevts = get_tst_loaders(configs, model="IFT")
-            configs["IFT"].update({"num_events": nevts})
-            print("=" * 30)
-            evaluate(trainer, module, tst_loader)
-            metric_path = f"lightning_logs/IFT/version_{version}/metrics.csv"
-            df = pd.read_csv(metric_path)
-            df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
-            metrics_eval(df, configs["IFT"]["inference"], version, configs["evaluate"]["sample"], mode="IFT")
+        configs, tst_loader, chunkloader = load_tst_loader(configs, model="DFEI")
+        evaluate(trainer, module, tst_loader=tst_loader, chunkloader=chunkloader)
+        metric_path = f"lightning_logs/IFT/version_{version}/metrics.csv"
+        df = pd.read_csv(metric_path)
+        df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
+        metrics_eval(df, configs["IFT"]["inference"], version, configs["evaluate"]["sample"], mode="IFT")

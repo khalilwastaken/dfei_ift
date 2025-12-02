@@ -20,6 +20,7 @@ from wmpgnn.util.pruners import *
 
 
 class ChunkDataset(IterableDataset):
+    # if find a way to load the data during training -> need twice amount of cpu mem
     def __init__(self, file_paths, configs, mode="train", n_chunks=40):
         super().__init__()
         self.file_paths = file_paths

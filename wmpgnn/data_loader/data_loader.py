@@ -129,12 +129,13 @@ def load_dataset(path, _configs, mode, model):
         filtered_data = data
 
     """Adding pid information as a node feature for IFT"""
-    if model == "IFT":
+    #Decapricated
+    """if model == "IFT":
         for i in range(len(filtered_data)):
             filtered_data[i]["tracks"].x = torch.cat([filtered_data[i]["tracks"].x, filtered_data[i]["tracks"].pid], dim=1)
     # pid info is only used within the nodes, remove it as a feature
     for item in filtered_data:
-        del item["tracks"].pid
+        del item["tracks"].pid"""
 
     """Obtain the weights"""
     if _configs["inference"]["get_weights"] and mode == "train":
