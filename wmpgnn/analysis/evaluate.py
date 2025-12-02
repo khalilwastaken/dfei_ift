@@ -10,7 +10,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 
 from wmpgnn.analysis.trainer_helper import *
 from wmpgnn.analysis.weights_calculator import transform_pos_weight
-from wmpgnn.analysis.data_loader import get_tst_loaders
 from wmpgnn.performance.plotter import metrics_eval
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
 from wmpgnn.lightning_module.exec_lightning import load_module, training, evaluate
@@ -40,25 +39,19 @@ if __name__ == "__main__":
         configs = yaml.safe_load(file)
 
     # Loading data
-    tst_loader, nevts = get_tst_loaders(configs, model=model)
-    configs[model].update({"num_events": nevts})
-    
+    configs, weights, trn_loader, val_loader, chunkloader = load_trn_val_loader(configs, model="IFT")
 
     # Getting the DFEI model
     pos_weights = transform_pos_weight(None, None, mode="eval")
     print("DFEI module:")
     module = load_module(configs, pos_weights, model="DFEI", is_train=False)
-    import pdb; pdb.set_trace()
     version = re.search(r'version_(\d+)', configs[model]["cpt"]).group(1)
     dfei_model = module.model
-    if model == "DFEI":
-        evaluate(None, module, tst_loader)
-
 
     if model == "IFT":
         print("IFT module:")
         module = load_module(configs, pos_weights, model="IFT", dfei_model=dfei_model, is_train=False)
-        evaluate(None, module, tst_loader)
+    evaluate(None, module, tst_loader=tst_loader, chunkloader=chunkloader)
 
     metric_path = f"lightning_logs/{model}/version_{version}/metrics.csv"
     df = pd.read_csv(metric_path)
