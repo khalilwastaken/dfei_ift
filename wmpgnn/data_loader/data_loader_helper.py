@@ -28,7 +28,7 @@ def load_tst_loader(configs, model="DFEI"):
         chunkloader = get_tst_loader(configs[model])
         configs[model].update({"num_files": chunkloader.tst_dataset.n_files})
     else:
-        from wmpgnn.data_loader.data_loader import get_trn_val_loaders
+        from wmpgnn.data_loader.data_loader import get_tst_loader
 
         tst_loader, nevts = get_tst_loader(configs[model], model=model)
         configs[model].update({"num_events": nevts})
