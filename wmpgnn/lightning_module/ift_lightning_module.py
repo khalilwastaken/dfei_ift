@@ -15,7 +15,6 @@ from wmpgnn.performance.reconstruction import reco_event
 
 
 class IFTLightningModule(L.LightningModule):
-    # here we need to add the initial dfei model to pass thorugh and then to ift
     def __init__(self, model, dfei_model, optimizer_class, optimizer_params, configs, pos_weights, is_train=True):
         super().__init__()
         self.is_train = is_train
@@ -32,6 +31,7 @@ class IFTLightningModule(L.LightningModule):
         self.configs = configs["IFT"]["inference"]
         self.model = model
         self.dfei_model = dfei_model
+        self.dfei_need_pid = None
         for param in self.dfei_model.parameters():
             param.requires_grad = False
         self.optimizer_class = optimizer_class
@@ -60,14 +60,36 @@ class IFTLightningModule(L.LightningModule):
         optimizers = self.optimizers()
         loss = init_loss(self.device)
 
-        # Pass to first model and add lca score as edge feature
-        data = copy.deepcopy(batch)
-        outputs = self.dfei_model(batch)
-        lca = outputs[("tracks", "to", "tracks")].edges
+        # Testing if DFEI need pid information or not
+        if self.dfei_need_pid is None:
+            test_data = copy.deepcopy(batch)
+            try:
+                _ = self.dfei_model(test_data)
+                self.dfei_need_pid = False
+                print("DFEI does not need pid information")
+            except:
+                try:
+                    test_data["tracks"].x = torch.cat([test_data["tracks"].x, test_data["tracks"].pid], dim=1)
+                    _ = self.dfei_model(test_data)
+                    self.dfei_need_pid = True
+                except:
+                    raise NotImplementedError("something went wrong")
+                print("DFEI need pid information")
+            del test_data
+
+        dfei_input = copy.deepcopy(batch)
+        if self.dfei_need_pid:
+            dfei_input["tracks"].x = torch.cat([dfei_input["tracks"].x, dfei_input["tracks"].pid], dim=1)
+
+        # Adding lca information to edges
+        dfei_outputs = self.dfei_model(dfei_input)
+        lca = dfei_outputs[("tracks", "to", "tracks")].edges
         lca_score = torch.argmax(lca, dim=1).unsqueeze(1)
-        data[("tracks", "to", "tracks")].edges = torch.cat([data[("tracks", "to", "tracks")].edges, lca_score],
-                                                           dim=1)
-        outputs_ft = self.model(data)
+        batch[("tracks", "to", "tracks")].edges = torch.cat([batch[("tracks", "to", "tracks")].edges, lca_score],
+                                                            dim=1)
+        # Adding pid information to nodes
+        batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
+        outputs_ft = self.model(batch)
         outputs_ft[("tracks", "to", "tracks")].lca = lca
 
         y_ft = batch['tracks'].ft
@@ -84,7 +106,8 @@ class IFTLightningModule(L.LightningModule):
                 node_selbool = self.dfei_model._blocks[-1].node_weights["tracks"].squeeze() > self.node_prune
                 edge_mask = true_node_pruning(node_selbool, outputs_ft, "tracks", [('tracks', 'to', 'tracks')])
                 ft_des = ft_des[node_selbool]
-                edge_selbool = self.dfei_model._blocks[-1].edge_weights[('tracks', 'to', 'tracks')].squeeze()[edge_mask] > self.edge_prune
+                edge_selbool = self.dfei_model._blocks[-1].edge_weights[('tracks', 'to', 'tracks')].squeeze()[
+                                   edge_mask] > self.edge_prune
                 edge_pruning(edge_selbool, outputs_ft, ('tracks', 'to', 'tracks'))
                 outputs_ft[("tracks", "to", "tracks")].lca = outputs_ft[("tracks", "to", "tracks")].lca[edge_mask][
                     edge_selbool]
@@ -141,4 +164,3 @@ class IFTLightningModule(L.LightningModule):
         if self.configs["FT"]:
             process_ft(self.tst_log, self.sig_df, self.version, self.signal)
             analyze_tagging_power(self.sig_df, self.version, self.signal)
-
