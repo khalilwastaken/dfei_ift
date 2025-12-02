@@ -104,25 +104,24 @@ class ChunkDataset(IterableDataset):
 
     def _load_chunk(self, chunk_number, mode="loading"):
         nevnts = 800
-        if self.mode == "validaiton" or self.mode == "test":
+        if self.mode == "validation" or self.mode == "test":
             nevnts = 200
 
         chunk = self.chunk_index[chunk_number]
         files = [self.file_paths[i] for i in chunk]
+        desc = f"Loading {self.mode} chunk {chunk_number + 1}/{self.n_chunks} ({self.files_per_chunk} files, ~{self.files_per_chunk * nevnts} events)"
         if mode == "loading":
             dataset = []
             load_dataset = partial(self._load_dataset)
             with ThreadPool(processes=self.configs["settings"]["ncpu"]) as pool:
-                for r in tqdm(pool.imap(load_dataset, files), total=len(files),
-                              desc=f"Loading chunk {chunk_number + 1}/{self.n_chunks} ({self.files_per_chunk} files, ~{self.files_per_chunk * nevnts} events)"):
+                for r in tqdm(pool.imap(load_dataset, files), total=len(files), desc=desc):
                     dataset.extend(r)
             return dataset
         elif mode == "weights":
             weights = {}
             load_dataset = partial(self._load_dataset, mode=mode)
             with ThreadPool(processes=self.configs["settings"]["ncpu"]) as pool:
-                for r in tqdm(pool.imap(load_dataset, files), total=len(files),
-                              desc=f"Loading chunk {chunk_number + 1}/{self.n_chunks} ({self.files_per_chunk} files, ~{self.files_per_chunk * nevnts} events)"):
+                for r in tqdm(pool.imap(load_dataset, files), total=len(files),desc=desc):
                     for key, value in r.items():
                         if key not in weights:
                             weights[key] = value
@@ -167,8 +166,10 @@ class ChunkDataset(IterableDataset):
             gc.collect()
 
     def get_weights(self):
+        # pass n entries
         weights = {0: self._load_chunk(0, mode="weights"),
-                   1: self._load_chunk(1, mode="weights")}
+                   1: self._load_chunk(1, mode="weights")
+                   }
         return weights
 
 
@@ -187,32 +188,33 @@ class ChunkLoader(pl.LightningDataModule):
             self.batch_size = self.configs["settings"]["batch_size"]
         self.num_workers = 8  # lets test with 4
         # self.num_workers = self.configs["settings"]["ncpu"] * 2
+        # persistent workers take too much mem
 
     def train_dataloader(self):
         if not isinstance(self.trn_dataset, type(None)):
             trn_loader = DataLoader(self.trn_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
-                                    drop_last=True, persistent_workers=True if self.num_workers > 0 else False,
+                                    drop_last=True, persistent_workers=False,
                                     pin_memory=False)
         else:
-            raise ValueError("trn_dataset must be None")
+            raise ValueError("trn_dataset must not be None")
         return trn_loader
 
     def val_dataloader(self):
         if not isinstance(self.val_dataset, type(None)):
             val_loader = DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
-                                    drop_last=True, persistent_workers=True if self.num_workers > 0 else False,
+                                    drop_last=True, persistent_workers=False,
                                     pin_memory=False)
         else:
-            raise ValueError("val_dataset must be None")
+            raise ValueError("val_dataset must not be None")
         return val_loader
 
     def test_dataloader(self):
         if not isinstance(self.tst_dataset, type(None)):
             val_loader = DataLoader(self.tst_dataset, batch_size=1, num_workers=self.num_workers,
-                                    drop_last=True, persistent_workers=True if self.num_workers > 0 else False,
+                                    drop_last=True, persistent_workers=False,
                                     pin_memory=False)
         else:
-            raise ValueError("tst_dataset must be None")
+            raise ValueError("tst_dataset not must be None")
         return val_loader
 
 
