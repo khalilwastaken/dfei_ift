@@ -8,15 +8,15 @@ from wmpgnn.performance.reco_helper import reconstruct_decay, flatten, match_dec
 
 
 def get_ref_signal(ref_signal):  # Here we can define them all
-    if ref_signal == 'Bs_Jpsiphi':
+    if 'Bs_Jpsiphi' in ref_signal:
         signal_decay = {'daughters': ['mu+', 'mu-', 'K+', 'K-'], 'mothers': ['B(s)0']}
         cc_signal_decay = {'daughters': ['mu+', 'mu-', 'K+', 'K-'], 'mothers': ['B(s)~0']}
         return signal_decay, cc_signal_decay
-    elif ref_signal == 'Bd_JpsiKs':  # Check if this is cor
+    elif 'Bd_JpsiKs' in ref_signal:  # Check if this is cor
         signal_decay = {'daughters': ['mu+', 'mu-', 'pi+', 'pi-'], 'mothers': ['B0']}
         cc_signal_decay = {'daughters': ['mu+', 'mu-', 'pi+', 'pi-'], 'mothers': ['B~0']}
         return signal_decay, cc_signal_decay
-    elif ref_signal == "Bs_Dspi":
+    elif "Bs_Dspi" in ref_signal:
         signal_decay = {'daughters': ['K+', 'K-', 'pi+', 'pi-'], 'mothers': ['B(s)0']}
         cc_signal_decay = {'daughters': ['K+', 'K-', 'pi+', 'pi-'], 'mothers': ['B(s)~0']}
         return signal_decay, cc_signal_decay
@@ -116,7 +116,8 @@ def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des=None):
 
     particle_keys = graph["truth_part_keys"].tolist()
     particle_ids = list(map(particle_name, graph['truth_part_ids'].numpy()))
-    tc_dict, t_nclust_order, max_chain_depth = reconstruct_decay(true_LCA, particle_keys,particle_ids=particle_ids, truth_level_simulation=1)
+    tc_dict, t_nclust_order, max_chain_depth = reconstruct_decay(true_LCA, particle_keys, particle_ids=particle_ids,
+                                                                 truth_level_simulation=1)
     if tc_dict != {}:
         part_heavy_h = flatten([tc_dict[tc_firstkey]['node_keys'] for tc_firstkey in tc_dict.keys()])
         n_part_heavy_h = len(part_heavy_h)

@@ -25,9 +25,8 @@ class DFEILightningModule(L.LightningModule):
             self.version = re.search(r'version_(\d+)', configs["DFEI"]["cpt"]).group(1)
 
         self.signal = configs["evaluate"]["sample"]
-        if configs["evaluate"]["over_write"] != "None":
+        if configs["evaluate"]["over_write"] != "None" and not is_train:
             self.signal += "__" + configs["evaluate"]["over_write"]
-
 
         self.configs = configs["DFEI"]["inference"]
         self.model = model
@@ -63,12 +62,12 @@ class DFEILightningModule(L.LightningModule):
         return self.optimizer_class(self.model.parameters(), **self.optimizer_params)
 
     def shared_step(self, batch, batch_idx, log, mode="train"):
-        # Add here the requirements for pid read from yaml file if pid information need to be added or not
         optimizers = self.optimizers()
         loss = init_loss(self.device)
 
-
         # modify batch to include pid information depending on use_pid or not
+        if self.use_pid:
+            batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
         outputs = self.model(batch)
 
         if self.configs["LCA"]:
@@ -114,11 +113,11 @@ class DFEILightningModule(L.LightningModule):
                 edge_mask = true_node_pruning(node_selbool, outputs, "tracks", [('tracks', 'to', 'tracks')])
 
                 # default, pruningi n the last layer
-                #node_selbool = block.node_weights["tracks"].squeeze() > self.node_prune
-                #edge_mask = true_node_pruning(node_selbool, outputs, "tracks", [('tracks', 'to', 'tracks')])
+                # node_selbool = block.node_weights["tracks"].squeeze() > self.node_prune
+                # edge_mask = true_node_pruning(node_selbool, outputs, "tracks", [('tracks', 'to', 'tracks')])
 
                 # accept all nodes, aka no node pruning
-                #edge_mask = torch.ones(outputs[('tracks', 'to', 'tracks')].y.shape).to(torch.bool)
+                # edge_mask = torch.ones(outputs[('tracks', 'to', 'tracks')].y.shape).to(torch.bool)
 
                 edge_selbool = block.edge_weights[('tracks', 'to', 'tracks')].squeeze()[edge_mask] > self.edge_prune
                 edge_pruning(edge_selbool, outputs, ('tracks', 'to', 'tracks'))
@@ -179,4 +178,3 @@ class DFEILightningModule(L.LightningModule):
             for i in range(len(self.model._blocks)):
                 plot_weights(self.tst_log[f"sig_pv_asso_score_{i}"], self.tst_log[f"bkg_pv_asso_score_{i}"],
                              [f"NN_pv_asso_{i}", "correct", "false"], self.version, model="DFEI", channel=self.signal)
-

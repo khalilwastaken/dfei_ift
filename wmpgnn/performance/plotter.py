@@ -146,11 +146,10 @@ def plot_loss(df, version, loss, mode="DFEI"):
 
 
 def obtain_reco_accuracy(df, version, signal):
-    if signal != "inclusive":
+    if "inclusive" not in signal:
         sig_df = df[df["SigMatch"] == 1]
     else:
         sig_df = df
-
     nevents = len(sig_df)
     all_particles = np.sum(sig_df["AllParticles"])
     all_particles_ratio = all_particles / nevents * 100
