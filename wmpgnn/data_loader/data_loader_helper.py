@@ -25,12 +25,12 @@ def load_tst_loader(configs, model="DFEI"):
     if "nu7p6" in configs[model]["settings"]["data_dir"]:
         from wmpgnn.data_loader.chunk_loader import get_tst_loader
 
-        chunkloader = get_tst_loader(configs[model])
+        chunkloader = get_tst_loader(configs, model=model)
         configs[model].update({"num_files": chunkloader.tst_dataset.n_files})
     else:
         from wmpgnn.data_loader.data_loader import get_tst_loader
 
-        tst_loader, nevts = get_tst_loader(configs[model], model=model)
+        tst_loader, nevts = get_tst_loader(configs, model=model)
         configs[model].update({"num_events": nevts})
 
     return configs, tst_loader, chunkloader

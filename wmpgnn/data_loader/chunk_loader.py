@@ -168,15 +168,15 @@ class ChunkDataset(IterableDataset):
 
     def get_weights(self):
         # pass n entries
-        weights = {0: self._load_chunk(0, mode="weights"),
-                   1: self._load_chunk(1, mode="weights")
-                   }
+        weights = {}
+        for i in range(10):
+            weights[i] = self._load_chunk(i, mode="weights")
         return weights
 
 
 class ChunkLoader(pl.LightningDataModule):
     # Data container for pytorch lightning module
-    def __init__(self, configs, trn_dataset=None, val_dataset=None, tst_dataset=None, batchsize=None):
+    def __init__(self, configs, trn_dataset=None, val_dataset=None, tst_dataset=None, batchsize=None, num_workers=None):
         super().__init__()
         self.trn_dataset = trn_dataset
         self.val_dataset = val_dataset
@@ -187,7 +187,10 @@ class ChunkLoader(pl.LightningDataModule):
             self.batchsize = batchsize
         else:
             self.batch_size = self.configs["settings"]["batch_size"]
-        self.num_workers = 8  # lets test with 4
+        if num_workers is not None:
+            self.num_workers = num_workers
+        else:
+            self.num_workers = 8  # lets test with 4
         # self.num_workers = self.configs["settings"]["ncpu"] * 2
         # persistent workers take too much mem
 
@@ -242,16 +245,17 @@ def get_trn_val_loaders(configs):
     return ChunkLoader(configs, trn_dataset=trn_dataset, val_dataset=val_dataset)
 
 
-def get_tst_loader(configs):
+def get_tst_loader(configs, model):
     sample = configs["evaluate"]["sample"]
     nfiles = configs["evaluate"]["nfiles"]
+    data_dir = configs[model]["settings"]["data_dir"]
     configs = configs[model]
 
     path_dict = {}
     path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/tst_data_*'))[:nfiles]
-    tst_dataset = ChunkDataset(path_dict, configs, mode="test")
+    tst_dataset = ChunkDataset(path_dict, configs, mode="test", n_chunks=nfiles)
 
-    return ChunkLoader(configs, tst_dataset=tst_dataset, batchsize=1)
+    return ChunkLoader(configs, tst_dataset=tst_dataset, batchsize=1, num_workers=1)
 
 
 if __name__ == "__main__":
