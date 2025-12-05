@@ -9,13 +9,14 @@ from optparse import OptionParser
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from wmpgnn.analysis.trainer_helper import *
+from wmpgnn.data_loader.data_loader_helper import load_tst_loader
 from wmpgnn.analysis.weights_calculator import transform_pos_weight
 from wmpgnn.performance.plotter import metrics_eval
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
 from wmpgnn.lightning_module.exec_lightning import load_module, training, evaluate
 
 if __name__ == "__main__":
-    # python trainer.py  --config  ../../config_files/lightning.yaml
+    # python trainer.py  --config  to hparams.yaml
     usage = "usage: %prog [options]"
     parser = OptionParser(usage)
     parser.add_option("", "--config", type=str, default=None,
@@ -39,7 +40,7 @@ if __name__ == "__main__":
         configs = yaml.safe_load(file)
 
     # Loading data
-    configs, weights, trn_loader, val_loader, chunkloader = load_trn_val_loader(configs, model="IFT")
+    configs, tst_loader, chunkloader = load_tst_loader(configs, model="IFT")
 
     # Getting the DFEI model
     pos_weights = transform_pos_weight(None, None, mode="eval")
@@ -56,4 +57,7 @@ if __name__ == "__main__":
     metric_path = f"lightning_logs/{model}/version_{version}/metrics.csv"
     df = pd.read_csv(metric_path)
     df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
-    metrics_eval(df, configs[model]["inference"], version, configs["evaluate"]["sample"], mode=model)
+    sample = configs["evaluate"]["sample"]
+    if configs["evaluate"]["over_write"] != "None":
+        sample += "__" + configs["evaluate"]["over_write"]
+    metrics_eval(df, configs[model]["inference"], version, sample, mode=model)

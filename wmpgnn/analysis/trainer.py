@@ -8,7 +8,7 @@ from optparse import OptionParser
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from wmpgnn.analysis.trainer_helper import *
-from wmpgnn.data_loader.data_loader_helper import load_trn_val_data
+from wmpgnn.data_loader.data_loader_helper import load_trn_val_loader, load_tst_loader
 from wmpgnn.analysis.weights_calculator import transform_pos_weight
 from wmpgnn.performance.plotter import metrics_eval
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
@@ -44,6 +44,7 @@ if __name__ == "__main__":
 
         # Start training DFEI
         module = load_module(configs, pos_weights, model="DFEI")
+        import pdb; pdb.set_trace()
         trainer = training(module, configs, model="DFEI",
                            trn_loader=trn_loader, val_loader=val_loader, chunkloader=chunkloader)
         version = trainer.logger.version
@@ -54,7 +55,10 @@ if __name__ == "__main__":
         metric_path = f"lightning_logs/DFEI/version_{version}/metrics.csv"
         df = pd.read_csv(metric_path)
         df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
-        metrics_eval(df, configs["DFEI"]["inference"], version, configs["evaluate"]["sample"], mode="DFEI")
+        sample = configs["evaluate"]["sample"]
+        if configs["evaluate"]["over_write"] != "None":
+            sample += "__" + configs["evaluate"]["over_write"]
+        metrics_eval(df, configs["DFEI"]["inference"], version, sample, mode="DFEI")
 
         dfei_bis_model = get_bis_model(version, "DFEI")
         print("Obtained best DFEI model:", dfei_bis_model)
@@ -93,4 +97,7 @@ if __name__ == "__main__":
         metric_path = f"lightning_logs/IFT/version_{version}/metrics.csv"
         df = pd.read_csv(metric_path)
         df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
-        metrics_eval(df, configs["IFT"]["inference"], version, configs["evaluate"]["sample"], mode="IFT")
+        sample = configs["evaluate"]["sample"]
+        if configs["evaluate"]["over_write"] != "None":
+            sample += "__" + configs["evaluate"]["over_write"]
+        metrics_eval(df, configs["IFT"]["inference"], version, sample, mode="IFT")
