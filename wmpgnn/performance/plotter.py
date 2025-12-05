@@ -40,7 +40,7 @@ def process_ft(df, sig_df, version, signal):
         bbar_dec_final = 1 - np.array(
             [float(x) for item in sig_ch_df["final_bbar_score"][bbar_selbool].values for x in item.split(',')])
         plot_weights(b_dec_final, bbar_dec_final, [f"signal_b_decision_final", "b", "bbar"], version,
-                     model="IFT",channel=signal)
+                     model="IFT", channel=signal)
     else:
         rem_B_df = sig_df[selbool]
 
@@ -145,6 +145,81 @@ def plot_loss(df, version, loss, mode="DFEI"):
     plt.close()
 
 
+def plot_pv_missasso(log, version, channel, selbool=None):
+    pv_asso_ml, pv_asso_ip, pv_asso_ntracks = log["pv_corr_ml"], log["pv_corr_ip"], log["pv_total"]
+    npvs = np.array([])
+    nPV_bins = []
+    ml_mean, ml_err = [], []
+    ip_mean, ip_err = [], []
+
+    for key in pv_asso_ml.keys():
+        nPV_bins.append(key)
+
+        ml_mean.append(np.sum(pv_asso_ml[key]) / np.sum(pv_asso_ntracks[key]) * 100)
+        ip_mean.append(np.sum(pv_asso_ip[key]) / np.sum(pv_asso_ntracks[key]) * 100)
+
+        ml_err.append(ml_mean[-1] * np.sqrt(1 / np.sum(pv_asso_ml[key]) + 1 / np.sum(pv_asso_ntracks[key])))
+        ip_err.append(ip_mean[-1] * np.sqrt(1 / np.sum(pv_asso_ip[key]) + 1 / np.sum(pv_asso_ntracks[key])))
+
+        npvs = np.concatenate([npvs, np.ones(len(pv_asso_ml[key])) * key])
+    f, ax = plt.subplots(figsize=(9, 6))
+    ax.errorbar(nPV_bins, 100 - np.array(ml_mean), yerr=ml_err, fmt='.', color='red', label="HGNN")
+    ax.errorbar(nPV_bins, 100 - np.array(ip_mean), yerr=ip_err, fmt='.', color='black', label="minIP")
+    ax.hist(npvs, bins=15, range=(0.5, 15.5), alpha=.3, color='grey', weights=np.ones_like(npvs) / len(npvs) * 50)
+    ax.set_ylabel("PV miss-association rate [%]", fontsize=28)
+    ax.set_xlabel("# PVs [a.u.]", fontsize=28)
+    ax.set_ylim([0, 15])
+    ax.set_xlim([0, 16])
+    ax.legend()
+
+    outdir = f"lightning_logs/DFEI/version_{version}/plots_{channel}"
+    os.makedirs(outdir, exist_ok=True)
+
+    if selbool is None:
+        info_string = "all_tracks"
+    else:
+        info_string = "signal_" + selbool
+    plt.savefig(f"{outdir}/{info_string}_pv_asso.pdf")
+    plt.savefig(f"{outdir}/{info_string}_pv_asso.png")
+    plt.close()
+
+
+def plot_sig_pv_missasso(df, version, signal):
+    if "inclusive" not in signal:
+        sig_df = df[df["SigMatch"] == 1]
+    else:
+        sig_df = df
+    sig_df = sig_df[sig_df["NotFound"] != 1]
+
+    def pv_asso(_df, _version, _signal, selbool=None):
+        if selbool is not None:
+            _df = _df[_df[selbool] == 1]
+        true_pv, pred_pv, min_ip_pv = _df["true_pv"].values, _df["pred_pv"].values, _df["minIP_pv"].values
+        npvs = _df["npvs"].values
+
+        pv_log = {"pv_corr_ml": {}, "pv_corr_ip": {}, "pv_total": {}}
+
+        for i in range(len(true_pv)):
+            if npvs[i] not in pv_log["pv_total"].keys():
+                pv_log["pv_corr_ml"][npvs[i]], pv_log["pv_corr_ip"][npvs[i]], pv_log["pv_total"][npvs[i]] = [], [], []
+
+            evt_true_pv = np.array(true_pv[i].split("_"), dtype=int)
+            evt_pred_pv = np.array(pred_pv[i].split("_"), dtype=int)
+            evt_minIP_pv = np.array(min_ip_pv[i].split("_"), dtype=int)
+            pv_log["pv_corr_ml"][npvs[i]].append(np.sum(evt_true_pv == evt_pred_pv))
+            pv_log["pv_corr_ip"][npvs[i]].append(np.sum(evt_true_pv == evt_minIP_pv))
+            pv_log["pv_total"][npvs[i]].append(evt_true_pv.shape[0])
+        plot_pv_missasso(pv_log, _version, _signal, selbool if selbool is not None else "no_selection")
+
+    pv_asso(sig_df, version, signal, "PerfectReco")
+    pv_asso(sig_df, version, signal, "AllParticles")
+    pv_asso(sig_df, version, signal, "NoneIso")
+    pv_asso(sig_df, version, signal, "PartReco")
+    pv_asso(sig_df, version, signal)
+    import pdb; pdb.set_trace()
+
+
+
 def obtain_reco_accuracy(df, version, signal):
     if "inclusive" not in signal:
         sig_df = df[df["SigMatch"] == 1]
@@ -178,7 +253,7 @@ def obtain_reco_accuracy(df, version, signal):
 
 
 def metrics_eval(metrics, configs, version, channel, mode="DFEI"):
-    if configs["LCA"] and mode=="DFEI":
+    if configs["LCA"] and mode == "DFEI":
         plot_LCA_acc(metrics, version, channel=channel)
 
     loss_val = [

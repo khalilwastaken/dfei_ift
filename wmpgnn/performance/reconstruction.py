@@ -93,7 +93,25 @@ def get_pred_ft(sig_dict, graph, cluster, ft_score):
     return res_dict
 
 
-def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des=None):
+def get_pv_asso(sig_dict, graph, cluster, pv_des):
+    res_dict = sig_dict
+    # Save combined b bbar score, save individual scores, save pid of final
+    cluster_keys = cluster['node_keys']
+    keys = graph['final_keys']
+    b_daugthers_mask = np.isin(keys, cluster_keys)
+
+    # Get the individual scores stored as strings
+    true_pv = pv_des["true"][b_daugthers_mask].cpu()
+    pred_pv = pv_des["pred"][b_daugthers_mask].cpu()
+    minIP_pv = pv_des["minIP"][b_daugthers_mask].cpu()
+    res_dict["npvs"] = pv_des["npvs"]
+    res_dict["true_pv"] = '_'.join(str(x.item()) for x in true_pv)
+    res_dict["pred_pv"] = '_'.join(str(x.item()) for x in pred_pv)
+    res_dict["minIP_pv"] = '_'.join(str(x.item()) for x in minIP_pv)
+    return res_dict
+
+
+def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des=None, pv_des=None):
     ref_signal = get_ref_signal(signal)
     graph = graph.cpu()
 
@@ -179,23 +197,29 @@ def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des=None):
                     if rc['LCA_values'] == tc['LCA_values']:
                         sig_dict["PerfectReco"] = 1
                     sig_dict["NoneIso"] = sig_dict["PartReco"] = 0
-                    if ft_des != None:
+                    if ft_des is not None:
                         sig_dict = get_pred_ft(sig_dict, graph, rc, ft_des)
                         sig_dict = get_asso_frag(sig_dict, graph, rc)
+                    if pv_des is not None:
+                        get_pv_asso(sig_dict, graph, rc, pv_des)
                     break
                 elif true_in_reco == 1 and len(rc['node_keys']) > len(tc['node_keys']):
                     sig_dict["NoneIso"] = 1  # background tracks in signal
                     sig_dict["PartReco"] = 0
-                    if ft_des != None:
+                    if ft_des is not None:
                         sig_dict = get_pred_ft(sig_dict, graph, rc, ft_des)
                         sig_dict = get_asso_frag(sig_dict, graph, rc)
+                    if pv_des is not None:
+                        get_pv_asso(sig_dict, graph, rc, pv_des)
                     break
                 elif 0.2 <= true_in_reco < 1:
                     sig_dict["PartReco"] = 1  # FT decision can not be trusted
                     sig_dict["NumBkgParticles_noniso"] = len(rc['node_keys']) - len(tc['node_keys'])
-                    if ft_des != None:
+                    if ft_des is not None:
                         sig_dict = get_pred_ft(sig_dict, graph, rc, ft_des)
                         sig_dict = get_asso_frag(sig_dict, graph, rc)
+                    if pv_des is not None:
+                        get_pv_asso(sig_dict, graph, rc, pv_des)
                     break
                 else:
                     sig_dict["final_pid"] = sig_dict["final_b_score"] = sig_dict["final_bbar_score"] = ""

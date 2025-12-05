@@ -106,6 +106,7 @@ class IFTLightningModule(L.LightningModule):
                 node_selbool = self.dfei_model._blocks[-1].node_weights["tracks"].squeeze() > self.node_prune
                 edge_mask = true_node_pruning(node_selbool, outputs_ft, "tracks", [('tracks', 'to', 'tracks')])
                 ft_des = ft_des[node_selbool]
+                # add here pv decision as well
                 edge_selbool = self.dfei_model._blocks[-1].edge_weights[('tracks', 'to', 'tracks')].squeeze()[
                                    edge_mask] > self.edge_prune
                 edge_pruning(edge_selbool, outputs_ft, ('tracks', 'to', 'tracks'))
@@ -114,7 +115,7 @@ class IFTLightningModule(L.LightningModule):
             outputs_ft["frag_y"] = frag_in_evt
             outputs_ft["frag_pid"] = frag_pid
             self.sig_df, self.evt_df = reco_event(outputs_ft, batch_idx, self.configs, self.signal, self.sig_df,
-                                                  self.evt_df, ft_des)
+                                                  self.evt_df, ft_des=ft_des)
 
         log = loss_logging(log, loss, self.configs, mode="IFT")
         return ift_loss

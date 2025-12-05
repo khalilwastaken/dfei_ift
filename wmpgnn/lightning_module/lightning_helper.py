@@ -52,6 +52,10 @@ def init_logs(configs, mode="train", model="DFEI"):
                 for i in range(gn_blocks):
                     log[f"sig_pv_asso_score_{i}"] = torch.tensor([])
                     log[f"bkg_pv_asso_score_{i}"] = torch.tensor([])
+
+                log["pv_corr_ml"] = {}
+                log["pv_corr_ip"] = {}
+                log["pv_total"] = {}
     elif model == "IFT":
         if loss_config["FT"]:
             log["ft_loss"] = []
