@@ -3,11 +3,11 @@ settings:
   data_dir: "/eos/user/y/yukaiz/DFEI_data/DFEI_pythia_singlecollision_onehot_normed_pt_data"
   sample: [ "Bs_Jpsiphi", "Bd_JpsiKs", "inclusive" ]
   nfiles: [ 80, 80, 200 ]
-  batch_size: 12
+  batch_size: 48
   lr: 1e-3
   weight_decay: 1e-5
   epochs: 100
-  gacc: 4  # gradient accumulation if using smaller batch size
+  gacc: 1  # gradient accumulation if using smaller batch size
   ngpu: 1  # need roughly 40 Gb for bs of 12
   ncpu: 8  # NCPUs for data loader, full dataset limited to 8 for workers due to cpu mem constraints
   graph_mode: "None"  # Apply pruning on initial graph, can use true_frag for true graph with frag
@@ -37,32 +37,32 @@ evaluate:
   model: "None" # this path here is grabbed during evaluation
 
 
-DFEI:
-  use_pid: False
-  cpt: 5 # "None"
+IFT:
+  cpt: None # Version number of None
+  dfei_model: 0 # Version number or None
   node_types: [ 'tracks', 'pvs' ]  # Graph node settings
   edge_types: [ "tracks_tracks", "tracks_pvs" ]  # Graph edge settings
   encoder:
     usage: True
     global:
       layers: [ -1, 128, 128, 16 ]
-      norm: [ "graph_norm", "None" ] # pass single string or [layers - 2 specific norms]
+      norm: [ "graph_norm", "graph_norm" ] # pass single string or [layers - 2 specific norms]
       dropout: 0.01 # pass single float or [layers - 1 specific dropout values]
     tracks:
       layers: [ -1, 128, 128, 16 ]
-      norm: [ "graph_norm", "None" ]
+      norm: [ "graph_norm", "graph_norm" ]
       dropout: 0.01
     pvs:
       layers: [ -1, 128, 128, 16 ]
-      norm: [ "graph_norm", "None" ]
+      norm: [ "graph_norm", "graph_norm" ]
       dropout: 0.01
     tracks_tracks:
       layers: [ -1, 128, 128, 16 ]
-      norm: [ "graph_norm", "None" ]
+      norm: [ "graph_norm", "graph_norm" ]
       dropout: 0.01
     tracks_pvs:
       layers: [ -1, 128, 128, 16 ]
-      norm: [ "graph_norm", "None" ]
+      norm: [ "graph_norm", "graph_norm" ]
       dropout: 0.01
   GNblocks:
     nBlocks: 2
@@ -82,34 +82,33 @@ DFEI:
     usage: True
     global:
       layers: [ -1, 128, 128, 16 ]
-      norm: [ "None", "graph_norm" ] # pass single string or [layers - 2 specific norms]
+      norm: [ "graph_norm", "graph_norm" ] # pass single string or [layers - 2 specific norms]
       dropout: 0.01 # pass single float or [layers - 1 specific dropout values]
     tracks:
       layers: [ -1, 128, 128, 16 ]
-      norm: [ "None", "graph_norm" ]
+      norm: [ "graph_norm", "graph_norm" ]
       dropout: 0.01
     pvs:
       layers: [ -1, 128, 128, 16 ]
-      norm: [ "None", "graph_norm" ]
+      norm: [ "graph_norm", "graph_norm" ]
       dropout: 0.01
     tracks_tracks:
       layers: [ -1, 128, 128, 16 ]
-      norm: [ "None", "graph_norm" ]
+      norm: [ "graph_norm", "graph_norm" ]
       dropout: 0.01
     tracks_pvs:
       layers: [ -1, 128, 128, 16 ]
-      norm: [ "None", "graph_norm" ]
+      norm: [ "graph_norm", "graph_norm" ]
       dropout: 0.01
   op_trafo: # transforms output to desired dimension
     usage: True
-    tr_tr: 4  # Output dim of edges, 4 for LCA edges
+    tr_tr: None
     tr_pv: None
-    tr: None
+    tr: 3  # FT output
     pv: None
     global: None
     MLP:
       layers: [ -1, -1 ]
       norm: "graph_norm"
       dropout: 0.01
-
 
