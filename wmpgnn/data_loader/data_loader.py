@@ -38,11 +38,11 @@ def get_trn_val_loaders(configs, model="DFEI"):
                                 desc=f"Loading {sample} training dataset"))
         for r in results:
             trn_dataset.extend(r[0])
-            for key, value in r.items():
-                if key not in self.weights[sample]:
-                    weights[sample][key] = value
+            for key, value in r[1].items():
+                if key not in weights:
+                    weights[key] = value
                 else:
-                    weights[sample][key] += value
+                    weights[key] += value
             nevts["training"][sample] += len(r[0])
 
     print("Validation:")
@@ -108,7 +108,7 @@ def load_dataset(path, _configs, mode, model):
     with open(path, "rb") as f:
         data = torch.load(f, weights_only=False)
 
-    """Applying pruning for different using truth pruning intially""" # add here pruning from pv asso
+    """Applying pruning for different using truth pruning intially"""  # add here pruning from pv asso
     if "true" in _configs["settings"]["graph_mode"]:
         data_selbool = torch.ones(len(data))
         for i, evt in enumerate(data):
@@ -129,7 +129,7 @@ def load_dataset(path, _configs, mode, model):
         filtered_data = data
 
     """Adding pid information as a node feature for IFT"""
-    #Decapricated
+    # Decapricated
     """if model == "IFT":
         for i in range(len(filtered_data)):
             filtered_data[i]["tracks"].x = torch.cat([filtered_data[i]["tracks"].x, filtered_data[i]["tracks"].pid], dim=1)
