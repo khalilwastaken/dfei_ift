@@ -2,6 +2,7 @@ import os, re
 
 import numpy as np
 
+from sklearn.metrics import roc_curve, roc_auc_score
 import matplotlib.pyplot as plt
 import mplhep as hep
 
@@ -72,7 +73,15 @@ def plot_weights(pos_weight, neg_weights, labels, version, model="DFEI", channel
     ax.hist(neg_weights, bins=100, range=[0, 1], alpha=.8, label=labels[2], color='#4169E1',
             weights=fake_weights)
 
-    outdir = f"lightning_logs/{model}/version_{version}/plots_{channel}"
+    suffix = "/"
+    if "nodes" in labels[0]:
+        suffix = "nodes"
+    elif "edges" in labels[0]:
+        suffix = "edges"
+    elif "pv" in labels[0]:
+        suffix = "pv"
+
+    outdir = f"lightning_logs/{model}/version_{version}/plots_{channel}/{suffix}"
     os.makedirs(outdir, exist_ok=True)
 
     ax.set_xlabel("NN weights [a.u.]")
@@ -172,7 +181,7 @@ def plot_pv_missasso(log, version, channel, selbool=None):
     ax.set_xlim([0, 16])
     ax.legend()
 
-    outdir = f"lightning_logs/DFEI/version_{version}/plots_{channel}"
+    outdir = f"lightning_logs/DFEI/version_{version}/plots_{channel}/pv"
     os.makedirs(outdir, exist_ok=True)
 
     if selbool is None:
@@ -264,3 +273,36 @@ def metrics_eval(metrics, configs, version, channel, mode="DFEI"):
 
     for loss in loss_val:
         plot_loss(metrics, version, loss, mode=mode)
+
+
+def plot_roc_curve(sig, bkg, plt_label, version, model="DFEI", channel="inclusive"):
+    pred = np.concatenate([sig, bkg])
+    labels = np.concatenate([
+        np.ones(len(sig)),
+        np.zeros(len(bkg))
+    ])
+    fpr, tpr, th = roc_curve(labels, pred)
+    auc_score = roc_auc_score(labels, pred)
+    rnd_class = np.linspace(0, 1, 100)
+
+    suffix = "/"
+    if "nodes" in plt_label[0]:
+        suffix = "nodes"
+    elif "edges" in plt_label[0]:
+        suffix = "edges"
+    elif "pv" in plt_label[0]:
+        suffix = "pv"
+
+    outdir = f"lightning_logs/{model}/version_{version}/plots_{channel}/{suffix}"
+    os.makedirs(outdir, exist_ok=True)
+
+    f, ax = plt.subplots(figsize=(9, 6))
+    ax.plot(fpr, tpr, label=f'AUC = {auc_score:.5f}', color="black", alpha=1)
+    ax.plot(rnd_class, rnd_class, '--', label='Rnd classifier', color="grey", alpha=.8)
+    ax.set_xlabel(r'$\epsilon_{bkg}$ - FPR')
+    ax.set_ylabel(r'$\epsilon_{s}$ - TPR')
+    ax.legend(fontsize='medium')
+
+    plt.savefig(f"{outdir}/{plt_label[0]}.pdf")
+    plt.savefig(f"{outdir}/{plt_label[0]}.png")
+    plt.close()
