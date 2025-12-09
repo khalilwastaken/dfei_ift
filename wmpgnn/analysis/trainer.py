@@ -31,20 +31,20 @@ if __name__ == "__main__":
     with open(option.CONFIG, "r") as file:
         configs = adjust_config(yaml.safe_load(file))
 
-    print(f"DFEI mode: {configs['DFEI']['mode']}")
-    print(f"IFT mode : {configs['IFT']['mode']}")
+    for model in ["DFEI", "IFT"]:
+        if model in configs.keys():
+            print("Training model", model)
     print("=" * 30)
 
     """Start DFEI training"""
     dfei_model = None
-    if configs['DFEI']['mode'] == "train":
+    if "DFEI" in configs.keys():
         # Obtaining train and validation dataloaders
         configs, weights, trn_loader, val_loader, chunkloader = load_trn_val_loader(configs, model="DFEI")
         pos_weights = transform_pos_weight(weights, configs["DFEI"]["inference"])
 
         # Start training DFEI
         module = load_module(configs, pos_weights, model="DFEI")
-        import pdb; pdb.set_trace()
         trainer = training(module, configs, model="DFEI",
                            trn_loader=trn_loader, val_loader=val_loader, chunkloader=chunkloader)
         version = trainer.logger.version
@@ -62,37 +62,40 @@ if __name__ == "__main__":
 
         dfei_bis_model = get_bis_model(version, "DFEI")
         print("Obtained best DFEI model:", dfei_bis_model)
-    elif configs['DFEI']['mode'] == "usage":
-        load_dfei = configs['IFT']['dfei_model']
-        if isinstance(load_dfei, int):
-            dfei_bis_model = get_bis_model(load_dfei, "DFEI")
-        elif isinstance(load_dfei, str):
-            dfei_bis_model = load_dfei
-        else:
-            raise RuntimeError(f"Unsupported load_dfei: {type(load_dfei)}")
-        pos_weights = transform_pos_weight(None, None, mode="eval")
     else:
-        raise RuntimeError(f"either train or pass DFEI model, not usage currently not possible for IFT")
+        version = configs['IFT']['dfei_model']
+        if isinstance(version, int):
+            dfei_bis_model = get_bis_model(version, "DFEI")
+        elif isinstance(version, str):
+            dfei_bis_model = version
+            version = re.search(r"version_(\d+)", dfei_bis_model).group(1)
+        else:
+            raise RuntimeError(f"Unsupported load_dfei: {type(version)}")
+        pos_weights = transform_pos_weight(None, None, mode="eval")
 
     """Start IFT training"""
-    if configs['IFT']['mode'] == "train":
-        # Loading the DFEI model
+    if "IFT" in configs.keys():
+        # Loading the DFEI model by loading the hparams of the used model
         print("Using DFEI model:", dfei_bis_model)
+        with open(f"lightning_logs/DFEI/version_{version}/hparams.yaml", "r") as file:
+            dfei_hparams = yaml.safe_load(file)
+        configs["DFEI"] = dfei_hparams["DFEI"]
         configs["DFEI"]["cpt"] = dfei_bis_model
         module = load_module(configs, pos_weights, model="DFEI")
         dfei_model = module.model
 
-        # Loading in IFT model
+        # Obtaining train and validation dataloaders
         configs, weights, trn_loader, val_loader, chunkloader = load_trn_val_loader(configs, model="IFT")
         pos_weights = transform_pos_weight(weights, configs["IFT"]["inference"])
 
-        # Load IFT model
+        # Start training IFT
         module = load_module(configs, pos_weights, model="IFT", dfei_model=dfei_model)
         trainer = training(module, configs, model="IFT",
                            trn_loader=trn_loader, val_loader=val_loader, chunkloader=chunkloader)
         version = trainer.logger.version
 
-        configs, tst_loader, chunkloader = load_tst_loader(configs, model="DFEI")
+        # Start testing
+        configs, tst_loader, chunkloader = load_tst_loader(configs, model="IFT")
         evaluate(trainer, module, tst_loader=tst_loader, chunkloader=chunkloader)
         metric_path = f"lightning_logs/IFT/version_{version}/metrics.csv"
         df = pd.read_csv(metric_path)

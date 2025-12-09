@@ -31,7 +31,7 @@ class IFTLightningModule(L.LightningModule):
         self.configs = configs["IFT"]["inference"]
         self.model = model
         self.dfei_model = dfei_model
-        self.dfei_need_pid = None
+        self.dfei_need_pid = configs["DFEI"]["use_pid"]
         for param in self.dfei_model.parameters():
             param.requires_grad = False
         self.optimizer_class = optimizer_class
@@ -59,23 +59,6 @@ class IFTLightningModule(L.LightningModule):
     def shared_step(self, batch, batch_idx, log, mode="train"):
         optimizers = self.optimizers()
         loss = init_loss(self.device)
-
-        # Testing if DFEI need pid information or not
-        if self.dfei_need_pid is None:
-            test_data = copy.deepcopy(batch)
-            try:
-                _ = self.dfei_model(test_data)
-                self.dfei_need_pid = False
-                print("DFEI does not need pid information")
-            except:
-                try:
-                    test_data["tracks"].x = torch.cat([test_data["tracks"].x, test_data["tracks"].pid], dim=1)
-                    _ = self.dfei_model(test_data)
-                    self.dfei_need_pid = True
-                except:
-                    raise NotImplementedError("something went wrong")
-                print("DFEI need pid information")
-            del test_data
 
         dfei_input = copy.deepcopy(batch)
         if self.dfei_need_pid:

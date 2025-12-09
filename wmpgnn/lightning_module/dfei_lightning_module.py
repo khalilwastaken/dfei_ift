@@ -30,11 +30,10 @@ class DFEILightningModule(L.LightningModule):
 
         self.configs = configs["DFEI"]["inference"]
         self.model = model
-        print(model)
         self.optimizer_class = optimizer_class
         self.optimizer_params = optimizer_params
 
-        # Loss functions
+        # Loss functions + associated inference class for plotting
         if self.configs["LCA"]:
             self.lca_criterion = nn.CrossEntropyLoss(weight=pos_weights["LCA"])
         if self.configs["node_prune"]:
@@ -125,17 +124,8 @@ class DFEILightningModule(L.LightningModule):
 
             # reconstruction with cuts
             if self.configs["node_prune"] or self.configs["edge_prune"]:
-                # I want to cry  so i hardforece this
-                # self.node_prune custom set to
-                node_selbool = self.model._blocks[0].node_weights["tracks"].squeeze() > 0.01
+                node_selbool = block.node_weights["tracks"].squeeze() > self.node_prune
                 edge_mask = true_node_pruning(node_selbool, outputs, "tracks", [('tracks', 'to', 'tracks')])
-
-                # default, pruningi n the last layer
-                # node_selbool = block.node_weights["tracks"].squeeze() >
-                # edge_mask = true_node_pruning(node_selbool, outputs, "tracks", [('tracks', 'to', 'tracks')])
-
-                # accept all nodes, aka no node pruning
-                # edge_mask = torch.ones(outputs[('tracks', 'to', 'tracks')].y.shape).to(torch.bool)
                 y_pv, pred_pv, min_ip_pv = y_pv[node_selbool], pred_pv[node_selbool], min_ip_pv[node_selbool]
                 edge_selbool = block.edge_weights[('tracks', 'to', 'tracks')].squeeze()[edge_mask] > self.edge_prune
                 edge_pruning(edge_selbool, outputs, ('tracks', 'to', 'tracks'))
@@ -189,7 +179,9 @@ class DFEILightningModule(L.LightningModule):
         if self.configs["node_prune"]:
             for i in range(len(self.model._blocks)):
                 plot_weights(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],
-                             [f"NN_nodes_{i}", "sig", "bkg"], self.version, model="DFEI", channel=self.signal)
+                             [f"NN_nodes_{i}_decision", "sig", "bkg"], self.version, model="DFEI", channel=self.signal)
+                plot_roc_curve(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],
+                             [f"NN_nodes_{i}_roc", "sig", "bkg"], self.version, model="DFEI", channel=self.signal)
         if self.configs["edge_prune"]:
             for i in range(len(self.model._blocks)):
                 plot_weights(self.tst_log[f"sig_edges_score_{i}"], self.tst_log[f"bkg_edges_score_{i}"],
