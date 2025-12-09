@@ -45,6 +45,7 @@ if __name__ == "__main__":
     # Getting the DFEI model
     pos_weights = transform_pos_weight(None, None, mode="eval")
     print("DFEI module:")
+    configs[model]["cpt"] = configs["evaluate"]["model"]
     module = load_module(configs, pos_weights, model="DFEI", is_train=False)
     version = re.search(r'version_(\d+)', configs[model]["cpt"]).group(1)
     dfei_model = module.model
