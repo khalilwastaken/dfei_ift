@@ -122,7 +122,7 @@ class ChunkDataset(IterableDataset):
             weights = {}
             load_dataset = partial(self._load_dataset, mode=mode)
             with ThreadPool(processes=self.configs["settings"]["ncpu"]) as pool:
-                for r in tqdm(pool.imap(load_dataset, files), total=len(files),desc=desc):
+                for r in tqdm(pool.imap(load_dataset, files), total=len(files), desc=desc):
                     for key, value in r.items():
                         if key not in weights:
                             weights[key] = value
@@ -160,8 +160,9 @@ class ChunkDataset(IterableDataset):
                 idx = idx[torch.randperm(len(idx))]
 
             # Yield events in shuffled order
-            for i in idx:
-                yield chunk_events[i]
+            for i, i_idx in enumerate(idx):
+                chunk_events[i_idx]["last_chunk"] = (i == len(idx) - 1)
+                yield chunk_events[i_idx]
 
             del chunk_events
             gc.collect()
@@ -252,7 +253,11 @@ def get_tst_loader(configs, model):
     configs = configs[model]
 
     path_dict = {}
-    path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/tst_data_*'))[:nfiles]
+    mode = "tst"
+    if "data_overwrite" in configs.keys():
+        mode = configs["data_overwrite"]
+    path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/{mode}_data_*'))[:nfiles]
+
     tst_dataset = ChunkDataset(path_dict, configs, mode="test", n_chunks=nfiles)
 
     return ChunkLoader(configs, tst_dataset=tst_dataset, batchsize=1, num_workers=1)

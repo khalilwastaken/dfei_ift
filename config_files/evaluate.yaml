@@ -1,0 +1,12 @@
+evaluate:
+  model_arch: "DFEI" # architecture of the model
+  model: 6 # version number or full path
+  data_dir: "/eos/user/y/yukaiz/DFEI_data/DFEI_pythia_nu7p6_onehot_normed_pt_data"
+  pv_output_dir: "/eos/user/y/yukaiz/DFEI_data/DFEI_pythia_dfei7p6reasso_onehot_normed_pt_data" # this is something very pv association specific
+  ncpu: 8  # NCPUs for data loader, full dataset limited to 8 for workers due to cpu mem constraints
+
+
+  sample: "Bs_Jpsiphi"
+  data_set: "trn" # trn val tst, this is only for pv asso to be applied to everything
+  nfiles: 2
+  over_write: "testing"

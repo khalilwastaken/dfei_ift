@@ -138,8 +138,9 @@ def load_dataset(path, _configs, mode, model):
         del item["tracks"].pid"""
 
     """Obtain the weights"""
-    if _configs["inference"]["get_weights"] and mode == "train":
-        weights = get_hetero_weight(filtered_data, _configs)
-    else:
-        weights = {}
+    weights = {}
+    if mode == "train":
+        if _configs["inference"]["get_weights"]:
+            weights = get_hetero_weight(filtered_data, _configs)
+
     return filtered_data, weights

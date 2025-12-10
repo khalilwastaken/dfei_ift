@@ -25,22 +25,30 @@ if __name__ == "__main__":
     if len(args) != 0:
         raise RuntimeError("Got undefined arguments", " ".join(args))
 
+    # Load config file
+    with open(option.CONFIG, "r") as file:
+        configs = yaml.safe_load(file)
+
     model = "None"
     if "IFT" in option.CONFIG:
         model = "IFT"
     elif "DFEI" in option.CONFIG:
         model = "DFEI"
     else:
-        raise RuntimeError("Config file path must contain 'IFT' or 'DFEI'")
+        model = configs["evaluate"]["model_arch"]
+        # load in the hparams file from the model
+        hparams_file = f"lightning_logs/{model}/version_{configs["evaluate"]["model"]}/hparams.yaml"
+        with open(hparams_file, "r") as file:
+            hparams = yaml.safe_load(file)
+        configs[model] = hparams[model]
+        # overwrite data_dir and ncpu
+        configs[model]["settings"]["data_dir"] = configs["evaluate"]["data_dir"]
+        configs[model]["settings"]["ncpu"] = configs["evaluate"]["ncpu"]
     print(f"Evaluation script started of {model}")
     print("=" * 30)
 
-    # Load config file
-    with open(option.CONFIG, "r") as file:
-        configs = yaml.safe_load(file)
-
     # Loading data
-    configs, tst_loader, chunkloader = load_tst_loader(configs, model="IFT")
+    configs, tst_loader, chunkloader = load_tst_loader(configs, model=model)
 
     # Getting the DFEI model
     pos_weights = transform_pos_weight(None, None, mode="eval")
