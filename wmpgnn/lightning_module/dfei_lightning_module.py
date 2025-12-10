@@ -111,27 +111,33 @@ class DFEILightningModule(L.LightningModule):
         # Apply reco
         if mode == "test":
             # check pv association
-            ntracks = torch.unique(outputs[("tracks", "to", "pvs")]["edge_index"][0]).shape[0]
-            npvs = torch.unique(outputs[("tracks", "to", "pvs")]["edge_index"][1]).shape[0]
-            y_pv = torch.argmax(outputs[("tracks", "to", "pvs")].y.view(ntracks, npvs), dim=1)
-            pred_pv = torch.argmax(block.edge_weights[('tracks', 'to', 'pvs')].view(ntracks, npvs), dim=1)
-            min_ip_pv = torch.argmin(minip.view(ntracks, npvs), dim=1)
-            if npvs not in log["pv_total"].keys():
-                log["pv_corr_ml"][npvs], log["pv_corr_ip"][npvs], log["pv_total"][npvs] = [], [], []
-            log["pv_corr_ml"][npvs].append(torch.sum(y_pv == pred_pv).item())
-            log["pv_corr_ip"][npvs].append(torch.sum(y_pv == min_ip_pv).item())
-            log["pv_total"][npvs].append(ntracks)
+            if self.configs["pv_asso"]:
+                ntracks = torch.unique(outputs[("tracks", "to", "pvs")]["edge_index"][0]).shape[0]
+                npvs = torch.unique(outputs[("tracks", "to", "pvs")]["edge_index"][1]).shape[0]
+                y_pv = torch.argmax(outputs[("tracks", "to", "pvs")].y.view(ntracks, npvs), dim=1)
+                pred_pv = torch.argmax(block.edge_weights[('tracks', 'to', 'pvs')].view(ntracks, npvs), dim=1)
+                min_ip_pv = torch.argmin(minip.view(ntracks, npvs), dim=1)
+                if npvs not in log["pv_total"].keys():
+                    log["pv_corr_ml"][npvs], log["pv_corr_ip"][npvs], log["pv_total"][npvs] = [], [], []
+                log["pv_corr_ml"][npvs].append(torch.sum(y_pv == pred_pv).item())
+                log["pv_corr_ip"][npvs].append(torch.sum(y_pv == min_ip_pv).item())
+                log["pv_total"][npvs].append(ntracks)
 
             # reconstruction with cuts
             if self.configs["node_prune"] or self.configs["edge_prune"]:
                 node_selbool = block.node_weights["tracks"].squeeze() > self.node_prune
                 edge_mask = true_node_pruning(node_selbool, outputs, "tracks", [('tracks', 'to', 'tracks')])
-                y_pv, pred_pv, min_ip_pv = y_pv[node_selbool], pred_pv[node_selbool], min_ip_pv[node_selbool]
+                if self.configs["pv_asso"]:
+                    y_pv, pred_pv, min_ip_pv = y_pv[node_selbool], pred_pv[node_selbool], min_ip_pv[node_selbool]
                 edge_selbool = block.edge_weights[('tracks', 'to', 'tracks')].squeeze()[edge_mask] > self.edge_prune
                 edge_pruning(edge_selbool, outputs, ('tracks', 'to', 'tracks'))
                 outputs[("tracks", "to", "tracks")].lca = outputs[("tracks", "to", "tracks")].lca[edge_mask][
                     edge_selbool]
-            pv_asso_des = {"true": y_pv, "pred": pred_pv, "minIP": min_ip_pv, "npvs": npvs}
+
+            if self.configs["pv_asso"]:
+                pv_asso_des = {"true": y_pv, "pred": pred_pv, "minIP": min_ip_pv, "npvs": npvs}
+            else:
+                pv_asso_des = None
 
             self.sig_df, self.evt_df = reco_event(outputs, batch_idx, self.configs, self.signal,
                                                   self.sig_df, self.evt_df, pv_des=pv_asso_des)
@@ -177,6 +183,7 @@ class DFEILightningModule(L.LightningModule):
         if self.configs["LCA"]:
             obtain_reco_accuracy(self.sig_df, self.version, self.signal)
         if self.configs["node_prune"]:
+            import pdb; pdb.set_trace()
             for i in range(len(self.model._blocks)):
                 plot_weights(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],
                              [f"NN_nodes_{i}_decision", "sig", "bkg"], self.version, model="DFEI", channel=self.signal)
