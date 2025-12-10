@@ -1,5 +1,6 @@
 import torch
 
+
 def edge_pruning(edge_indices, graph, edge_type):
     graph[edge_type].edges = graph[edge_type].edges[edge_indices]
     graph[edge_type].edge_index = torch.vstack(
@@ -56,7 +57,7 @@ def true_node_pruning(node_mask, graph, node_type, edge_types):
         if node_key == "ptr":
             continue
         graph[node_type][node_key] = graph[node_type][node_key][node_mask]
-    if hasattr(graph, "final_keys"):
+    if hasattr(graph, "final_keys") and node_type == "tracks":
         graph.final_keys = graph.final_keys[node_mask]
         graph.part_ids = graph.part_ids[node_mask]
 
@@ -77,6 +78,8 @@ def true_node_pruning(node_mask, graph, node_type, edge_types):
             graph[edge_type].edge_index = graph[edge_type].edge_index[:, mask]
             graph[edge_type].edge_index[1] = lookup[graph[edge_type].edge_index[1]]
         graph[edge_type].edges = graph[edge_type].edges[mask, :]
+        if "lca" in graph[edge_type]:
+            graph[edge_type].lca = graph[edge_type].lca[mask]
         graph[edge_type].y = graph[edge_type].y[mask]
     # here we need to be careful since it only return 1 mask even though it creates multiple
     return mask
