@@ -36,22 +36,22 @@ def init_logs(configs, mode="train", model="DFEI"):
             log["t_nodes_loss"] = []
             if mode == "test":
                 for i in range(gn_blocks):
-                    log[f"sig_nodes_score_{i}"] = torch.tensor([])
-                    log[f"bkg_nodes_score_{i}"] = torch.tensor([])
+                    log[f"sig_nodes_score_{i}"] = torch.tensor([], dtype=torch.float16)
+                    log[f"bkg_nodes_score_{i}"] = torch.tensor([], dtype=torch.float16)
 
         if loss_config["edge_prune"]:
             log["tt_edges_loss"] = []
             if mode == "test":
                 for i in range(gn_blocks):
-                    log[f"sig_edges_score_{i}"] = torch.tensor([])
-                    log[f"bkg_edges_score_{i}"] = torch.tensor([])
+                    log[f"sig_edges_score_{i}"] = torch.tensor([], dtype=torch.float16)
+                    log[f"bkg_edges_score_{i}"] = torch.tensor([], dtype=torch.float16)
 
         if  loss_config["pv_asso"]:
             log["tpv_edges_loss"] = []
             if mode == "test":
                 for i in range(gn_blocks):
-                    log[f"sig_pv_asso_score_{i}"] = torch.tensor([])
-                    log[f"bkg_pv_asso_score_{i}"] = torch.tensor([])
+                    log[f"sig_pv_asso_score_{i}"] = torch.tensor([], dtype=torch.float16)
+                    log[f"bkg_pv_asso_score_{i}"] = torch.tensor([], dtype=torch.float16)
 
                 log["pv_corr_ml"] = {}
                 log["pv_corr_ip"] = {}
@@ -85,6 +85,7 @@ def init_test_df():
 
 def get_block_score(log, weights, y, layer, var):
     sig_selbool = (y == 1).squeeze()
+    weights = weights.to(torch.float16)
     log[f"sig_{var}_score_{layer}"] = torch.cat([weights[sig_selbool].cpu(), log[f"sig_{var}_score_{layer}"]])
     log[f"bkg_{var}_score_{layer}"] = torch.cat([weights[~sig_selbool].cpu(), log[f"bkg_{var}_score_{layer}"]])
 
