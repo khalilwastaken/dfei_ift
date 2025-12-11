@@ -131,8 +131,6 @@ class DFEILightningModule(L.LightningModule):
                     y_pv, pred_pv, min_ip_pv = y_pv[node_selbool], pred_pv[node_selbool], min_ip_pv[node_selbool]
                 edge_selbool = block.edge_weights[('tracks', 'to', 'tracks')].squeeze()[edge_mask] > self.edge_prune
                 edge_pruning(edge_selbool, outputs, ('tracks', 'to', 'tracks'))
-                outputs[("tracks", "to", "tracks")].lca = outputs[("tracks", "to", "tracks")].lca[edge_mask][
-                    edge_selbool]
 
             if self.configs["pv_asso"]:
                 pv_asso_des = {"true": y_pv, "pred": pred_pv, "minIP": min_ip_pv, "npvs": npvs}
@@ -183,12 +181,13 @@ class DFEILightningModule(L.LightningModule):
         if self.configs["LCA"]:
             obtain_reco_accuracy(self.sig_df, self.version, self.signal)
         if self.configs["node_prune"]:
-            import pdb; pdb.set_trace()
+            import pdb;
+            pdb.set_trace()
             for i in range(len(self.model._blocks)):
                 plot_weights(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],
                              [f"NN_nodes_{i}_decision", "sig", "bkg"], self.version, model="DFEI", channel=self.signal)
                 plot_roc_curve(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],
-                             [f"NN_nodes_{i}_roc", "sig", "bkg"], self.version, model="DFEI", channel=self.signal)
+                               [f"NN_nodes_{i}_roc", "sig", "bkg"], self.version, model="DFEI", channel=self.signal)
         if self.configs["edge_prune"]:
             for i in range(len(self.model._blocks)):
                 plot_weights(self.tst_log[f"sig_edges_score_{i}"], self.tst_log[f"bkg_edges_score_{i}"],

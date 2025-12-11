@@ -7,6 +7,8 @@ def edge_pruning(edge_indices, graph, edge_type):
         [graph[edge_type].edge_index[0][edge_indices],
          graph[edge_type].edge_index[1][edge_indices]])
     graph[edge_type].y = graph[edge_type].y[edge_indices]
+    if "lca" in graph[edge_type]:
+        graph[edge_type].lca = graph[edge_type].lca[edge_indices]
 
 
 def node_pruning(valid_mask, graph, node_type, edge_types):
