@@ -64,14 +64,16 @@ def process_ft(df, sig_df, version, signal):
 
 
 def plot_weights(pos_weight, neg_weights, labels, version, model="DFEI", channel="inclusive"):
-    true_weights = np.ones_like(pos_weight) / len(pos_weight)
-    fake_weights = np.ones_like(neg_weights) / len(neg_weights)
+    true_weights = np.ones(pos_weight.shape[0]) / len(pos_weight)
+    fake_weights = np.ones(neg_weights.shape[0]) / len(neg_weights)
 
     f, ax = plt.subplots(figsize=(9, 6))
     ax.hist(pos_weight, bins=100, range=[0, 1], alpha=.7, label=labels[1], color='#B22222',
-            weights=true_weights)
+            weights=true_weights
+            )
     ax.hist(neg_weights, bins=100, range=[0, 1], alpha=.8, label=labels[2], color='#4169E1',
-            weights=fake_weights)
+            weights=fake_weights
+            )
 
     suffix = "/"
     if "nodes" in labels[0]:
