@@ -37,15 +37,24 @@ if __name__ == "__main__":
     else:
         model = configs["evaluate"]["model_arch"]
         # load in the hparams file from the model
-        hparams_file = f"lightning_logs/{model}/version_{configs["evaluate"]["model"]}/hparams.yaml"
+        hparams_file = f"lightning_logs/{model}/version_{configs['evaluate']['model']}/hparams.yaml"
         with open(hparams_file, "r") as file:
             hparams = yaml.safe_load(file)
         configs[model] = hparams[model]
         # overwrite data_dir and ncpu
         configs[model]["settings"]["data_dir"] = configs["evaluate"]["data_dir"]
+        configs[model]["settings"]["node_prune_thr"] = configs["evaluate"]["node_prune_thr"]
+        configs[model]["settings"]["edge_prune_thr"] = configs["evaluate"]["edge_prune_thr"]
         configs[model]["settings"]["ncpu"] = configs["evaluate"]["ncpu"]
     print(f"Evaluation script started of {model}")
     print("=" * 30)
+
+    if model == "IFT":
+        # loading in additional hparams from dfei
+        hparams_file = f"lightning_logs/DFEI/version_{configs["evaluate"]["dfei_model"]}/hparams.yaml"
+        with open(hparams_file, "r") as file:
+            hparams = yaml.safe_load(file)
+        configs["DFEI"] = hparams["DFEI"]
 
     # Loading data
     configs, tst_loader, chunkloader = load_tst_loader(configs, model=model)
@@ -55,7 +64,7 @@ if __name__ == "__main__":
     print("DFEI module:")
     configs[model]["cpt"] = configs["evaluate"]["model"]
     module = load_module(configs, pos_weights, model="DFEI", is_train=False)
-    version = re.search(r'version_(\d+)', configs[model]["cpt"]).group(1)
+    version = configs['evaluate']['model']
     dfei_model = module.model
 
     if model == "IFT":

@@ -26,6 +26,11 @@ def adjust_config(_configs):
 
 def get_bis_model(version, model="DFEI"):
     files = glob.glob(f"lightning_logs/{model}/version_{version}/checkpoints/*.ckpt")
-    pattern = re.compile(r"val_combined_loss=([\d.]+)")
+    if model == "DFEI":
+        pattern = re.compile(r"val_combined_loss=([\d.]+)")
+    elif model == "IFT":
+        pattern = re.compile(r"val_ft_loss=([\d.]+)")
+    else:
+        raise ValueError(f"undefined model: {model}")
     bis = min(files, key=lambda s: float(pattern.search(s).group(1)[:-1]))
     return bis
