@@ -29,14 +29,16 @@ class IFTLightningModule(L.LightningModule):
         self.signal = configs["evaluate"]["sample"]
         if configs["evaluate"]["over_write"] != "None" and not is_train:
             self.signal += "__" + configs["evaluate"]["over_write"]
-        import pdb; pdb.set_trace()
 
         self.configs = configs["IFT"]["inference"]
         self.model = model
-        self.dfei_model = dfei_model
-        self.dfei_need_pid = configs["DFEI"]["use_pid"]
-        for param in self.dfei_model.parameters():
-            param.requires_grad = False
+
+        self.dfei_model = [dfei_model]  # doesnt get saved in ckpt
+        if self.dfei_model[0] is not None:
+            self.dfei_need_pid = configs["DFEI"]["use_pid"]
+            for param in self.dfei_model[0].parameters():
+                param.requires_grad = False
+
         self.optimizer_class = optimizer_class
         self.optimizer_params = optimizer_params
 
@@ -63,22 +65,19 @@ class IFTLightningModule(L.LightningModule):
         optimizers = self.optimizers()
         loss = init_loss(self.device)
 
-        dfei_input = copy.deepcopy(batch)
-        if self.dfei_need_pid:
-            dfei_input["tracks"].x = torch.cat([dfei_input["tracks"].x, dfei_input["tracks"].pid], dim=1)
-
         # Adding lca information to edges
-        if "lca" in dfei_input[("tracks", "to", "tracks")] and self.model is None:
-            lca = batch[("tracks", "to", "tracks")].edges
-            lca_score = torch.argmax(lca, dim=1).unsqueeze(1)
-            batch[("tracks", "to", "tracks")].edges = torch.cat([batch[("tracks", "to", "tracks")].edges, lca_score],
-                                                                dim=1)
+        if "lca" in batch[("tracks", "to", "tracks")] and self.dfei_model[0] is None:
+            lca = batch[("tracks", "to", "tracks")].lca
         else:
-            dfei_outputs = self.dfei_model(dfei_input)  # adjust with non as well, check if it has the key lca score
+            dfei_input = copy.deepcopy(batch)
+            if self.dfei_need_pid:
+                dfei_input["tracks"].x = torch.cat([dfei_input["tracks"].x, dfei_input["tracks"].pid], dim=1)
+            dfei_outputs = self.dfei_model[0](dfei_input)  # adjust with non as well, check if it has the key lca score
             lca = dfei_outputs[("tracks", "to", "tracks")].edges
-            lca_score = torch.argmax(lca, dim=1).unsqueeze(1)
-            batch[("tracks", "to", "tracks")].edges = torch.cat([batch[("tracks", "to", "tracks")].edges, lca_score],
-                                                                dim=1)
+
+        lca_score = torch.argmax(lca, dim=1).unsqueeze(1)
+        batch[("tracks", "to", "tracks")].edges = torch.cat([batch[("tracks", "to", "tracks")].edges, lca_score],
+                                                            dim=1)
         # Adding pid information to nodes
         batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
         outputs_ft = self.model(batch)
@@ -96,15 +95,18 @@ class IFTLightningModule(L.LightningModule):
 
             # use the one saved
             if self.configs["node_prune"] or self.configs["edge_prune"]:
-                node_selbool = self.dfei_model._blocks[-1].node_weights["tracks"].squeeze() > self.node_prune
+                if self.dfei_model[0] is not None:
+                    node_selbool = self.dfei_model[0]._blocks[-1].node_weights["tracks"].squeeze() > self.node_prune
+                else:
+                    node_selbool = outputs_ft["tracks"].pred_y > self.node_prune
                 edge_mask = true_node_pruning(node_selbool, outputs_ft, "tracks", [('tracks', 'to', 'tracks')])
                 ft_des = ft_des[node_selbool]
-                # add here pv decision as well
-                edge_selbool = self.dfei_model._blocks[-1].edge_weights[('tracks', 'to', 'tracks')].squeeze()[
-                                   edge_mask] > self.edge_prune
+                if self.dfei_model[0] is not None:
+                    edge_selbool = self.dfei_model[0]._blocks[-1].edge_weights[('tracks', 'to', 'tracks')].squeeze()[
+                                       edge_mask] > self.edge_prune
+                else:
+                    edge_selbool = outputs_ft[('tracks', 'to', 'tracks')].pred_y > self.edge_prune
                 edge_pruning(edge_selbool, outputs_ft, ('tracks', 'to', 'tracks'))
-                #outputs_ft[("tracks", "to", "tracks")].lca = outputs_ft[("tracks", "to", "tracks")].lca[edge_mask][
-                #    edge_selbool]
             outputs_ft["frag_y"] = frag_in_evt
             outputs_ft["frag_pid"] = frag_pid
             self.sig_df, self.evt_df = reco_event(outputs_ft, batch_idx, self.configs, self.signal, self.sig_df,

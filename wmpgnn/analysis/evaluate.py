@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
     if model == "IFT" and configs["evaluate"]["dfei_model"] != "None":
         # loading in additional hparams from dfei
-        hparams_file = f"lightning_logs/DFEI/version_{configs["evaluate"]["dfei_model"]}/hparams.yaml"
+        hparams_file = f"lightning_logs/DFEI/version_{configs['evaluate']['dfei_model']}/hparams.yaml"
         with open(hparams_file, "r") as file:
             hparams = yaml.safe_load(file)
         configs["DFEI"] = hparams["DFEI"]
