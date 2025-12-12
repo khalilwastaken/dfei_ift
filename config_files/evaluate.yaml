@@ -1,12 +1,14 @@
 evaluate:
-  model_arch: "DFEI" # architecture of the model
-  model: 6 # version number or full path
-  data_dir: "/eos/user/y/yukaiz/DFEI_data/DFEI_pythia_nu7p6_onehot_normed_pt_data"
-  pv_output_dir: "/eos/user/y/yukaiz/DFEI_data/DFEI_pythia_dfei7p6reasso_onehot_normed_pt_data" # this is something very pv association specific
+  model_arch: "IFT" # architecture of the model
+  model: 0 # version number or full path
+  dfei_model: 0 # dfei model used for evaluating an ift model
+  data_dir: "/eos/user/y/yukaiz/DFEI_data/DFEI_pythia_dfei7p6reasso_onehot_normed_pt_data"
   ncpu: 8  # NCPUs for data loader, full dataset limited to 8 for workers due to cpu mem constraints
+  edge_prune_thr: 0.8  # Edge prune threshold during reco
+  node_prune_thr: 0.8  # Node prune threshold during reco
+
 
 
   sample: "Bs_Jpsiphi"
-  data_set: "trn" # trn val tst, this is only for pv asso to be applied to everything
-  nfiles: 2
-  over_write: "testing"
+  nfiles: 20
+  over_write: "dfei_asso" # add additional information to model name
