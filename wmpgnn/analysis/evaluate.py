@@ -30,7 +30,7 @@ if __name__ == "__main__":
         configs = yaml.safe_load(file)
 
     model = "None"
-    if "IFT" in option.CONFIG:
+    if "IFT" in option.CONFIG:  # grabbing information from the path
         model = "IFT"
     elif "DFEI" in option.CONFIG:
         model = "DFEI"
@@ -41,15 +41,18 @@ if __name__ == "__main__":
         with open(hparams_file, "r") as file:
             hparams = yaml.safe_load(file)
         configs[model] = hparams[model]
+
         # overwrite data_dir and ncpu
         configs[model]["settings"]["data_dir"] = configs["evaluate"]["data_dir"]
+        configs[model]["settings"]["ncpu"] = configs["evaluate"]["ncpu"]
+        configs[model]["cpt"] = configs["evaluate"]["model"]
+        # for dfei evaluation necessary
         configs[model]["settings"]["node_prune_thr"] = configs["evaluate"]["node_prune_thr"]
         configs[model]["settings"]["edge_prune_thr"] = configs["evaluate"]["edge_prune_thr"]
-        configs[model]["settings"]["ncpu"] = configs["evaluate"]["ncpu"]
     print(f"Evaluation script started of {model}")
     print("=" * 30)
 
-    if model == "IFT":
+    if model == "IFT" and configs["evaluate"]["dfei_model"] != "None":
         # loading in additional hparams from dfei
         hparams_file = f"lightning_logs/DFEI/version_{configs["evaluate"]["dfei_model"]}/hparams.yaml"
         with open(hparams_file, "r") as file:
@@ -58,14 +61,16 @@ if __name__ == "__main__":
 
     # Loading data
     configs, tst_loader, chunkloader = load_tst_loader(configs, model=model)
+    pos_weights = transform_pos_weight(None, None, mode="eval")
+    version = configs['evaluate']['model']
 
     # Getting the DFEI model
-    pos_weights = transform_pos_weight(None, None, mode="eval")
-    print("DFEI module:")
-    configs[model]["cpt"] = configs["evaluate"]["model"]
-    module = load_module(configs, pos_weights, model="DFEI", is_train=False)
-    version = configs['evaluate']['model']
-    dfei_model = module.model
+    if model == "DFEI" or configs["evaluate"]["dfei_model"] != "None":
+        print("DFEI module:")
+        module = load_module(configs, pos_weights, model="DFEI", is_train=False)
+        dfei_model = module.model
+    else:
+        dfei_model = None
 
     if model == "IFT":
         print("IFT module:")

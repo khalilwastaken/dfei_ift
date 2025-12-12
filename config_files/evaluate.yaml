@@ -1,7 +1,8 @@
 evaluate:
-  model_arch: "IFT" # architecture of the model
+  model_arch: "IFT" # architecture of the model to evaluate
   model: 0 # version number or full path
-  dfei_model: 0 # dfei model used for evaluating an ift model
+  # dfei model for IFT, always specify for logging with clear information
+  dfei_model: 0 # supports None for nu7p6 reasso data
   data_dir: "/eos/user/y/yukaiz/DFEI_data/DFEI_pythia_dfei7p6reasso_onehot_normed_pt_data"
   ncpu: 8  # NCPUs for data loader, full dataset limited to 8 for workers due to cpu mem constraints
   edge_prune_thr: 0.8  # Edge prune threshold during reco

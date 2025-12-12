@@ -68,7 +68,7 @@ class IFTLightningModule(L.LightningModule):
             dfei_input["tracks"].x = torch.cat([dfei_input["tracks"].x, dfei_input["tracks"].pid], dim=1)
 
         # Adding lca information to edges
-        if "lca" in dfei_input[("tracks", "to", "tracks")] and False:
+        if "lca" in dfei_input[("tracks", "to", "tracks")] and self.model is None:
             lca = batch[("tracks", "to", "tracks")].edges
             lca_score = torch.argmax(lca, dim=1).unsqueeze(1)
             batch[("tracks", "to", "tracks")].edges = torch.cat([batch[("tracks", "to", "tracks")].edges, lca_score],
