@@ -27,6 +27,9 @@ class IFTLightningModule(L.LightningModule):
         else:
             self.version = re.search(r'version_(\d+)', configs["IFT"]["cpt"]).group(1)
         self.signal = configs["evaluate"]["sample"]
+        if configs["evaluate"]["over_write"] != "None" and not is_train:
+            self.signal += "__" + configs["evaluate"]["over_write"]
+        import pdb; pdb.set_trace()
 
         self.configs = configs["IFT"]["inference"]
         self.model = model
@@ -65,11 +68,17 @@ class IFTLightningModule(L.LightningModule):
             dfei_input["tracks"].x = torch.cat([dfei_input["tracks"].x, dfei_input["tracks"].pid], dim=1)
 
         # Adding lca information to edges
-        dfei_outputs = self.dfei_model(dfei_input)
-        lca = dfei_outputs[("tracks", "to", "tracks")].edges
-        lca_score = torch.argmax(lca, dim=1).unsqueeze(1)
-        batch[("tracks", "to", "tracks")].edges = torch.cat([batch[("tracks", "to", "tracks")].edges, lca_score],
-                                                            dim=1)
+        if "lca" in dfei_input[("tracks", "to", "tracks")] and False:
+            lca = batch[("tracks", "to", "tracks")].edges
+            lca_score = torch.argmax(lca, dim=1).unsqueeze(1)
+            batch[("tracks", "to", "tracks")].edges = torch.cat([batch[("tracks", "to", "tracks")].edges, lca_score],
+                                                                dim=1)
+        else:
+            dfei_outputs = self.dfei_model(dfei_input)  # adjust with non as well, check if it has the key lca score
+            lca = dfei_outputs[("tracks", "to", "tracks")].edges
+            lca_score = torch.argmax(lca, dim=1).unsqueeze(1)
+            batch[("tracks", "to", "tracks")].edges = torch.cat([batch[("tracks", "to", "tracks")].edges, lca_score],
+                                                                dim=1)
         # Adding pid information to nodes
         batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
         outputs_ft = self.model(batch)
@@ -85,6 +94,7 @@ class IFTLightningModule(L.LightningModule):
             frag_in_evt = outputs_ft["tracks"].frag[frag_selbool]
             frag_pid = outputs_ft["part_ids"][frag_selbool]
 
+            # use the one saved
             if self.configs["node_prune"] or self.configs["edge_prune"]:
                 node_selbool = self.dfei_model._blocks[-1].node_weights["tracks"].squeeze() > self.node_prune
                 edge_mask = true_node_pruning(node_selbool, outputs_ft, "tracks", [('tracks', 'to', 'tracks')])
@@ -93,8 +103,8 @@ class IFTLightningModule(L.LightningModule):
                 edge_selbool = self.dfei_model._blocks[-1].edge_weights[('tracks', 'to', 'tracks')].squeeze()[
                                    edge_mask] > self.edge_prune
                 edge_pruning(edge_selbool, outputs_ft, ('tracks', 'to', 'tracks'))
-                outputs_ft[("tracks", "to", "tracks")].lca = outputs_ft[("tracks", "to", "tracks")].lca[edge_mask][
-                    edge_selbool]
+                #outputs_ft[("tracks", "to", "tracks")].lca = outputs_ft[("tracks", "to", "tracks")].lca[edge_mask][
+                #    edge_selbool]
             outputs_ft["frag_y"] = frag_in_evt
             outputs_ft["frag_pid"] = frag_pid
             self.sig_df, self.evt_df = reco_event(outputs_ft, batch_idx, self.configs, self.signal, self.sig_df,
