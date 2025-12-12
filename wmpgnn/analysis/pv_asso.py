@@ -52,6 +52,7 @@ class ChunkMonitorCallback(Callback):
 
 
 class pv_asso_module(L.LightningModule):
+    # need to save node and edge pred values for tracks and tracks to tracks
     def __init__(self, model, configs):
         super().__init__()
         self.model = model
@@ -67,6 +68,10 @@ class pv_asso_module(L.LightningModule):
 
         outputs = self.model(batch)
         original_data[('tracks', 'to', 'tracks')].lca = outputs[('tracks', 'to', 'tracks')].edges
+
+        original_data["tracks"].pred_y = self.model._blocks[-1].node_weights["tracks"].squeeze()
+        original_data[('tracks', 'to', 'tracks')].pred_y = self.model._blocks[-1].edge_weights[
+            ('tracks', 'to', 'tracks')].squeeze()
 
         # pv information
         ntracks = torch.unique(outputs[("tracks", "to", "pvs")]["edge_index"][0]).shape[0]
@@ -84,7 +89,6 @@ class pv_asso_module(L.LightningModule):
             pv_selbool[pv] = True
 
             # removes all the nodes associated to a different pv
-            # and their edges to tracks and pvs
             true_node_pruning(nodes_asso_pv_selbool, pv_oi_data,
                               "tracks", [('tracks', 'to', 'tracks'), ('tracks', 'to', 'pvs')])
 
@@ -92,7 +96,6 @@ class pv_asso_module(L.LightningModule):
             true_node_pruning(pv_selbool, pv_oi_data, "pvs", [('tracks', 'to', 'pvs')])
             del pv_oi_data["last_chunk"]
             self.pv_asso_holder.append(pv_oi_data.to('cpu'))
-            import pdb; pdb.set_trace()
         return 0
 
 

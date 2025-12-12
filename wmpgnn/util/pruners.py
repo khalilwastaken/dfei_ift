@@ -9,6 +9,8 @@ def edge_pruning(edge_indices, graph, edge_type):
     graph[edge_type].y = graph[edge_type].y[edge_indices]
     if "lca" in graph[edge_type]:
         graph[edge_type].lca = graph[edge_type].lca[edge_indices]
+    if "pred_y" in graph[edge_type]:
+        graph[edge_type].pred_y = graph[edge_type].pred_y[edge_indices]
 
 
 def node_pruning(valid_mask, graph, node_type, edge_types):
@@ -82,6 +84,8 @@ def true_node_pruning(node_mask, graph, node_type, edge_types):
         graph[edge_type].edges = graph[edge_type].edges[mask, :]
         if "lca" in graph[edge_type]:
             graph[edge_type].lca = graph[edge_type].lca[mask]
+        if "pred_y" in graph[edge_type]:
+            graph[edge_type].pred_y = graph[edge_type].pred_y[mask]
         graph[edge_type].y = graph[edge_type].y[mask]
     # here we need to be careful since it only return 1 mask even though it creates multiple
     return mask
