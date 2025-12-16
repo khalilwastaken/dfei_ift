@@ -37,6 +37,26 @@ from wmpgnn.lightning_module.exec_lightning import load_module, training, evalua
 from wmpgnn.util.pruners import true_node_pruning
 
 
+def check_data(evt):
+    for key in evt["tracks"].keys():
+        if evt["tracks"][key].shape[0] == 0:
+            print(key)
+            return False
+    for key in evt["pvs"].keys():
+        if evt["pvs"][key].shape[0] == 0:
+            print(key)
+            return False
+    for key in evt[("tracks", "to", "tracks")].keys():
+        if evt[("tracks", "to", "tracks")][key].shape[0] == 0:
+            print(key)
+            return False
+    for key in evt[("tracks", "to", "pvs")].keys():
+        if evt[("tracks", "to", "pvs")][key].shape[0] == 0:
+            print(key)
+            return False
+    return True
+
+
 class ChunkMonitorCallback(Callback):
     def __init__(self):
         self.file_monitor = 0
@@ -68,7 +88,6 @@ class pv_asso_module(L.LightningModule):
 
         outputs = self.model(batch)
         original_data[('tracks', 'to', 'tracks')].lca = outputs[('tracks', 'to', 'tracks')].edges
-
         original_data["tracks"].pred_y = self.model._blocks[-1].node_weights["tracks"].squeeze()
         original_data[('tracks', 'to', 'tracks')].pred_y = self.model._blocks[-1].edge_weights[
             ('tracks', 'to', 'tracks')].squeeze()
@@ -95,7 +114,11 @@ class pv_asso_module(L.LightningModule):
             # lastly we need to remove the other pvs within the event and their edges to the tracks
             true_node_pruning(pv_selbool, pv_oi_data, "pvs", [('tracks', 'to', 'pvs')])
             del pv_oi_data["last_chunk"]
-            self.pv_asso_holder.append(pv_oi_data.to('cpu'))
+            isfine = check_data(pv_oi_data)
+            if isfine:
+                self.pv_asso_holder.append(pv_oi_data.to('cpu'))
+            else:
+                import pdb; pdb.set_trace()
         return 0
 
 
