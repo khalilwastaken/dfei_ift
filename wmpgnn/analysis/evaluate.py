@@ -37,7 +37,13 @@ if __name__ == "__main__":
     else:
         model = configs["evaluate"]["model_arch"]
         # load in the hparams file from the model
-        hparams_file = f"lightning_logs/{model}/version_{configs['evaluate']['model']}/hparams.yaml"
+        if 'pythia' in configs['evaluate']['data_dir']:
+            log_dir = 'pythia_logs'
+        elif 'LHCb' in configs['evaluate']['data_dir']:
+            log_dir = 'LHCb_logs'
+        else:
+            raise ValueError("Invalid config")
+        hparams_file = f"{log_dir}/{model}/version_{configs['evaluate']['model']}/hparams.yaml"
         with open(hparams_file, "r") as file:
             hparams = yaml.safe_load(file)
         configs[model] = hparams[model]
@@ -54,7 +60,13 @@ if __name__ == "__main__":
 
     if model == "IFT" and configs["evaluate"]["dfei_model"] != "None":
         # loading in additional hparams from dfei
-        hparams_file = f"lightning_logs/DFEI/version_{configs['evaluate']['dfei_model']}/hparams.yaml"
+        if 'pythia' in configs['evaluate']['data_dir']:
+            log_dir = 'pythia_logs'
+        elif 'LHCb' in configs['evaluate']['data_dir']:
+            log_dir = 'LHCb_logs'
+        else:
+            raise ValueError("Invalid config")
+        hparams_file = f"{log_dir}/DFEI/version_{configs['evaluate']['dfei_model']}/hparams.yaml"
         with open(hparams_file, "r") as file:
             hparams = yaml.safe_load(file)
         configs["DFEI"] = hparams["DFEI"]
@@ -77,7 +89,7 @@ if __name__ == "__main__":
         module = load_module(configs, pos_weights, model="IFT", dfei_model=dfei_model, is_train=False)
     evaluate(None, module, tst_loader=tst_loader, chunkloader=chunkloader)
 
-    metric_path = f"lightning_logs/{model}/version_{version}/metrics.csv"
+    metric_path = f"{log_dir}/{model}/version_{version}/metrics.csv"
     df = pd.read_csv(metric_path)
     df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
     sample = configs["evaluate"]["sample"]

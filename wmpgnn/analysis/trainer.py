@@ -52,7 +52,13 @@ if __name__ == "__main__":
         # Start testing
         configs, tst_loader, chunkloader = load_tst_loader(configs, model="DFEI")
         evaluate(trainer, module, tst_loader=tst_loader, chunkloader=chunkloader)
-        metric_path = f"lightning_logs/DFEI/version_{version}/metrics.csv"
+        if 'pythia' in configs['settings']['data_dir']:
+            log_dir = 'pythia_logs'
+        elif 'LHCb' in configs['settings']['data_dir']:
+            log_dir = 'LHCb_logs'
+        else:
+            raise ValueError("Invalid config")
+        metric_path = f"{log_dir}/IFT/version_{version}/metrics.csv"
         df = pd.read_csv(metric_path)
         df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
         sample = configs["evaluate"]["sample"]
@@ -97,7 +103,13 @@ if __name__ == "__main__":
         # Start testing
         configs, tst_loader, chunkloader = load_tst_loader(configs, model="IFT")
         evaluate(trainer, module, tst_loader=tst_loader, chunkloader=chunkloader)
-        metric_path = f"lightning_logs/IFT/version_{version}/metrics.csv"
+        if 'pythia' in configs['settings']['data_dir']:
+            log_dir = 'pythia_logs'
+        elif 'LHCb' in configs['settings']['data_dir']:
+            log_dir = 'LHCb_logs'
+        else:
+            raise ValueError("Invalid config")
+        metric_path = f"{log_dir}/IFT/version_{version}/metrics.csv"
         df = pd.read_csv(metric_path)
         df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
         sample = configs["evaluate"]["sample"]

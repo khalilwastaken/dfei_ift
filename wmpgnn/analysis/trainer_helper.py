@@ -24,8 +24,14 @@ def adjust_config(_configs):
     return _configs
 
 
-def get_bis_model(version, model="DFEI"):
-    files = glob.glob(f"lightning_logs/{model}/version_{version}/checkpoints/*.ckpt")
+def get_bis_model(version, model="DFEI", configs=None):
+    if 'pythia' in configs['settings']['data_dir']:
+            log_dir = 'pythia_logs'
+    elif 'LHCb' in configs['settings']['data_dir']:
+        log_dir = 'LHCb_logs'
+    else:
+        raise ValueError("Invalid config")
+    files = glob.glob(f"{log_dir}/{model}/version_{version}/checkpoints/*.ckpt")
     if model == "DFEI":
         pattern = re.compile(r"val_combined_loss=([\d.]+)")
     elif model == "IFT":

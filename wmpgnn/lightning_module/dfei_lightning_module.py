@@ -54,6 +54,13 @@ class DFEILightningModule(L.LightningModule):
         # adding pid information bool
         self.use_pid = configs["DFEI"]["use_pid"]
 
+        if 'pythia' in configs["DFEI"]['settings']['data_dir']:
+            self.log_dir = 'pythia_logs'
+        elif 'LHCb' in configs["DFEI"]['settings']['data_dir']:
+            self.log_dir = 'LHCb_logs'
+        else:
+            raise ValueError("Invalid config")
+
     def forward(self, batch):
         return self.model(batch)
 
@@ -176,8 +183,8 @@ class DFEILightningModule(L.LightningModule):
     def on_test_epoch_end(self):
         if self.is_train:
             self.version = self.logger.version
-        self.sig_df.to_csv(f'lightning_logs/DFEI/version_{self.version}/signal_reco_df_{self.signal}.csv', index=False)
-        self.evt_df.to_csv(f'lightning_logs/DFEI/version_{self.version}/event_reco_df_{self.signal}.csv', index=False)
+        self.sig_df.to_csv(f'{self.log_dir}/DFEI/version_{self.version}/signal_reco_df_{self.signal}.csv', index=False)
+        self.evt_df.to_csv(f'{self.log_dir}/DFEI/version_{self.version}/event_reco_df_{self.signal}.csv', index=False)
         if self.configs["LCA"]:
             obtain_reco_accuracy(self.sig_df, self.version, self.signal)
         if self.configs["node_prune"]:

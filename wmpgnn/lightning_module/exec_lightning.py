@@ -19,7 +19,7 @@ def load_module(configs, pos_weights, model, dfei_model=None, is_train=True):
     # Checking if need to load from cpt
     load_from_cpt = configs[model]["cpt"]
     if isinstance(load_from_cpt, int):
-        bis_model = get_bis_model(load_from_cpt, model)
+        bis_model = get_bis_model(load_from_cpt, model, configs[model])
     elif isinstance(load_from_cpt, str):
         bis_model = load_from_cpt
     else:
@@ -102,7 +102,12 @@ def training(module, configs, model="DFEI", trn_loader=None, val_loader=None, ch
         save_top_k=5
     )
 
-    log_dir = "lightning_logs"
+    if 'pythia' in  configs['settings']['data_dir']:
+        log_dir = 'pythia_logs'
+    elif 'LHCb' in configs['settings']['data_dir']:
+        log_dir = 'LHCb_logs'
+    else:
+        raise ValueError("Invalid config")
 
     tb_logger = TensorBoardLogger(save_dir=log_dir, name=model)
     csv_logger = CSVLogger(save_dir=log_dir, name=model, version=tb_logger.version)
