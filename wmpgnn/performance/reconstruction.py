@@ -41,14 +41,9 @@ def lca_reco_matrix(graph, mode="reco"):
 def lca_truth_matrix(graph):
     senders = graph.truth_senders.cpu()
     receivers = graph.truth_receivers.cpu()
-    init_y = graph["truth_y"].cpu()
 
     truth_lca = pd.DataFrame(np.column_stack((senders, receivers)), columns=['senders', 'receivers'])
-    truth_lca['LCA_dec'] = np.reshape(
-        np.argmax(
-            np.reshape(init_y, (init_y.shape[0], 4)), axis=-1),
-        (-1,))
-    truth_lca = truth_lca[truth_lca['senders'] < truth_lca['receivers']]
+    truth_lca['LCA_dec'] = graph["truth_y"].cpu()
     truth_lca['LCA_id_label'] = list(map(particle_name, graph['truth_moth_ids'].cpu().numpy()))
     truth_lca['LCA_id'] = graph['truth_moth_ids'].cpu().numpy()
     truth_lca['TrueFullChainLCA'] = graph['lca_chain'].cpu()
@@ -133,7 +128,9 @@ def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des=None, pv_des
     rc_dict, r_nclust_order, _ = reconstruct_decay(reco_LCA, particle_keys)
 
     particle_keys = graph["truth_part_keys"].tolist()
+
     particle_ids = list(map(particle_name, graph['truth_part_ids'].numpy()))
+
     tc_dict, t_nclust_order, max_chain_depth = reconstruct_decay(true_LCA, particle_keys, particle_ids=particle_ids,
                                                                  truth_level_simulation=1)
     if tc_dict != {}:

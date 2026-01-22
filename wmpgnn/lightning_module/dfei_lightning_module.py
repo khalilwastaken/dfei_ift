@@ -186,24 +186,30 @@ class DFEILightningModule(L.LightningModule):
         self.sig_df.to_csv(f'{self.log_dir}/DFEI/version_{self.version}/signal_reco_df_{self.signal}.csv', index=False)
         self.evt_df.to_csv(f'{self.log_dir}/DFEI/version_{self.version}/event_reco_df_{self.signal}.csv', index=False)
         if self.configs["LCA"]:
-            obtain_reco_accuracy(self.sig_df, self.version, self.signal)
+            obtain_reco_accuracy(self.sig_df, self.version, self.signal, self.log_dir)
         if self.configs["node_prune"]:
             for i in range(len(self.model._blocks)):
                 plot_weights(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],
-                             [f"NN_nodes_{i}_decision", "sig", "bkg"], self.version, model="DFEI", channel=self.signal)
+                             [f"NN_nodes_{i}_decision", "sig", "bkg"], self.version,
+                             model="DFEI", channel=self.signal, log_dir=self.log_dir)
                 plot_roc_curve(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],
-                               [f"NN_nodes_{i}_roc", "sig", "bkg"], self.version, model="DFEI", channel=self.signal)
+                               [f"NN_nodes_{i}_roc", "sig", "bkg"], self.version,
+                               model="DFEI", channel=self.signal, log_dir=self.log_dir)
         if self.configs["edge_prune"]:
             for i in range(len(self.model._blocks)):
                 plot_weights(self.tst_log[f"sig_edges_score_{i}"], self.tst_log[f"bkg_edges_score_{i}"],
-                             [f"NN_edges_{i}_decision", "sig", "bkg"], self.version, model="DFEI", channel=self.signal)
+                             [f"NN_edges_{i}_decision", "sig", "bkg"], self.version,
+                             model="DFEI", channel=self.signal, log_dir=self.log_dir)
                 plot_roc_curve(self.tst_log[f"sig_edges_score_{i}"], self.tst_log[f"bkg_edges_score_{i}"],
-                               [f"NN_edges_{i}_roc", "sig", "bkg"], self.version, model="DFEI", channel=self.signal)
+                               [f"NN_edges_{i}_roc", "sig", "bkg"], self.version,
+                               model="DFEI", channel=self.signal, log_dir=self.log_dir)
         if self.configs["pv_asso"]:
             for i in range(len(self.model._blocks)):
                 plot_weights(self.tst_log[f"sig_pv_asso_score_{i}"], self.tst_log[f"bkg_pv_asso_score_{i}"],
-                             [f"NN_pv_asso_{i}_decision", "correct", "false"], self.version, model="DFEI", channel=self.signal)
+                             [f"NN_pv_asso_{i}_decision", "correct", "false"], self.version,
+                             model="DFEI", channel=self.signal, log_dir=self.log_dir)
                 plot_roc_curve(self.tst_log[f"sig_pv_asso_score_{i}"], self.tst_log[f"bkg_pv_asso_score_{i}"],
-                               [f"NN_pv_asso_{i}_roc", "sig", "bkg"], self.version, model="DFEI", channel=self.signal)
-            plot_pv_missasso(self.tst_log, self.version, self.signal)
-            plot_sig_pv_missasso(self.sig_df, self.version, self.signal)
+                               [f"NN_pv_asso_{i}_roc", "sig", "bkg"], self.version,
+                               model="DFEI", channel=self.signal, log_dir=self.log_dir)
+            plot_pv_missasso(self.tst_log, self.version, self.signal, log_dir=self.log_dir)
+            plot_sig_pv_missasso(self.sig_df, self.version, self.signal, log_dir=self.log_dir)

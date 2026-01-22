@@ -63,7 +63,7 @@ def process_ft(df, sig_df, version, signal):
                      model="IFT", channel=signal)
 
 
-def plot_weights(pos_weight, neg_weights, labels, version, model="DFEI", channel="inclusive"):
+def plot_weights(pos_weight, neg_weights, labels, version, model="DFEI", channel="inclusive", log_dir='lightning_logs'):
     true_weights = np.ones(pos_weight.shape[0]) / len(pos_weight)
     fake_weights = np.ones(neg_weights.shape[0]) / len(neg_weights)
 
@@ -83,19 +83,20 @@ def plot_weights(pos_weight, neg_weights, labels, version, model="DFEI", channel
     elif "pv" in labels[0]:
         suffix = "pv"
 
-    outdir = f"lightning_logs/{model}/version_{version}/plots_{channel}/{suffix}"
+    outdir = f"{log_dir}/{model}/version_{version}/plots_{channel}/{suffix}"
     os.makedirs(outdir, exist_ok=True)
 
     ax.set_xlabel("NN weights [a.u.]")
     ax.set_ylabel("Normalized entries [a.u.]")
     ax.legend()
     ax.set_yscale("log")
+    import pdb; pdb.set_trace()
     plt.savefig(f"{outdir}/{labels[0]}.pdf")
     plt.savefig(f"{outdir}/{labels[0]}.png")
     plt.close()
 
 
-def plot_LCA_acc(df, version, channel="inclusive"):
+def plot_LCA_acc(df, version, channel="inclusive", log_dir='lightning_logs'):
     trn_LCA_acc0 = np.array(df["train_LCA_class0_pred_class0"])
     trn_LCA_acc1 = np.array(df["train_LCA_class1_pred_class1"])
     trn_LCA_acc2 = np.array(df["train_LCA_class2_pred_class2"])
@@ -109,7 +110,7 @@ def plot_LCA_acc(df, version, channel="inclusive"):
     epochs = np.arange(len(trn_LCA_acc0))
 
     # Plot dir
-    outdir = f"lightning_logs/DFEI/version_{version}/plots_{channel}"
+    outdir = f"{log_dir}/DFEI/version_{version}/plots_{channel}"
     os.makedirs(outdir, exist_ok=True)
 
     # Plot LCA acc
@@ -134,13 +135,13 @@ def plot_LCA_acc(df, version, channel="inclusive"):
     plt.close()
 
 
-def plot_loss(df, version, loss, mode="DFEI"):
+def plot_loss(df, version, loss, mode="DFEI", log_dir='lightning_logs'):
     trn_LCA_loss = np.array(df[f"train_{loss}_loss"])
     val_LCA_loss = np.array(df[f"val_{loss}_loss"])
     epochs = np.arange(len(trn_LCA_loss))
 
     # Plot dir
-    outdir = f"lightning_logs/{mode}/version_{version}/plots"
+    outdir = f"{log_dir}/{mode}/version_{version}/plots"
     os.makedirs(outdir, exist_ok=True)
 
     # Plot combined loss
@@ -156,7 +157,7 @@ def plot_loss(df, version, loss, mode="DFEI"):
     plt.close()
 
 
-def plot_pv_missasso(log, version, channel, selbool=None):
+def plot_pv_missasso(log, version, channel, selbool=None, log_dir='lightning_logs'):
     pv_asso_ml, pv_asso_ip, pv_asso_ntracks = log["pv_corr_ml"], log["pv_corr_ip"], log["pv_total"]
     npvs = np.array([])
     nPV_bins = []
@@ -183,7 +184,7 @@ def plot_pv_missasso(log, version, channel, selbool=None):
     ax.set_xlim([0, 16])
     ax.legend()
 
-    outdir = f"lightning_logs/DFEI/version_{version}/plots_{channel}/pv"
+    outdir = f"{log_dir}/DFEI/version_{version}/plots_{channel}/pv"
     os.makedirs(outdir, exist_ok=True)
 
     if selbool is None:
@@ -195,7 +196,7 @@ def plot_pv_missasso(log, version, channel, selbool=None):
     plt.close()
 
 
-def plot_sig_pv_missasso(df, version, signal):
+def plot_sig_pv_missasso(df, version, signal, log_dir="lightning_logs"):
     if "inclusive" not in signal:
         sig_df = df[df["SigMatch"] == 1]
     else:
@@ -220,7 +221,7 @@ def plot_sig_pv_missasso(df, version, signal):
             pv_log["pv_corr_ml"][npvs[i]].append(np.sum(evt_true_pv == evt_pred_pv))
             pv_log["pv_corr_ip"][npvs[i]].append(np.sum(evt_true_pv == evt_minIP_pv))
             pv_log["pv_total"][npvs[i]].append(evt_true_pv.shape[0])
-        plot_pv_missasso(pv_log, _version, _signal, selbool if selbool is not None else "no_selection")
+        plot_pv_missasso(pv_log, _version, _signal, selbool if selbool is not None else "no_selection", log_dir=log_dir)
 
     pv_asso(sig_df, version, signal, "PerfectReco")
     pv_asso(sig_df, version, signal, "AllParticles")
@@ -231,7 +232,7 @@ def plot_sig_pv_missasso(df, version, signal):
 
 
 
-def obtain_reco_accuracy(df, version, signal):
+def obtain_reco_accuracy(df, version, signal, log_dir):
     if "inclusive" not in signal:
         sig_df = df[df["SigMatch"] == 1]
     else:
@@ -252,7 +253,7 @@ def obtain_reco_accuracy(df, version, signal):
     part_reco_ratio = part_reco / nevents * 100
     part_reco_ratio_err = np.nan if part_reco == 0 else part_reco_ratio * np.sqrt(1 / part_reco + 1 / nevents)
 
-    file = f"lightning_logs/DFEI/version_{version}/info_{signal}_reco.txt"
+    file = f"{log_dir}/DFEI/version_{version}/info_{signal}_reco.txt"
     cond = "a" if os.path.exists(file) else "w"
     with open(file, cond) as f:
         f.write("=" * 30 + "\n")
@@ -263,9 +264,9 @@ def obtain_reco_accuracy(df, version, signal):
         f.write(f"part_reco: {part_reco_ratio} +/- {part_reco_ratio_err} \n")
 
 
-def metrics_eval(metrics, configs, version, channel, mode="DFEI"):
+def metrics_eval(metrics, configs, version, channel, mode="DFEI", log_dir='lightning_logs'):
     if configs["LCA"] and mode == "DFEI":
-        plot_LCA_acc(metrics, version, channel=channel)
+        plot_LCA_acc(metrics, version, channel=channel, log_dir=log_dir)
 
     loss_val = [
         match.group(1)
@@ -274,10 +275,10 @@ def metrics_eval(metrics, configs, version, channel, mode="DFEI"):
     ]
 
     for loss in loss_val:
-        plot_loss(metrics, version, loss, mode=mode)
+        plot_loss(metrics, version, loss, mode=mode, log_dir=log_dir)
 
 
-def plot_roc_curve(sig, bkg, plt_label, version, model="DFEI", channel="inclusive"):
+def plot_roc_curve(sig, bkg, plt_label, version, model="DFEI", channel="inclusive", log_dir='lightning_logs'):
     pred = np.concatenate([sig, bkg])
     labels = np.concatenate([
         np.ones(len(sig)),
@@ -295,7 +296,7 @@ def plot_roc_curve(sig, bkg, plt_label, version, model="DFEI", channel="inclusiv
     elif "pv" in plt_label[0]:
         suffix = "pv"
 
-    outdir = f"lightning_logs/{model}/version_{version}/plots_{channel}/{suffix}"
+    outdir = f"{log_dir}/{model}/version_{version}/plots_{channel}/{suffix}"
     os.makedirs(outdir, exist_ok=True)
 
     f, ax = plt.subplots(figsize=(9, 6))

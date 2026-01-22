@@ -15,8 +15,7 @@ import numpy as np
 from torch.utils.data import IterableDataset
 from torch_geometric.loader import DataLoader
 
-from wmpgnn.analysis.weights_calculator import get_hetero_weight
-from wmpgnn.util.pruners import *
+from wmpgnn.data_loader.helper import *
 
 
 class ChunkDataset(IterableDataset):
@@ -37,7 +36,8 @@ class ChunkDataset(IterableDataset):
             file_index.append(self._generate_groups(n_chunks=self.n_chunks,
                                                     low=cumulative_sizes[i],
                                                     high=cumulative_sizes[i + 1]))
-        self.chunk_index = torch.cat(file_index, dim=1)
+
+        self.chunk_index = torch.cat(file_index, dim=1).to(torch.long)
         self.files_per_chunk = self.chunk_index.shape[1]
         self.n_files = {}
         for sample in self.file_paths.keys():
@@ -71,38 +71,6 @@ class ChunkDataset(IterableDataset):
             groups.append(group.tolist())
         return torch.tensor(groups)
 
-    def _load_dataset(self, path, mode="train"):
-        with open(path, "rb") as f:
-            data = torch.load(f, weights_only=False)
-
-        """Applying pruning for different using truth pruning initially"""
-        if "true" in self.configs["settings"]["graph_mode"]:
-            data_selbool = torch.ones(len(data))
-            for i, evt in enumerate(data):
-                y_nodes = evt["tracks"].ft != 1
-                if "frag" in self.configs["graph_mode"]:
-                    frag_selbool = evt["tracks"].frag != 0
-                    y_nodes = y_nodes | frag_selbool
-                if self.configs["node_sel"] == "true":
-                    true_node_pruning(y_nodes, evt, "tracks", [('tracks', 'to', 'tracks')])
-                elif self.configs["node_sel"] == "default":
-                    _ = node_pruning(y_nodes, evt, "tracks", [('tracks', 'to', 'tracks')])
-                elif self.configs["node_sel"] == "zeros":
-                    _ = test_node_pruning(y_nodes, evt, "tracks", [('tracks', 'to', 'tracks')])
-                if evt[("tracks", "to", "tracks")].y.shape[0] == 0 or torch.all(evt[("tracks", "to", "tracks")].y == 0):
-                    data_selbool[i] = 0
-            filtered_data = [d for d, sel in zip(data, data_selbool) if sel]
-        else:
-            filtered_data = data
-
-        if mode == "train":
-            return filtered_data
-        elif mode == "weights":
-            weights = get_hetero_weight(filtered_data, self.configs)
-            return weights
-        else:
-            raise NotImplementedError
-
     def _load_chunk(self, chunk_number, mode="loading"):
         nevnts = 800
         if self.mode == "validation" or self.mode == "test":
@@ -113,16 +81,16 @@ class ChunkDataset(IterableDataset):
         desc = f"Loading {self.mode} chunk {chunk_number + 1}/{self.n_chunks} ({self.files_per_chunk} files, ~{self.files_per_chunk * nevnts} events)"
         if mode == "loading":
             dataset = []
-            load_dataset = partial(self._load_dataset)
+            load_dataset_part = partial(load_dataset, configs=self.configs, mode=mode)
             with ThreadPool(processes=self.configs["settings"]["ncpu"]) as pool:
-                for r in tqdm(pool.imap(load_dataset, files), total=len(files), desc=desc):
+                for r in tqdm(pool.imap(load_dataset_part, files), total=len(files), desc=desc):
                     dataset.extend(r)
             return dataset
         elif mode == "weights":
             weights = {}
-            load_dataset = partial(self._load_dataset, mode=mode)
+            load_dataset_part = partial(load_dataset, configs=self.configs, mode="weights_only")
             with ThreadPool(processes=self.configs["settings"]["ncpu"]) as pool:
-                for r in tqdm(pool.imap(load_dataset, files), total=len(files), desc=desc):
+                for r in tqdm(pool.imap(load_dataset_part, files), total=len(files), desc=desc):
                     for key, value in r.items():
                         if key not in weights:
                             weights[key] = value
@@ -170,7 +138,7 @@ class ChunkDataset(IterableDataset):
     def get_weights(self):
         # pass n entries
         weights = {}
-        for i in range(10):
+        for i in range(1):
             weights[i] = self._load_chunk(i, mode="weights")
         return weights
 

@@ -25,9 +25,9 @@ def adjust_config(_configs):
 
 
 def get_bis_model(version, model="DFEI", configs=None):
-    if 'pythia' in configs['settings']['data_dir']:
+    if 'pythia' in configs[model]['settings']['data_dir']:
             log_dir = 'pythia_logs'
-    elif 'LHCb' in configs['settings']['data_dir']:
+    elif 'LHCb' in configs[model]['settings']['data_dir']:
         log_dir = 'LHCb_logs'
     else:
         raise ValueError("Invalid config")

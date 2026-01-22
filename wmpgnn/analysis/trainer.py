@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 
 from wmpgnn.analysis.trainer_helper import *
 from wmpgnn.data_loader.data_loader_helper import load_trn_val_loader, load_tst_loader
-from wmpgnn.analysis.weights_calculator import transform_pos_weight
+from wmpgnn.data_loader.weights_calculator import transform_pos_weight
 from wmpgnn.performance.plotter import metrics_eval
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
 from wmpgnn.lightning_module.exec_lightning import load_module, training, evaluate
@@ -58,20 +58,20 @@ if __name__ == "__main__":
             log_dir = 'LHCb_logs'
         else:
             raise ValueError("Invalid config")
-        metric_path = f"{log_dir}/IFT/version_{version}/metrics.csv"
+        metric_path = f"{log_dir}/DFEI/version_{version}/metrics.csv"
         df = pd.read_csv(metric_path)
         df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
         sample = configs["evaluate"]["sample"]
         if configs["evaluate"]["over_write"] != "None":
             sample += "__" + configs["evaluate"]["over_write"]
-        metrics_eval(df, configs["DFEI"]["inference"], version, sample, mode="DFEI")
+        metrics_eval(df, configs["DFEI"]["inference"], version, sample, mode="DFEI", log_dir=log_dir)
 
-        dfei_bis_model = get_bis_model(version, "DFEI")
+        dfei_bis_model = get_bis_model(version, "DFEI", configs)
         print("Obtained best DFEI model:", dfei_bis_model)
     else:
         version = configs['IFT']['dfei_model']
         if isinstance(version, int):
-            dfei_bis_model = get_bis_model(version, "DFEI")
+            dfei_bis_model = get_bis_model(version, "DFEI", configs)
         elif isinstance(version, str):
             dfei_bis_model = version
             version = re.search(r"version_(\d+)", dfei_bis_model).group(1)
