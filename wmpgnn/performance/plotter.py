@@ -90,7 +90,6 @@ def plot_weights(pos_weight, neg_weights, labels, version, model="DFEI", channel
     ax.set_ylabel("Normalized entries [a.u.]")
     ax.legend()
     ax.set_yscale("log")
-    import pdb; pdb.set_trace()
     plt.savefig(f"{outdir}/{labels[0]}.pdf")
     plt.savefig(f"{outdir}/{labels[0]}.png")
     plt.close()
@@ -228,7 +227,6 @@ def plot_sig_pv_missasso(df, version, signal, log_dir="lightning_logs"):
     pv_asso(sig_df, version, signal, "NoneIso")
     pv_asso(sig_df, version, signal, "PartReco")
     pv_asso(sig_df, version, signal)
-    import pdb; pdb.set_trace()
 
 
 
