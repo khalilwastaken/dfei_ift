@@ -10,7 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 
 from wmpgnn.analysis.trainer_helper import *
 from wmpgnn.data_loader.data_loader_helper import load_tst_loader
-from wmpgnn.analysis.weights_calculator import transform_pos_weight
+from wmpgnn.data_loader.weights_calculator import transform_pos_weight
 from wmpgnn.performance.plotter import metrics_eval
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
 from wmpgnn.lightning_module.exec_lightning import load_module, training, evaluate
@@ -95,4 +95,4 @@ if __name__ == "__main__":
     sample = configs["evaluate"]["sample"]
     if configs["evaluate"]["over_write"] != "None":
         sample += "__" + configs["evaluate"]["over_write"]
-    metrics_eval(df, configs[model]["inference"], version, sample, mode=model)
+    metrics_eval(df, configs[model]["inference"], version, sample, mode=model, log_dir=log_dir)

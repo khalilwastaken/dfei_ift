@@ -164,7 +164,7 @@ def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des=None, pv_des
                 labels = tc['labels']
                 mothers = [label[3:] for label in labels if 'c' == label[0]]
                 node_keys = tc['node_keys']
-                daughters = [label.split(':')[1] for label in labels if int(label.split(':')[0][1:]) in node_keys]
+                daughters = [label.split(':')[1] for label in labels if int(float(label.split(':')[0][1:])) in node_keys]
                 if match_decays(daughters, ref_signal[0]['daughters']) or match_decays(daughters,
                                                                                        ref_signal[1]['daughters']):
                     check_mothers1 = True
@@ -237,7 +237,9 @@ def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des=None, pv_des
                 candidates_df = true_LCA[true_LCA['LCA_id'].isin(candidate_lca_ids)]
                 max_chain_per_lca = candidates_df.groupby('LCA_id')['TrueFullChainLCA'].max()
                 sig_dict["B_id"] = max_chain_per_lca.idxmax()
-
+            if "EVENTNUMBER" in graph.keys():
+                sig_dict["EVENTNUMBER"] = graph["EVENTNUMBER"][0][0]
+                sig_dict["RUNNUMBER"] = graph["RUNNUMBER"][0][0]
             sig_df = sig_df._append(sig_dict, ignore_index=True)
 
         # temp stuff

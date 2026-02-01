@@ -95,6 +95,39 @@ def plot_weights(pos_weight, neg_weights, labels, version, model="DFEI", channel
     plt.close()
 
 
+def plot_roc_curve(sig, bkg, plt_label, version, model="DFEI", channel="inclusive", log_dir='lightning_logs'):
+    pred = np.concatenate([sig, bkg])
+    labels = np.concatenate([
+        np.ones(len(sig)),
+        np.zeros(len(bkg))
+    ])
+    fpr, tpr, th = roc_curve(labels, pred)
+    auc_score = roc_auc_score(labels, pred)
+    rnd_class = np.linspace(0, 1, 100)
+
+    suffix = "/"
+    if "nodes" in plt_label[0]:
+        suffix = "nodes"
+    elif "edges" in plt_label[0]:
+        suffix = "edges"
+    elif "pv" in plt_label[0]:
+        suffix = "pv"
+
+    outdir = f"{log_dir}/{model}/version_{version}/plots_{channel}/{suffix}"
+    os.makedirs(outdir, exist_ok=True)
+
+    f, ax = plt.subplots(figsize=(9, 6))
+    ax.plot(fpr, tpr, label=f'AUC = {auc_score:.5f}', color="black", alpha=1)
+    ax.plot(rnd_class, rnd_class, '--', label='Rnd classifier', color="grey", alpha=.8)
+    ax.set_xlabel(r'$\epsilon_{bkg}$ - FPR')
+    ax.set_ylabel(r'$\epsilon_{s}$ - TPR')
+    ax.legend(fontsize='medium')
+
+    plt.savefig(f"{outdir}/{plt_label[0]}.pdf")
+    plt.savefig(f"{outdir}/{plt_label[0]}.png")
+    plt.close()
+
+
 def plot_LCA_acc(df, version, channel="inclusive", log_dir='lightning_logs'):
     trn_LCA_acc0 = np.array(df["train_LCA_class0_pred_class0"])
     trn_LCA_acc1 = np.array(df["train_LCA_class1_pred_class1"])
@@ -154,6 +187,20 @@ def plot_loss(df, version, loss, mode="DFEI", log_dir='lightning_logs'):
     plt.savefig(f"{outdir}/{loss}_loss.pdf")
     plt.savefig(f"{outdir}/{loss}_loss.png")
     plt.close()
+
+
+def metrics_eval(metrics, configs, version, channel, mode="DFEI", log_dir='lightning_logs'):
+    if configs["LCA"] and mode == "DFEI":
+        plot_LCA_acc(metrics, version, channel=channel, log_dir=log_dir)
+
+    loss_val = [
+        match.group(1)
+        for key in metrics.keys()
+        if (match := re.fullmatch(r"train_(.+?)_loss", key))
+    ]
+
+    for loss in loss_val:
+        plot_loss(metrics, version, loss, mode=mode, log_dir=log_dir)
 
 
 def plot_pv_missasso(log, version, channel, selbool=None, log_dir='lightning_logs'):
@@ -230,80 +277,5 @@ def plot_sig_pv_missasso(df, version, signal, log_dir="lightning_logs"):
 
 
 
-def obtain_reco_accuracy(df, version, signal, log_dir):
-    if "inclusive" not in signal:
-        sig_df = df[df["SigMatch"] == 1]
-    else:
-        sig_df = df
-    nevents = len(sig_df)
-    all_particles = np.sum(sig_df["AllParticles"])
-    all_particles_ratio = all_particles / nevents * 100
-    all_particles_ratio_err = np.nan if all_particles == 0 else all_particles_ratio * np.sqrt(
-        1 / all_particles + 1 / nevents)
-    perfect_reco = np.sum(sig_df["PerfectReco"])
-    perfect_reco_ratio = perfect_reco / nevents * 100
-    perfect_reco_ratio_err = np.nan if perfect_reco == 0 else perfect_reco_ratio * np.sqrt(
-        1 / perfect_reco + 1 / nevents)
-    none_iso = np.sum(sig_df["NoneIso"])
-    none_iso_ratio = none_iso / nevents * 100
-    none_iso_ratio_err = np.nan if none_iso == 0 else none_iso_ratio * np.sqrt(1 / none_iso + 1 / nevents)
-    part_reco = np.sum(sig_df["PartReco"])
-    part_reco_ratio = part_reco / nevents * 100
-    part_reco_ratio_err = np.nan if part_reco == 0 else part_reco_ratio * np.sqrt(1 / part_reco + 1 / nevents)
-
-    file = f"{log_dir}/DFEI/version_{version}/info_{signal}_reco.txt"
-    cond = "a" if os.path.exists(file) else "w"
-    with open(file, cond) as f:
-        f.write("=" * 30 + "\n")
-        f.write("reconstruction efficiency: \n")
-        f.write(f"all_particles: {all_particles_ratio} +/- {all_particles_ratio_err} \n")
-        f.write(f"perfect_reco: {perfect_reco_ratio} +/- {perfect_reco_ratio_err} \n")
-        f.write(f"none_iso: {none_iso_ratio} +/- {none_iso_ratio_err} \n")
-        f.write(f"part_reco: {part_reco_ratio} +/- {part_reco_ratio_err} \n")
 
 
-def metrics_eval(metrics, configs, version, channel, mode="DFEI", log_dir='lightning_logs'):
-    if configs["LCA"] and mode == "DFEI":
-        plot_LCA_acc(metrics, version, channel=channel, log_dir=log_dir)
-
-    loss_val = [
-        match.group(1)
-        for key in metrics.keys()
-        if (match := re.fullmatch(r"train_(.+?)_loss", key))
-    ]
-
-    for loss in loss_val:
-        plot_loss(metrics, version, loss, mode=mode, log_dir=log_dir)
-
-
-def plot_roc_curve(sig, bkg, plt_label, version, model="DFEI", channel="inclusive", log_dir='lightning_logs'):
-    pred = np.concatenate([sig, bkg])
-    labels = np.concatenate([
-        np.ones(len(sig)),
-        np.zeros(len(bkg))
-    ])
-    fpr, tpr, th = roc_curve(labels, pred)
-    auc_score = roc_auc_score(labels, pred)
-    rnd_class = np.linspace(0, 1, 100)
-
-    suffix = "/"
-    if "nodes" in plt_label[0]:
-        suffix = "nodes"
-    elif "edges" in plt_label[0]:
-        suffix = "edges"
-    elif "pv" in plt_label[0]:
-        suffix = "pv"
-
-    outdir = f"{log_dir}/{model}/version_{version}/plots_{channel}/{suffix}"
-    os.makedirs(outdir, exist_ok=True)
-
-    f, ax = plt.subplots(figsize=(9, 6))
-    ax.plot(fpr, tpr, label=f'AUC = {auc_score:.5f}', color="black", alpha=1)
-    ax.plot(rnd_class, rnd_class, '--', label='Rnd classifier', color="grey", alpha=.8)
-    ax.set_xlabel(r'$\epsilon_{bkg}$ - FPR')
-    ax.set_ylabel(r'$\epsilon_{s}$ - TPR')
-    ax.legend(fontsize='medium')
-
-    plt.savefig(f"{outdir}/{plt_label[0]}.pdf")
-    plt.savefig(f"{outdir}/{plt_label[0]}.png")
-    plt.close()
