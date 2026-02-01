@@ -96,6 +96,7 @@ class DFEILightningModule(L.LightningModule):
             y_edges = y_edges.to(torch.float32).unsqueeze(-1)
         if self.configs["pv_asso"]:
             y_pv_asso = batch[("tracks", "to", "pvs")].y.to(torch.float32)
+            pv_filter = batch[('tracks', 'pvs')].filter == 1
 
         for i, block in enumerate(self.model._blocks):
             if self.configs["node_prune"]:
@@ -109,7 +110,9 @@ class DFEILightningModule(L.LightningModule):
                     get_block_score(log, block.edge_weights[('tracks', 'to', 'tracks')].squeeze(), y_edges, i,
                                     var="edges")
             if self.configs["pv_asso"]:
-                loss["pv_asso"] += self.pv_asso_criterion(block.edge_logits[("tracks", "to", "pvs")], y_pv_asso)
+                import pdb;
+                pdb.set_trace()
+                loss["pv_asso"] += self.pv_asso_criterion(block.edge_logits[("tracks", "to", "pvs")][pv_filter],y_pv_asso[pv_filter])
                 if mode == "test":
                     get_block_score(log, block.edge_weights[("tracks", "to", "pvs")].squeeze(), y_pv_asso, i,
                                     var="pv_asso")
