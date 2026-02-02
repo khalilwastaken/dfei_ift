@@ -25,6 +25,8 @@ def adjust_config(_configs):
 
 
 def get_bis_model(version, model="DFEI", configs=None):
+    if model == "DFEI_pv_asso":
+        model = "DFEI"
     if 'pythia' in configs['settings']['data_dir']:
             log_dir = 'pythia_logs'
     elif 'LHCb' in configs['settings']['data_dir']:

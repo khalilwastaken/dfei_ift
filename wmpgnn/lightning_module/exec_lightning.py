@@ -28,8 +28,8 @@ def load_module(configs, pos_weights, model, dfei_model=None, is_train=True):
     lr = float(configs[model]["settings"]["lr"])
     weight_decay = float(configs[model]["settings"]["weight_decay"])
 
-    if model == "DFEI":
-        model = DFEI_HGNN(configs["DFEI"])
+    if model == "DFEI" or model == "DFEI_pv_asso":
+        model = DFEI_HGNN(configs[model])
         if load_from_cpt == "None":
             module = DFEILightningModule(
                 model=model,

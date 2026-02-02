@@ -1,7 +1,19 @@
 def load_trn_val_loader(configs, model="DFEI"):
     print("Obtaining train and validation loaders:")
     trn_loader, val_loader, tst_loader, chunkloader = None, None, None, None
+
+    # PV association applied to the graphs
+    if configs[model]["settings"]["pv_model"] != "None":
+        print("Using pv associated data loader")
+        from wmpgnn.data_loader.pv_assoed_loader import get_trn_val_loaders
+
+        trn_loader, val_loader, weights, nevts = get_trn_val_loaders(configs[model])
+        configs[model].update({"num_events": nevts})
+        return configs, weights, trn_loader, val_loader, chunkloader
+
+    # If we do some prior filtering
     if "true" in configs[model]["settings"]["graph_mode"]:
+        print("Using filtered data loader")
         from wmpgnn.data_loader.data_loader import get_trn_val_loaders
 
         trn_loader, val_loader, weights, nevts = get_trn_val_loaders(configs[model])
@@ -10,6 +22,7 @@ def load_trn_val_loader(configs, model="DFEI"):
 
     # here full event using chunkloading everything normal loading -> pv asso should also end here
     if "nu7p6" in configs[model]["settings"]["data_dir"] or "LHCbcollision" in configs[model]["settings"]["data_dir"]:
+        print("Using chunk loader")
         from wmpgnn.data_loader.chunk_loader import get_trn_val_loaders
 
         chunkloader = get_trn_val_loaders(configs[model])
@@ -17,6 +30,7 @@ def load_trn_val_loader(configs, model="DFEI"):
         weights = chunkloader.trn_dataset.get_weights()
         configs[model].update({"num_files": chunkloader.trn_dataset.n_files})
     else:
+        print("Using data loader")
         from wmpgnn.data_loader.data_loader import get_trn_val_loaders
 
         trn_loader, val_loader, weights, nevts = get_trn_val_loaders(configs[model])
@@ -24,11 +38,18 @@ def load_trn_val_loader(configs, model="DFEI"):
     return configs, weights, trn_loader, val_loader, chunkloader
 
 
-
-
 def load_tst_loader(configs, model="DFEI"):
     print("Obtaining test loaders:")
     tst_loader, chunkloader = None, None
+
+    if configs[model]["settings"]["pv_model"] != "None":
+        print("Using pv associated data loader")
+        from wmpgnn.data_loader.pv_assoed_loader import get_tst_loader
+
+        tst_loader, nevts = get_tst_loader(configs, model=model)
+        configs[model].update({"num_events": nevts})
+        return configs, tst_loader, chunkloader
+
     if "true" in configs[model]["settings"]["graph_mode"]:
         from wmpgnn.data_loader.data_loader import get_tst_loader
 

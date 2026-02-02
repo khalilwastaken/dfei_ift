@@ -22,7 +22,7 @@ def init_logs(configs, mode="train", model="DFEI"):
     loss_config = configs[model]["inference"]
 
     log = {}
-    if model == "DFEI":
+    if "DFEI" in model:
         log["combined_loss"] = []
         gn_blocks = configs[model]["GNblocks"]["nBlocks"]
         if loss_config["LCA"]:

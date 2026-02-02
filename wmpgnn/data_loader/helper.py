@@ -1,14 +1,19 @@
+from itertools import chain
+
 import torch
+from torch_geometric.loader import DataLoader
+
 from wmpgnn.util.pruners import *
 from wmpgnn.data_loader.weights_calculator import get_hetero_weight
 
 
-def load_dataset(path, configs, mode="train"):
+def load_dataset(path, configs, mode="train", pv_asso_model=None):
     with open(path, "rb") as f:
         data = torch.load(f, weights_only=False)
 
     """Applying pruning for different using truth pruning initially"""
-    if "true" in configs["settings"]["graph_mode"]:
+    filtered_data = None
+    if "true" in configs["settings"]["graph_mode"]: # here we need to apply the pv association as well
         data_selbool = torch.ones(len(data))
         edge_types = [("tracks", "to", "tracks"), ("tracks", "to", "pvs")]
         for i, evt in enumerate(data):
@@ -25,6 +30,14 @@ def load_dataset(path, configs, mode="train"):
             if evt[("tracks", "to", "tracks")].y.shape[0] == 0 or torch.all(evt[("tracks", "to", "tracks")].y == 0):
                 data_selbool[i] = 0
         filtered_data = [d for d, sel in zip(data, data_selbool) if sel]
+    elif pv_asso_model is not None:
+        pv_data = DataLoader(filtered_data if filtered_data is not None else data)
+
+        filtered_data = []
+        for evt in pv_data:
+            res = pv_asso_model.forward(evt)
+            filtered_data.append(res)
+        filtered_data = list(chain.from_iterable(filtered_data))
     else:
         filtered_data = data
 
