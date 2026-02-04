@@ -9,7 +9,7 @@ import mplhep as hep
 hep.style.use(hep.style.LHCb2)
 
 
-def process_ft(df, sig_df, version, signal):
+def process_ft(df, sig_df, version, signal, log_dir="lightning_logs"):
     pattern = re.compile(r"bbar_ft_score_(\d+)")
     ft_layers = [int(match.group(1)) for k in df for match in [pattern.match(k)] if match]
 
@@ -18,7 +18,7 @@ def process_ft(df, sig_df, version, signal):
         bbar_score = 1 - df[f"bbar_ft_score_{i}"]  # optimal 0
         b_score = df[f"b_ft_score_{i}"]  # optimal 1
         plot_weights(b_score, bbar_score, [f"ft_decision_{i}", "b", "bbar"], version,
-                     model="IFT", channel=signal)
+                     model="IFT", channel=signal, log_dir=log_dir)
 
     # Plot the B particle decision
     selbool = sig_df["AllParticles"] == 1
@@ -33,7 +33,7 @@ def process_ft(df, sig_df, version, signal):
         b_dec = sig_ch_df["ft_b_score"][b_selbool]
         bbar_dec = 1 - sig_ch_df["ft_bbar_score"][bbar_selbool]
         plot_weights(b_dec, bbar_dec, [f"signal_b_id_decision", "b", "bbar"], version,
-                     model="IFT", channel=signal)
+                     model="IFT", channel=signal, log_dir=log_dir)
 
         # Plot the weights of the final state particles
         b_dec_final = np.array(
@@ -41,7 +41,7 @@ def process_ft(df, sig_df, version, signal):
         bbar_dec_final = 1 - np.array(
             [float(x) for item in sig_ch_df["final_bbar_score"][bbar_selbool].values for x in item.split(',')])
         plot_weights(b_dec_final, bbar_dec_final, [f"signal_b_decision_final", "b", "bbar"], version,
-                     model="IFT", channel=signal)
+                     model="IFT", channel=signal, log_dir=log_dir)
     else:
         rem_B_df = sig_df[selbool]
 
@@ -52,7 +52,7 @@ def process_ft(df, sig_df, version, signal):
         b_dec = rem_B_df["ft_b_score"][b_selbool]
         bbar_dec = 1 - rem_B_df["ft_bbar_score"][bbar_selbool]
         plot_weights(b_dec, bbar_dec, [f"OS{b}_id_decision", "b", "bbar"], version,
-                     model="IFT", channel=signal)
+                     model="IFT", channel=signal, log_dir=log_dir)
 
         # Plot the weights of the final state particles
         b_dec_final = np.array(
@@ -60,7 +60,7 @@ def process_ft(df, sig_df, version, signal):
         bbar_dec_final = 1 - np.array(
             [float(x) for item in rem_B_df["final_bbar_score"][bbar_selbool].values for x in item.split(',')])
         plot_weights(b_dec_final, bbar_dec_final, [f"OS{b}_id_decision_final", "b", "bbar"], version,
-                     model="IFT", channel=signal)
+                     model="IFT", channel=signal, log_dir=log_dir)
 
 
 def plot_weights(pos_weight, neg_weights, labels, version, model="DFEI", channel="inclusive", log_dir='lightning_logs'):
@@ -190,7 +190,7 @@ def plot_loss(df, version, loss, mode="DFEI", log_dir='lightning_logs'):
 
 
 def metrics_eval(metrics, configs, version, mode="DFEI", log_dir='lightning_logs'):
-    if configs["LCA"] and mode == "DFEI":
+    if configs.get("LCA", False) and mode == "DFEI":
         plot_LCA_acc(metrics, version, log_dir=log_dir)
 
     loss_val = [
