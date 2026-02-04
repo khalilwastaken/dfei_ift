@@ -128,7 +128,7 @@ def plot_roc_curve(sig, bkg, plt_label, version, model="DFEI", channel="inclusiv
     plt.close()
 
 
-def plot_LCA_acc(df, version, channel="inclusive", log_dir='lightning_logs'):
+def plot_LCA_acc(df, version, log_dir='lightning_logs'):
     trn_LCA_acc0 = np.array(df["train_LCA_class0_pred_class0"])
     trn_LCA_acc1 = np.array(df["train_LCA_class1_pred_class1"])
     trn_LCA_acc2 = np.array(df["train_LCA_class2_pred_class2"])
@@ -142,7 +142,7 @@ def plot_LCA_acc(df, version, channel="inclusive", log_dir='lightning_logs'):
     epochs = np.arange(len(trn_LCA_acc0))
 
     # Plot dir
-    outdir = f"{log_dir}/DFEI/version_{version}/plots_{channel}"
+    outdir = f"{log_dir}/DFEI/version_{version}/plots"
     os.makedirs(outdir, exist_ok=True)
 
     # Plot LCA acc
@@ -189,9 +189,9 @@ def plot_loss(df, version, loss, mode="DFEI", log_dir='lightning_logs'):
     plt.close()
 
 
-def metrics_eval(metrics, configs, version, channel, mode="DFEI", log_dir='lightning_logs'):
+def metrics_eval(metrics, configs, version, mode="DFEI", log_dir='lightning_logs'):
     if configs["LCA"] and mode == "DFEI":
-        plot_LCA_acc(metrics, version, channel=channel, log_dir=log_dir)
+        plot_LCA_acc(metrics, version, log_dir=log_dir)
 
     loss_val = [
         match.group(1)
