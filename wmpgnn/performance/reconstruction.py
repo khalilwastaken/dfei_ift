@@ -238,8 +238,8 @@ def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des=None, pv_des
                 max_chain_per_lca = candidates_df.groupby('LCA_id')['TrueFullChainLCA'].max()
                 sig_dict["B_id"] = max_chain_per_lca.idxmax()
             if "EVENTNUMBER" in graph.keys():
-                sig_dict["EVENTNUMBER"] = graph["EVENTNUMBER"][0][0]
-                sig_dict["RUNNUMBER"] = graph["RUNNUMBER"][0][0]
+                sig_dict["EVENTNUMBER"] = graph["EVENTNUMBER"].item()
+                sig_dict["RUNNUMBER"] = graph["RUNNUMBER"].item()
             sig_df = sig_df._append(sig_dict, ignore_index=True)
 
         # temp stuff
