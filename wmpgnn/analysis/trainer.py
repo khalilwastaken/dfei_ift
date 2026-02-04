@@ -36,83 +36,66 @@ if __name__ == "__main__":
             print("Training model", model)
     print("=" * 30)
 
-    """Start DFEI training"""
     dfei_model = None
     if "DFEI" in configs.keys():
+        """Start DFEI training"""
         # Obtaining train and validation dataloaders
         configs, weights, trn_loader, val_loader, chunkloader = load_trn_val_loader(configs, model="DFEI")
         pos_weights = transform_pos_weight(weights, configs["DFEI"]["inference"])
 
-        # Start training DFEI
+        # Obtain the DFEI module
+        model_name = "DFEI"
         module = load_module(configs, pos_weights, model="DFEI")
-        trainer = training(module, configs, model="DFEI",
-                           trn_loader=trn_loader, val_loader=val_loader, chunkloader=chunkloader)
-        version = trainer.logger.version
-
-        # Start testing
-        configs, tst_loader, chunkloader = load_tst_loader(configs, model="DFEI")
-        evaluate(trainer, module, tst_loader=tst_loader, chunkloader=chunkloader)
-        if 'pythia' in configs['settings']['data_dir']:
-            log_dir = 'pythia_logs'
-        elif 'LHCb' in configs['settings']['data_dir']:
-            log_dir = 'LHCb_logs'
-        else:
-            raise ValueError("Invalid config")
-        metric_path = f"{log_dir}/DFEI/version_{version}/metrics.csv"
-        df = pd.read_csv(metric_path)
-        df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
-        sample = configs["evaluate"]["sample"]
-        if configs["evaluate"]["over_write"] != "None":
-            sample += "__" + configs["evaluate"]["over_write"]
-        metrics_eval(df, configs["DFEI"]["inference"], version, sample, mode="DFEI", log_dir=log_dir)
-
-        dfei_bis_model = get_bis_model(version, "DFEI", configs)
-        print("Obtained best DFEI model:", dfei_bis_model)
-    else:
-        version = configs['IFT']['dfei_model']
-        if isinstance(version, int):
-            dfei_bis_model = get_bis_model(version, "DFEI", configs)
-        elif isinstance(version, str):
-            dfei_bis_model = version
-            version = re.search(r"version_(\d+)", dfei_bis_model).group(1)
-        else:
-            raise RuntimeError(f"Unsupported load_dfei: {type(version)}")
-        pos_weights = transform_pos_weight(None, None, mode="eval")
-
-    """Start IFT training"""
-    if "IFT" in configs.keys():
+    elif "IFT" in configs.keys():
+        """Start IFT training"""
         # Loading the DFEI model by loading the hparams of the used model
-        print("Using DFEI model:", dfei_bis_model)
-        with open(f"lightning_logs/DFEI/version_{version}/hparams.yaml", "r") as file:
-            dfei_hparams = yaml.safe_load(file)
-        configs["DFEI"] = dfei_hparams["DFEI"]
-        configs["DFEI"]["cpt"] = dfei_bis_model
-        module = load_module(configs, pos_weights, model="DFEI")
-        dfei_model = module.model
+        version = configs['IFT']['dfei_model']
+        if version != "None":
+            if isinstance(version, int):
+                dfei_bis_model = get_bis_model(version, "DFEI", configs)
+            elif isinstance(version, str):
+                dfei_bis_model = version
+                version = re.search(r"version_(\d+)", dfei_bis_model).group(1)
+            else:
+                raise RuntimeError(f"Unsupported load_dfei: {type(version)}")
+            pos_weights = transform_pos_weight(None, None, mode="eval")
+            print("Using DFEI model:", dfei_bis_model)
+            with open(f"lightning_logs/DFEI/version_{version}/hparams.yaml", "r") as file:
+                dfei_hparams = yaml.safe_load(file)
+            configs["DFEI"] = dfei_hparams["DFEI"]
+            configs["DFEI"]["cpt"] = dfei_bis_model
+            module = load_module(configs, pos_weights, model="DFEI")
+            dfei_model = module.model
+        else:
+            print("No DFEI model specified. Truth information is used as a replacement")
+            dfei_model = None
+        print("=" * 30)
 
         # Obtaining train and validation dataloaders
         configs, weights, trn_loader, val_loader, chunkloader = load_trn_val_loader(configs, model="IFT")
         pos_weights = transform_pos_weight(weights, configs["IFT"]["inference"])
 
-        # Start training IFT
+        # Obtain the IFT module
+        model_name = "IFT"
         module = load_module(configs, pos_weights, model="IFT", dfei_model=dfei_model)
-        trainer = training(module, configs, model="IFT",
-                           trn_loader=trn_loader, val_loader=val_loader, chunkloader=chunkloader)
-        version = trainer.logger.version
+    else:
+        raise RuntimeError("No configuration file specified")
 
-        # Start testing
-        configs, tst_loader, chunkloader = load_tst_loader(configs, model="IFT")
-        evaluate(trainer, module, tst_loader=tst_loader, chunkloader=chunkloader)
-        if 'pythia' in configs['settings']['data_dir']:
-            log_dir = 'pythia_logs'
-        elif 'LHCb' in configs['settings']['data_dir']:
-            log_dir = 'LHCb_logs'
-        else:
-            raise ValueError("Invalid config")
-        metric_path = f"{log_dir}/IFT/version_{version}/metrics.csv"
-        df = pd.read_csv(metric_path)
-        df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
-        sample = configs["evaluate"]["sample"]
-        if configs["evaluate"]["over_write"] != "None":
-            sample += "__" + configs["evaluate"]["over_write"]
-        metrics_eval(df, configs["IFT"]["inference"], version, sample, mode="IFT")
+    """Start the training"""
+    trainer = training(module, configs, model=model_name,
+                       trn_loader=trn_loader, val_loader=val_loader, chunkloader=chunkloader)
+    version = trainer.logger.version
+
+    # Start testing
+    configs, tst_loader, chunkloader = load_tst_loader(configs, model=model_name)
+    evaluate(trainer, module, tst_loader=tst_loader, chunkloader=chunkloader)
+    if 'pythia' in configs['settings']['data_dir']:
+        log_dir = 'pythia_logs'
+    elif 'LHCb' in configs['settings']['data_dir']:
+        log_dir = 'LHCb_logs'
+    else:
+        raise ValueError("Invalid config")
+    metric_path = f"{log_dir}/{model_name}/version_{version}/metrics.csv"
+    df = pd.read_csv(metric_path)
+    df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
+    metrics_eval(df, configs[model_name]["inference"], version, mode=model_name)

@@ -92,7 +92,4 @@ if __name__ == "__main__":
     metric_path = f"{log_dir}/{model}/version_{version}/metrics.csv"
     df = pd.read_csv(metric_path)
     df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
-    sample = configs["evaluate"]["sample"]
-    if configs["evaluate"]["over_write"] != "None":
-        sample += "__" + configs["evaluate"]["over_write"]
-    metrics_eval(df, configs[model]["inference"], version, sample, mode=model, log_dir=log_dir)
+    metrics_eval(df, configs[model]["inference"], version, mode=model, log_dir=log_dir)
