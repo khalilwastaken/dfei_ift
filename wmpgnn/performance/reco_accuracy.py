@@ -23,11 +23,11 @@ def calculate_accuracy(df):
         none_iso_ratio, none_iso_ratio_err), (part_reco_ratio, part_reco_ratio_err)]
 
 
-def write_to_file(file, cond, performance, label=None):
+def write_to_file(file, cond, performance, entries=None, label=None):
     all_part, perfect_reco, none_iso, part_reco = performance
     with open(file, cond) as f:
         f.write("=" * 30 + "\n")
-        f.write(f"Reconstruction efficiency{label}: \n")
+        f.write(f"Reconstruction efficiency{label} ({entries}): \n")
         f.write(f"all_particles : {all_part[0]:.2f} +/- {all_part[1]:.2f} \n")
         f.write(f"perfect_reco  : {perfect_reco[0]:.2f} +/- {perfect_reco[1]:.2f} \n")
         f.write(f"none_iso      : {none_iso[0]:.2f} +/- {none_iso[1]:.2f} \n")
@@ -53,20 +53,23 @@ def obtain_reco_accuracy(df, version, signal, log_dir):
         bkg_df = None
 
     performance = calculate_accuracy(sig_df)
-    write_to_file(file, cond, performance, label="")
+    write_to_file(file, cond, performance, entries=len(sig_df),label="")
 
     if bkg_df is not None:
         performance = calculate_accuracy(bkg_df)
-        write_to_file(file, "a", performance, label=" inclusive")
+        write_to_file(file, "a", performance, entries=len(bkg_df), label=" inclusive")
 
     single_evts = evtnumber[counts == 1]
-    performance = calculate_accuracy(sig_df[sig_df["EventNumber"].isin(single_evts)])
-    write_to_file(file, "a", performance, label=" only 1 B in event")
+    usage_df = sig_df[sig_df["EventNumber"].isin(single_evts)]
+    performance = calculate_accuracy(usage_df)
+    write_to_file(file, "a", performance, entries=len(usage_df), label=" only 1 B in event")
 
     two_evts = evtnumber[counts == 2]
-    performance = calculate_accuracy(sig_df[sig_df["EventNumber"].isin(two_evts)])
-    write_to_file(file, "a", performance, label=" only 2 B in event")
+    usage_df = sig_df[sig_df["EventNumber"].isin(two_evts)]
+    performance = calculate_accuracy(usage_df)
+    write_to_file(file, "a", performance, entries=len(usage_df), label=" only 2 B in event")
 
     more_evts = evtnumber[counts > 2]
-    performance = calculate_accuracy(sig_df[sig_df["EventNumber"].isin(more_evts)])
-    write_to_file(file, "a", performance, label=" more than 2 B in event")
+    usage_df = sig_df[sig_df["EventNumber"].isin(more_evts)]
+    performance = calculate_accuracy(usage_df)
+    write_to_file(file, "a", performance, entries=len(usage_df), label=" more than 2 B in event")
