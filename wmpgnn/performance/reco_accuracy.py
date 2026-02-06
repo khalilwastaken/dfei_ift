@@ -1,3 +1,4 @@
+import pandas as pd
 import numpy as np
 import os
 
@@ -73,3 +74,16 @@ def obtain_reco_accuracy(df, version, signal, log_dir, model):
     usage_df = sig_df[sig_df["EventNumber"].isin(more_evts)]
     performance = calculate_accuracy(usage_df)
     write_to_file(file, "a", performance, entries=len(usage_df), label=" more than 2 B in event")
+
+    # bias checking
+    usage_df = sig_df[np.sign(sig_df["B_id"]) == -1]
+    performance = calculate_accuracy(usage_df)
+    write_to_file(file, "a", performance, entries=len(usage_df), label=" negative id")
+    usage_df = sig_df[np.sign(sig_df["B_id"]) == 1]
+    performance = calculate_accuracy(usage_df)
+    write_to_file(file, "a", performance, entries=len(usage_df), label=" positive id")
+
+if __name__ == "__main__":
+    df = pd.read_csv(
+        "/eos/user/y/yukaiz/DFEI_IFT/IFT_training/wmpgnn/analysis/LHCb_logs/IFT/version_1/signal_df_00299103_Bs_Jpsiphi.csv")
+    obtain_reco_accuracy(df, "-1", "Bs_Jpsiphi", "lightning_logs", "IFT")
