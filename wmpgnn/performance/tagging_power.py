@@ -30,24 +30,30 @@ class TaggingMetrics:
     combined_wrong_fraction_err: float
     combined_power: float
     combined_power_err: float
+    # adding epsilon and D^2
+    epsilon: float
+    epsilon_err: float
+    d_squared: float
+    d_squared_err: float
 
 
 class TaggingPowerAnalyzer:
     """Analyzes flavor tagging performance across different event configurations."""
 
-    def __init__(self, version, channel, eta_centers: List[float] = None, eta_bins: List[float] = None):
+    def __init__(self, version, channel, log_dir, eta_centers: List[float] = None, eta_bins: List[float] = None):
         self.eta_centers = eta_centers or [0.05, 0.15, 0.25, 0.35, 0.45, 0.55]
         self.eta_bins = eta_bins or [0, 0.1, 0.2, 0.3, 0.4, 0.5, 1]
         x_err_lower = [center - self.eta_bins[i] for i, center in enumerate(self.eta_centers)]
         x_err_upper = [self.eta_bins[i + 1] - center for i, center in enumerate(self.eta_centers)]
         self.x_err = [x_err_lower, x_err_upper]
 
-        self.outdir = f"lightning_logs/IFT/version_{version}/plots_{channel}"
+        self.outdir = f"{log_dir}/IFT/version_{version}/plots_{channel}/tagging_power"
         os.makedirs(self.outdir, exist_ok=True)
 
     @staticmethod
     def calculate_tagging_power(num_right: np.ndarray, num_wrong: np.ndarray,
-                                num_unclassified: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+                                num_unclassified: np.ndarray) -> Tuple[
+        np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Calculate tagging efficiency and power metrics."""
         total_classified = num_right + num_wrong
         total_events = total_classified + num_unclassified
@@ -63,7 +69,10 @@ class TaggingPowerAnalyzer:
         dp_dw = -4 * efficiency * (1 - 2 * wrong_fraction)
         dpower = np.sqrt((dp_deff * defficiency) ** 2 + (dp_dw * dwrong_fraction) ** 2)
 
-        return wrong_fraction * 100, dwrong_fraction * 100, power * 100, dpower * 100
+        d_squared = (1 - 2 * wrong_fraction) ** 2
+        d_squared_err = - 4 * (1 - 2 * wrong_fraction) * dwrong_fraction
+
+        return wrong_fraction * 100, dwrong_fraction * 100, power * 100, dpower * 100, efficiency * 100, defficiency * 100, d_squared * 100, d_squared_err * 100
 
     @staticmethod
     def process_df(df: pd.DataFrame) -> pd.DataFrame:
@@ -104,17 +113,19 @@ class TaggingPowerAnalyzer:
         num_right, num_wrong, num_unclassified = self._calculate_per_eta_bin(df)
 
         # Per-bin metrics
-        wrong_frac, wrong_frac_err, power, power_err = self.calculate_tagging_power(
+        wrong_frac, wrong_frac_err, power, power_err, epsilon, epsilon_err, d_squared, d_squared_err = self.calculate_tagging_power(
             np.array(num_right), np.array(num_wrong), np.array(num_unclassified)
         )
 
         # Combined metrics
-        combined_wrong_frac, combined_wrong_frac_err, combined_power, combined_power_err = self.calculate_tagging_power(
+        combined_wrong_frac, combined_wrong_frac_err, combined_power, combined_power_err, combined_epsilon, combined_epsilon_err, combined_d_squared, combined_d_squared_err = self.calculate_tagging_power(
             np.sum(num_right), np.sum(num_wrong), np.sum(num_unclassified)
         )
+        # here we need to also get the epsilon and D^2
 
         return TaggingMetrics(wrong_frac, wrong_frac_err, power, power_err, combined_wrong_frac,
-                              combined_wrong_frac_err, combined_power, combined_power_err)
+                              combined_wrong_frac_err, combined_power, combined_power_err,
+                              combined_epsilon, combined_epsilon_err, combined_d_squared, combined_d_squared_err)
 
     def plot_tagging_power(self, metrics: TaggingMetrics, eta_dist: np.ndarray,
                            label: str = "tagging_power"):
@@ -223,7 +234,7 @@ class CorrectnessCalculator:
         return charge_correct_fraction, charge_correct_df
 
 
-def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
+def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: str = "lightning_logs"):
     """
     Main function for tagging power values and plots
 
@@ -231,8 +242,9 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
         df: DataFrame with B meson tagging data
         version: Analysis version identifier
         signal: Signal type identifier
+        log_dir: Logging directory
     """
-    analyzer = TaggingPowerAnalyzer(version, signal)
+    analyzer = TaggingPowerAnalyzer(version, signal, log_dir)
     classifier = EventClassifier()
     calc = CorrectnessCalculator()
 
@@ -240,7 +252,7 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
     df = analyzer.process_df(df)
     event_ids, event_counts = classifier.get_event_counts(df)
 
-    file = f"lightning_logs/IFT/version_{version}/info_{signal}_FT.txt"
+    file = f"{log_dir}/IFT/version_{version}/info_{signal}_FT.txt"
 
     os.makedirs(os.path.dirname(file), exist_ok=True)
     cond = "a" if os.path.exists(file) else "w"
@@ -256,7 +268,9 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
 
         f.write(
             f"\nFull wrong fraction: ({metrics_full.combined_wrong_fraction:.4f} +/- {metrics_full.combined_wrong_fraction_err:.4f})%\n")
-        f.write(f"Full tagging power: ({metrics_full.combined_power:.4f} +/- {metrics_full.combined_power_err:.4f})%\n")
+        f.write(f"Full tagging power: ({metrics_full.combined_power:.4f} +/- {metrics_full.epsilon_err:.4f})%\n")
+        f.write(f"Full epsilon: ({metrics_full.epsilon:.4f} +/- {metrics_full.combined_power_err:.4f})%\n")
+        f.write(f"Full D^2: ({metrics_full.d_squared:.4f} +/- {metrics_full.d_squared_err:.4f})%\n")
 
         # 2. Single B events
         single_b_df = classifier.filter_n_b_events(df, 1, event_ids, event_counts)
