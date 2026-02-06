@@ -9,7 +9,7 @@ import mplhep as hep
 hep.style.use(hep.style.LHCb2)
 
 
-def process_ft(df, sig_df, version, signal):
+def process_ft(df, sig_df, version, signal, log_dir="lightning_logs"):
     pattern = re.compile(r"bbar_ft_score_(\d+)")
     ft_layers = [int(match.group(1)) for k in df for match in [pattern.match(k)] if match]
 
@@ -18,7 +18,7 @@ def process_ft(df, sig_df, version, signal):
         bbar_score = 1 - df[f"bbar_ft_score_{i}"]  # optimal 0
         b_score = df[f"b_ft_score_{i}"]  # optimal 1
         plot_weights(b_score, bbar_score, [f"ft_decision_{i}", "b", "bbar"], version,
-                     model="IFT", channel=signal)
+                     model="IFT", channel=signal, log_dir=log_dir,  suffix='tagging_weights')
 
     # Plot the B particle decision
     selbool = sig_df["AllParticles"] == 1
@@ -33,7 +33,7 @@ def process_ft(df, sig_df, version, signal):
         b_dec = sig_ch_df["ft_b_score"][b_selbool]
         bbar_dec = 1 - sig_ch_df["ft_bbar_score"][bbar_selbool]
         plot_weights(b_dec, bbar_dec, [f"signal_b_id_decision", "b", "bbar"], version,
-                     model="IFT", channel=signal)
+                     model="IFT", channel=signal, log_dir=log_dir,  suffix='tagging_weights')
 
         # Plot the weights of the final state particles
         b_dec_final = np.array(
@@ -41,7 +41,7 @@ def process_ft(df, sig_df, version, signal):
         bbar_dec_final = 1 - np.array(
             [float(x) for item in sig_ch_df["final_bbar_score"][bbar_selbool].values for x in item.split(',')])
         plot_weights(b_dec_final, bbar_dec_final, [f"signal_b_decision_final", "b", "bbar"], version,
-                     model="IFT", channel=signal)
+                     model="IFT", channel=signal, log_dir=log_dir, suffix='tagging_weights')
     else:
         rem_B_df = sig_df[selbool]
 
@@ -52,7 +52,7 @@ def process_ft(df, sig_df, version, signal):
         b_dec = rem_B_df["ft_b_score"][b_selbool]
         bbar_dec = 1 - rem_B_df["ft_bbar_score"][bbar_selbool]
         plot_weights(b_dec, bbar_dec, [f"OS{b}_id_decision", "b", "bbar"], version,
-                     model="IFT", channel=signal)
+                     model="IFT", channel=signal, log_dir=log_dir, suffix='tagging_weights')
 
         # Plot the weights of the final state particles
         b_dec_final = np.array(
@@ -60,10 +60,11 @@ def process_ft(df, sig_df, version, signal):
         bbar_dec_final = 1 - np.array(
             [float(x) for item in rem_B_df["final_bbar_score"][bbar_selbool].values for x in item.split(',')])
         plot_weights(b_dec_final, bbar_dec_final, [f"OS{b}_id_decision_final", "b", "bbar"], version,
-                     model="IFT", channel=signal)
+                     model="IFT", channel=signal, log_dir=log_dir, suffix='tagging_weights')
 
 
-def plot_weights(pos_weight, neg_weights, labels, version, model="DFEI", channel="inclusive", log_dir='lightning_logs'):
+def plot_weights(pos_weight, neg_weights, labels, version, model="DFEI", channel="inclusive", log_dir='lightning_logs',
+                 suffix=None):
     true_weights = np.ones(pos_weight.shape[0]) / len(pos_weight)
     fake_weights = np.ones(neg_weights.shape[0]) / len(neg_weights)
 
@@ -75,13 +76,14 @@ def plot_weights(pos_weight, neg_weights, labels, version, model="DFEI", channel
             weights=fake_weights
             )
 
-    suffix = "/"
-    if "nodes" in labels[0]:
-        suffix = "nodes"
-    elif "edges" in labels[0]:
-        suffix = "edges"
-    elif "pv" in labels[0]:
-        suffix = "pv"
+    if suffix is None:
+        suffix = "/"
+        if "nodes" in labels[0]:
+            suffix = "nodes"
+        elif "edges" in labels[0]:
+            suffix = "edges"
+        elif "pv" in labels[0]:
+            suffix = "pv"
 
     outdir = f"{log_dir}/{model}/version_{version}/plots_{channel}/{suffix}"
     os.makedirs(outdir, exist_ok=True)
@@ -128,7 +130,7 @@ def plot_roc_curve(sig, bkg, plt_label, version, model="DFEI", channel="inclusiv
     plt.close()
 
 
-def plot_LCA_acc(df, version, channel="inclusive", log_dir='lightning_logs'):
+def plot_LCA_acc(df, version, log_dir='lightning_logs'):
     trn_LCA_acc0 = np.array(df["train_LCA_class0_pred_class0"])
     trn_LCA_acc1 = np.array(df["train_LCA_class1_pred_class1"])
     trn_LCA_acc2 = np.array(df["train_LCA_class2_pred_class2"])
@@ -142,7 +144,7 @@ def plot_LCA_acc(df, version, channel="inclusive", log_dir='lightning_logs'):
     epochs = np.arange(len(trn_LCA_acc0))
 
     # Plot dir
-    outdir = f"{log_dir}/DFEI/version_{version}/plots_{channel}"
+    outdir = f"{log_dir}/DFEI/version_{version}/plots"
     os.makedirs(outdir, exist_ok=True)
 
     # Plot LCA acc
@@ -189,9 +191,9 @@ def plot_loss(df, version, loss, mode="DFEI", log_dir='lightning_logs'):
     plt.close()
 
 
-def metrics_eval(metrics, configs, version, channel, mode="DFEI", log_dir='lightning_logs'):
-    if configs["LCA"] and mode == "DFEI":
-        plot_LCA_acc(metrics, version, channel=channel, log_dir=log_dir)
+def metrics_eval(metrics, configs, version, mode="DFEI", log_dir='lightning_logs'):
+    if configs.get("LCA", False) and mode == "DFEI":
+        plot_LCA_acc(metrics, version, log_dir=log_dir)
 
     loss_val = [
         match.group(1)
