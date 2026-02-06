@@ -69,7 +69,7 @@ class TaggingPowerAnalyzer:
         dpower = np.sqrt((dp_deff * defficiency) ** 2 + (dp_dw * dwrong_fraction) ** 2)
 
         d_squared = (1 - 2 * wrong_fraction) ** 2
-        d_squared_err = - 4 * (1 - 2 * wrong_fraction) * dwrong_fraction
+        d_squared_err = 4 * (1 - 2 * wrong_fraction) * dwrong_fraction
 
         wrong_fraction = (wrong_fraction * 100, dwrong_fraction * 100)
         power = (power * 100, dpower * 100)

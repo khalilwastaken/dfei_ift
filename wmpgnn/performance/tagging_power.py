@@ -8,9 +8,8 @@ except ImportError:
     from tagging_power_classes import *
 
 
-
 def write_tagging_power(file, metric, label):
-    file.write(f"{'='*20}\n")
+    file.write(f"{'=' * 20}\n")
     file.write(f"{label}\n")
     file.write(f"Tagging power  : ({metric.power[0]:.4f} +/- {metric.power[1]:.4f})%\n")
     file.write(f"Wrong fraction : ({metric.wrong_fraction[0]:.4f} +/- {metric.wrong_fraction[1]:.4f})%\n")
@@ -18,12 +17,13 @@ def write_tagging_power(file, metric, label):
     file.write(f"Dsquared       : ({metric.d_squared[0]:.4f} +/- {metric.d_squared[1]:.4f})%\n")
 
 
-def write_correctness_ratio(file, ratio, frag_results):
+def write_correctness_ratio(file, ratio, frag_results=None):
     file.write(f"Correctness ratio: ({ratio[0] * 100:.2f} +/- {ratio[1] * 100:.2f})%\n")
-    file.write(f"With fragmentation: ({frag_results['with_frag'][0] * 100:.2f} +/- "
-               f"{frag_results['with_frag'][1] * 100:.2f})%\n")
-    file.write(f"Without fragmentation: ({frag_results['without_frag'][0] * 100:.2f} +/- "
-               f"{frag_results['without_frag'][1] * 100:.2f})%\n")
+    if frag_results is not None:
+        file.write(f"With fragmentation: ({frag_results['with_frag'][0] * 100:.2f} +/- "
+                   f"{frag_results['with_frag'][1] * 100:.2f})%\n")
+        file.write(f"Without fragmentation: ({frag_results['without_frag'][0] * 100:.2f} +/- "
+                   f"{frag_results['without_frag'][1] * 100:.2f})%\n")
 
 
 def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: str = "lightning_logs"):
@@ -72,7 +72,7 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
         frag_results = calc.calculate_by_fragmentation(signal_single_b)
         write_correctness_ratio(f, ratio, frag_results)
 
-        """3. Two B events (opposite-side tagging possible)"""
+        """3. Two B events (opposite-side tagging possible)"""  # The OS can be not found, two B is on true level
         two_b_df = classifier.filter_n_b_events(df, 2, event_ids, event_counts)
         signal_two_b = two_b_df[two_b_df["SigMatch"] == 1]
         metrics_two = analyzer.compute_tagging_power_per_eta(signal_two_b)
@@ -104,23 +104,42 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
 
         # If based on sum of charge it matches the OS B+/- charge
         metrics_charge = analyzer.compute_tagging_power_per_eta(charge_correct_df)
-        analyzer.plot_tagging_power(metrics_charge, charge_correct_df["eta"],"osB_pm_true_charge_tagging_power")
+        analyzer.plot_tagging_power(metrics_charge, charge_correct_df["eta"], "osB_pm_true_charge_tagging_power")
         label = "Charged correct OS B+/- Events:"
         write_tagging_power(f, metrics_charge, label)
-
 
         """5. Bias study of signal"""
         neg_df = full_df[np.sign(full_df["B_id"]) == -1]
         metrics_full = analyzer.compute_tagging_power_per_eta(neg_df)
-        analyzer.plot_tagging_power(metrics_full, full_df["eta"], f"neg_tagging_power")
+        analyzer.plot_tagging_power(metrics_full, neg_df["eta"], f"neg_tagging_power")
         label = f"Tagging performance for negative {signal} ({len(neg_df)}):"
         write_tagging_power(f, metrics_full, label)
+        ratio = calc.calculate_prediction_correctness(neg_df)
+        write_correctness_ratio(f, ratio)
 
         pos_df = full_df[np.sign(full_df["B_id"]) == 1]
         metrics_full = analyzer.compute_tagging_power_per_eta(pos_df)
-        analyzer.plot_tagging_power(metrics_full, full_df["eta"], f"pos_tagging_power")
+        analyzer.plot_tagging_power(metrics_full, pos_df["eta"], f"pos_tagging_power")
         label = f"Tagging performance for positive {signal} ({len(pos_df)}):"
         write_tagging_power(f, metrics_full, label)
+        ratio = calc.calculate_prediction_correctness(pos_df)
+        write_correctness_ratio(f, ratio)
+
+        """6. Performance based on OS reconstruction type"""
+        os_incl_df = two_b_df[two_b_df["SigMatch"] != 1]
+        os_incl_df.loc[os_incl_df["PerfectReco"] == 1, "AllParticles"] = 0
+        sig_df = two_b_df[two_b_df["SigMatch"] == 1]
+        conditions = ["PerfectReco", "AllParticles", "NoneIso", "PartReco", "NotFound"]
+        for condition in conditions:
+            evts = os_incl_df[os_incl_df[condition] == 1]["EventNumber"]
+            usage_df = sig_df[sig_df["EventNumber"].isin(evts)]
+            metrics_two = analyzer.compute_tagging_power_per_eta(usage_df)
+            analyzer.plot_tagging_power(metrics_two, usage_df["eta"], f"doubleB_OS{condition}_tagging_power")
+            label = f"2 B candidate present in event with OS being {condition} ({len(usage_df)}):"
+            write_tagging_power(f, metrics_two, label)
+            ratio = calc.calculate_prediction_correctness(usage_df)
+            frag_results = calc.calculate_by_fragmentation(usage_df)
+            write_correctness_ratio(f, ratio, frag_results)
 
 
 if __name__ == "__main__":
