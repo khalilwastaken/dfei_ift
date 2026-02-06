@@ -23,8 +23,12 @@ class DFEILightningModule(L.LightningModule):
                 **configs,
                 "pos_weights": make_loggable(pos_weights)
             })
-        else:
+        elif configs["evaluate"]["model_arch"] == "DFEI":
             self.version = re.search(r'version_(\d+)', configs[model_name]["cpt"]).group(1)
+        elif configs["evaluate"]["model_arch"] == "IFT":
+            self.version = configs["evaluate"]["dfei_model"]
+        else:
+            raise NotImplementedError
 
         if model_name == "DFEI":
             self.signal = configs["evaluate"]["sample"]
@@ -67,9 +71,9 @@ class DFEILightningModule(L.LightningModule):
             raise ValueError("Invalid config")
 
     def forward(self, batch):
-        if self.use_pid:
+        if self.use_pid != 'None':
             if self.use_pid == "realistic":
-                batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].real_pid ], dim=1)
+                batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].real_pid], dim=1)
             else:
                 batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
         return self.model(batch)
@@ -122,8 +126,6 @@ class DFEILightningModule(L.LightningModule):
                     get_block_score(log, block.edge_weights[('tracks', 'to', 'tracks')].squeeze(), y_edges, i,
                                     var="edges")
             if self.configs["pv_asso"]:
-                import pdb;
-                pdb.set_trace()
                 loss["pv_asso"] += self.pv_asso_criterion(block.edge_logits[("tracks", "to", "pvs")][pv_filter],y_pv_asso[pv_filter])
                 if mode == "test":
                     get_block_score(log, block.edge_weights[("tracks", "to", "pvs")].squeeze(), y_pv_asso, i,
@@ -147,12 +149,16 @@ class DFEILightningModule(L.LightningModule):
                 log["pv_total"][npvs].append(ntracks)
 
             # reconstruction with cuts
-            if self.configs["node_prune"] or self.configs["edge_prune"]:
+            if self.configs["node_prune"]:
                 node_selbool = block.node_weights["tracks"].squeeze() > self.node_prune
                 edge_mask = true_node_pruning(node_selbool, outputs, "tracks", [('tracks', 'to', 'tracks')])
                 if self.configs["pv_asso"]:
                     y_pv, pred_pv, min_ip_pv = y_pv[node_selbool], pred_pv[node_selbool], min_ip_pv[node_selbool]
                 edge_selbool = block.edge_weights[('tracks', 'to', 'tracks')].squeeze()[edge_mask] > self.edge_prune
+            else:
+                edge_selbool = block.edge_weights[('tracks', 'to', 'tracks')].squeeze() > self.edge_prune
+
+            if self.configs["edge_prune"]:
                 edge_pruning(edge_selbool, outputs, ('tracks', 'to', 'tracks'))
 
             if self.configs["pv_asso"]:
@@ -202,7 +208,7 @@ class DFEILightningModule(L.LightningModule):
         self.sig_df.to_csv(f'{self.log_dir}/DFEI/version_{self.version}/signal_reco_df_{self.signal}.csv', index=False)
         self.evt_df.to_csv(f'{self.log_dir}/DFEI/version_{self.version}/event_reco_df_{self.signal}.csv', index=False)
         if self.configs["LCA"]:
-            obtain_reco_accuracy(self.sig_df, self.version, self.signal, self.log_dir)
+            obtain_reco_accuracy(self.sig_df, self.version, self.signal, self.log_dir, model="DFEI")
         if self.configs["node_prune"]:
             for i in range(len(self.model._blocks)):
                 plot_weights(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],
