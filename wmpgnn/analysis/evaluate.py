@@ -79,6 +79,7 @@ if __name__ == "__main__":
     # Getting the DFEI model
     if model == "DFEI" or configs["evaluate"]["dfei_model"] != "None":
         print("DFEI module:")
+        configs["DFEI"]["cpt"] = configs['evaluate']['dfei_model']
         module = load_module(configs, pos_weights, model="DFEI", is_train=False)
         dfei_model = module.model
     else:

@@ -223,7 +223,7 @@ class CorrectnessCalculator:
         return charge_correct_fraction, charge_correct_df
 
 
-def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: str = "lightning_logs"):
+def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str):
     """
     Main function for tagging power values and plots
 
@@ -231,7 +231,6 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
         df: DataFrame with B meson tagging data
         version: Analysis version identifier
         signal: Signal type identifier
-        log_dir: Logging directory
     """
     analyzer = TaggingPowerAnalyzer(version, signal)
     classifier = EventClassifier()
@@ -241,7 +240,7 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
     df = analyzer.process_df(df)
     event_ids, event_counts = classifier.get_event_counts(df)
 
-    file = f"{log_dir}/IFT/version_{version}/info_{signal}_FT.txt"
+    file = f"lightning_logs/IFT/version_{version}/info_{signal}_FT.txt"
 
     os.makedirs(os.path.dirname(file), exist_ok=True)
     cond = "a" if os.path.exists(file) else "w"

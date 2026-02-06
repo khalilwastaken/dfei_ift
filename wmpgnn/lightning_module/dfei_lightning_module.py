@@ -122,6 +122,8 @@ class DFEILightningModule(L.LightningModule):
                     get_block_score(log, block.edge_weights[('tracks', 'to', 'tracks')].squeeze(), y_edges, i,
                                     var="edges")
             if self.configs["pv_asso"]:
+                import pdb;
+                pdb.set_trace()
                 loss["pv_asso"] += self.pv_asso_criterion(block.edge_logits[("tracks", "to", "pvs")][pv_filter],y_pv_asso[pv_filter])
                 if mode == "test":
                     get_block_score(log, block.edge_weights[("tracks", "to", "pvs")].squeeze(), y_pv_asso, i,
@@ -145,16 +147,12 @@ class DFEILightningModule(L.LightningModule):
                 log["pv_total"][npvs].append(ntracks)
 
             # reconstruction with cuts
-            if self.configs["node_prune"]:
+            if self.configs["node_prune"] or self.configs["edge_prune"]:
                 node_selbool = block.node_weights["tracks"].squeeze() > self.node_prune
                 edge_mask = true_node_pruning(node_selbool, outputs, "tracks", [('tracks', 'to', 'tracks')])
                 if self.configs["pv_asso"]:
                     y_pv, pred_pv, min_ip_pv = y_pv[node_selbool], pred_pv[node_selbool], min_ip_pv[node_selbool]
                 edge_selbool = block.edge_weights[('tracks', 'to', 'tracks')].squeeze()[edge_mask] > self.edge_prune
-            else:
-                edge_selbool = block.edge_weights[('tracks', 'to', 'tracks')].squeeze() > self.edge_prune
-
-            if self.configs["edge_prune"]:
                 edge_pruning(edge_selbool, outputs, ('tracks', 'to', 'tracks'))
 
             if self.configs["pv_asso"]:

@@ -14,6 +14,18 @@ from wmpgnn.performance.plotter import metrics_eval
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
 from wmpgnn.lightning_module.exec_lightning import load_module, training, evaluate
 
+"""import sys
+import io
+
+class PrintTracker(io.TextIOBase):
+    def write(self, s):
+        if 'edges' in s.lower():
+            import traceback
+            traceback.print_stack()
+        return sys.__stdout__.write(s)
+
+sys.stdout = PrintTracker()"""
+
 if __name__ == "__main__":
     # python trainer.py  --config  ../../config_files/lightning.yaml
     usage = "usage: %prog [options]"
@@ -34,6 +46,12 @@ if __name__ == "__main__":
     for model in ["DFEI", "IFT"]:
         if model in configs.keys():
             print("Training model", model)
+    if 'pythia' in configs['settings']['data_dir']:
+        log_dir = 'pythia_logs'
+    elif 'LHCb' in configs['settings']['data_dir']:
+        log_dir = 'LHCb_logs'
+    else:
+        raise ValueError("Invalid config")
     print("=" * 30)
 
     dfei_model = None
@@ -60,7 +78,7 @@ if __name__ == "__main__":
                 raise RuntimeError(f"Unsupported load_dfei: {type(version)}")
             pos_weights = transform_pos_weight(None, None, mode="eval")
             print("Using DFEI model:", dfei_bis_model)
-            with open(f"lightning_logs/DFEI/version_{version}/hparams.yaml", "r") as file:
+            with open(f"{log_dir}/DFEI/version_{version}/hparams.yaml", "r") as file:
                 dfei_hparams = yaml.safe_load(file)
             configs["DFEI"] = dfei_hparams["DFEI"]
             configs["DFEI"]["cpt"] = dfei_bis_model
@@ -89,12 +107,6 @@ if __name__ == "__main__":
     # Start testing
     configs, tst_loader, chunkloader = load_tst_loader(configs, model=model_name)
     evaluate(trainer, module, tst_loader=tst_loader, chunkloader=chunkloader)
-    if 'pythia' in configs['settings']['data_dir']:
-        log_dir = 'pythia_logs'
-    elif 'LHCb' in configs['settings']['data_dir']:
-        log_dir = 'LHCb_logs'
-    else:
-        raise ValueError("Invalid config")
     metric_path = f"{log_dir}/{model_name}/version_{version}/metrics.csv"
     df = pd.read_csv(metric_path)
     df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()

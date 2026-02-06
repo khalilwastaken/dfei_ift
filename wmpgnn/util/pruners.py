@@ -86,8 +86,6 @@ def true_node_pruning(node_mask, graph, node_type, edge_types):
             graph[edge_type].lca = graph[edge_type].lca[mask]
         if "pred_y" in graph[edge_type]:
             graph[edge_type].pred_y = graph[edge_type].pred_y[mask]
-        if "filter" in graph[edge_type]:
-            graph[edge_type].filter = graph[edge_type].filter[mask]
         graph[edge_type].y = graph[edge_type].y[mask]
     # here we need to be careful since it only return 1 mask even though it creates multiple
     return mask
