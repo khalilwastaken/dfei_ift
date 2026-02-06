@@ -51,6 +51,9 @@ def lca_truth_matrix(graph):
 
 
 def get_asso_frag(sig_dict, graph, cluster):
+    # check if the frag exists if not just return it problem solved. yey
+    if "frag_y" not in graph:
+        return sig_dict
     res_dict = sig_dict
 
     cluster_keys = cluster['node_keys']
@@ -110,14 +113,19 @@ def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des=None, pv_des
     ref_signal = get_ref_signal(signal)
     graph = graph.cpu()
 
+    lca_inferred = False
+    if "LCA" in config:
+        if config["LCA"]:
+            lca_inferred = True
+
     """Check if reco B exist and true B exist"""
     if torch.sum(graph['tracks', 'to', 'tracks'].y) == 0:
         print("no true B exist")
-    if config["LCA"] and torch.sum(torch.argmax(graph['tracks', 'to', 'tracks'].edges, dim=-1)) == 0:
+    if lca_inferred and torch.sum(torch.argmax(graph['tracks', 'to', 'tracks'].edges, dim=-1)) == 0:
         print("no reco B candidate found")
 
     """Obtain the LCA scores of both true and reco graphs"""
-    if config["LCA"]:
+    if lca_inferred:
         reco_LCA = lca_reco_matrix(graph, mode="reco")
     else:
         reco_LCA = lca_reco_matrix(graph, mode="true")
@@ -238,8 +246,8 @@ def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des=None, pv_des
                 max_chain_per_lca = candidates_df.groupby('LCA_id')['TrueFullChainLCA'].max()
                 sig_dict["B_id"] = max_chain_per_lca.idxmax()
             if "EVENTNUMBER" in graph.keys():
-                sig_dict["EVENTNUMBER"] = graph["EVENTNUMBER"][0][0]
-                sig_dict["RUNNUMBER"] = graph["RUNNUMBER"][0][0]
+                sig_dict["EVENTNUMBER"] = graph["EVENTNUMBER"].item()
+                sig_dict["RUNNUMBER"] = graph["RUNNUMBER"].item()
             sig_df = sig_df._append(sig_dict, ignore_index=True)
 
         # temp stuff
