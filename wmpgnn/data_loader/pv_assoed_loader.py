@@ -21,19 +21,15 @@ from wmpgnn.lightning_module.exec_lightning import load_module
 def check_data(evt):
     for key in evt["tracks"].keys():
         if evt["tracks"][key].shape[0] == 0:
-            print(key)
             return False
     for key in evt["pvs"].keys():
         if evt["pvs"][key].shape[0] == 0:
-            print(key)
             return False
     for key in evt[("tracks", "to", "tracks")].keys():
         if evt[("tracks", "to", "tracks")][key].shape[0] == 0:
-            print(key)
             return False
     for key in evt[("tracks", "to", "pvs")].keys():
         if evt[("tracks", "to", "pvs")][key].shape[0] == 0:
-            print(key)
             return False
     return True
 
@@ -92,13 +88,19 @@ class pv_asso_module(L.LightningModule):
 class true_pv_asso(L.LightningModule):
     def __init__(self, configs):
         self.configs = configs
+        # here do selection if either ip or true
 
     def forward(self, batch):
         pv_asso_data = []
 
         ntracks = torch.unique(batch[("tracks", "to", "pvs")]["edge_index"][0]).shape[0]
         npvs = torch.unique(batch[("tracks", "to", "pvs")]["edge_index"][1]).shape[0]
-        pred_pv = torch.argmax(batch[("tracks", "to", "pvs")].y.view(ntracks, npvs), dim=1)
+        if self.configs["settings"]["pv_model"] == "true":
+            pred_pv = torch.argmax(batch[("tracks", "to", "pvs")].y.view(ntracks, npvs), dim=1)
+        elif self.configs["settings"]["pv_model"] == "ip":
+            pred_pv = torch.argmin(batch[("tracks", "to", "pvs")].edges.view(ntracks, npvs), dim=1)
+        else:
+            raise NotImplementedError
 
         node_selbool = batch["tracks"].ft != 1
         pv_oi = torch.unique(pred_pv[node_selbool])  # identify to which pv a sig node has an edge
@@ -120,8 +122,11 @@ class true_pv_asso(L.LightningModule):
 
 
 def obtain_pv_model(configs):
-    if configs["settings"]["pv_model"] == True:
+    if configs["settings"]["pv_model"] == "true":
         print("Using truth information for association")
+        pv_model = true_pv_asso(configs)
+    elif configs["settings"]["pv_model"] == "ip":
+        print("Using ip for association")
         pv_model = true_pv_asso(configs)
     elif isinstance(configs["settings"]["pv_model"], int):
         print("Using DFEI model version:", configs["settings"]["pv_model"])
