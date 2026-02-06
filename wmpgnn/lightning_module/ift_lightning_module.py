@@ -9,6 +9,7 @@ import torch.nn as nn
 
 from wmpgnn.lightning_module.lightning_helper import *
 from wmpgnn.util.pruners import edge_pruning, true_node_pruning
+from wmpgnn.performance.reco_accuracy import obtain_reco_accuracy
 from wmpgnn.performance.plotter import *
 from wmpgnn.performance.tagging_power import analyze_tagging_power
 from wmpgnn.performance.reconstruction import reco_event
@@ -55,6 +56,16 @@ class IFTLightningModule(L.LightningModule):
         self.edge_prune = configs["IFT"]["settings"]["edge_prune_thr"]
         self.node_prune = configs["IFT"]["settings"]["node_prune_thr"]
 
+        # TODO, see where to grab it as well if it realistic pid or normal pid
+        self.dfei_use_pid = configs['DFEI']["use_pid"]
+
+        if 'pythia' in configs["IFT"]['settings']['data_dir']:
+            self.log_dir = 'pythia_logs'
+        elif 'LHCb' in configs["IFT"]['settings']['data_dir']:
+            self.log_dir = 'LHCb_logs'
+        else:
+            raise ValueError("Invalid config")
+
     def forward(self, batch):
         return self.model(batch)
 
@@ -66,49 +77,69 @@ class IFTLightningModule(L.LightningModule):
         loss = init_loss(self.device)
 
         # Adding lca information to edges
-        if "lca" in batch[("tracks", "to", "tracks")] and self.dfei_model[0] is None:
-            lca = batch[("tracks", "to", "tracks")].lca
-        else:
+        if self.dfei_model[0] is not None:  # lca from dfei model, overwrites from pv asso
             dfei_input = copy.deepcopy(batch)
-            if self.dfei_need_pid:
-                dfei_input["tracks"].x = torch.cat([dfei_input["tracks"].x, dfei_input["tracks"].pid], dim=1)
+            if self.dfei_use_pid != 'None':
+                if self.dfei_use_pid == "realistic":
+                    dfei_input["tracks"].x = torch.cat([dfei_input["tracks"].x, dfei_input["tracks"].real_pid], dim=1)
+                else:
+                    dfei_input["tracks"].x = torch.cat([dfei_input["tracks"].x, dfei_input["tracks"].pid], dim=1)
+            self.dfei_model[0] = self.dfei_model[0].to(self.device)
             dfei_outputs = self.dfei_model[0](dfei_input)  # adjust with non as well, check if it has the key lca score
             lca = dfei_outputs[("tracks", "to", "tracks")].edges
+        elif "lca" in batch[("tracks", "to", "tracks")]:  # using the information from the pv asso model
+            lca = batch[("tracks", "to", "tracks")].lca
+        else:  # using truth information
+            lca = torch.nn.functional.one_hot(batch[("tracks", "tracks")].y.to(torch.long), num_classes=4).to(
+                torch.float32)
 
         lca_score = torch.argmax(lca, dim=1).unsqueeze(1)
-        batch[("tracks", "to", "tracks")].edges = torch.cat([batch[("tracks", "to", "tracks")].edges, lca_score],
-                                                            dim=1)
-        # Adding pid information to nodes
+        batch[("tracks", "tracks")].edges = torch.cat([batch[("tracks", "tracks")].edges, lca_score], dim=1)
+
+        # Adding pid information to nodes, here again realistic or not
         batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
         outputs_ft = self.model(batch)
         outputs_ft[("tracks", "to", "tracks")].lca = lca
 
         y_ft = batch['tracks'].ft
-        selbool = y_ft != 1
+        selbool = y_ft != 1  # this is actually a good question if one should use ft truth or the predicted from DFEI
         ift_loss = self.ft_criterion(outputs_ft["tracks"].x[selbool], y_ft[selbool])
         loss["ft_nodes"] += ift_loss
+
+        # Starting evaluating the performance
         if mode == "test":
             ft_des = torch.softmax(outputs_ft["tracks"].x, dim=1)
-            frag_selbool = outputs_ft["tracks"].frag != -1
-            frag_in_evt = outputs_ft["tracks"].frag[frag_selbool]
-            frag_pid = outputs_ft["part_ids"][frag_selbool]
+            if "frag" in outputs_ft["tracks"]:
+                frag_selbool = outputs_ft["tracks"].frag != -1  # this does not need to exist
+                frag_in_evt = outputs_ft["tracks"].frag[frag_selbool]
+                frag_pid = outputs_ft["part_ids"][frag_selbool]
 
             # use the one saved
-            if self.configs["node_prune"] or self.configs["edge_prune"]:
+            edge_mask = torch.ones(outputs_ft[("tracks", "tracks")].edges.shape[0], dtype=torch.bool)
+            # currently edge and node prune is auto set true rn
+            if True:  # self.configs["node_prune"]:
                 if self.dfei_model[0] is not None:
                     node_selbool = self.dfei_model[0]._blocks[-1].node_weights["tracks"].squeeze() > self.node_prune
-                else:
+                elif "pred_y" in outputs_ft["tracks"]:
                     node_selbool = outputs_ft["tracks"].pred_y > self.node_prune
+                else:
+                    node_selbool = outputs_ft["tracks"].ft != 1
                 edge_mask = true_node_pruning(node_selbool, outputs_ft, "tracks", [('tracks', 'to', 'tracks')])
                 ft_des = ft_des[node_selbool]
+
+            if True:  # self.configs["edge_prune"]:
                 if self.dfei_model[0] is not None:
-                    edge_selbool = self.dfei_model[0]._blocks[-1].edge_weights[('tracks', 'to', 'tracks')].squeeze()[
-                                       edge_mask] > self.edge_prune
+                    edge_selbool = self.dfei_model[0]._blocks[-1].edge_weights[
+                                       ('tracks', 'to', 'tracks')].squeeze()[edge_mask] > self.edge_prune
+                elif "pred_y" in outputs_ft[("tracks", "tracks")]:
+                    edge_selbool = outputs_ft[("tracks", "tracks")].pred_y[edge_mask] > self.edge_prune
                 else:
-                    edge_selbool = outputs_ft[('tracks', 'to', 'tracks')].pred_y > self.edge_prune
+                    edge_selbool = lca_score.squeeze()[edge_mask] != 0
                 edge_pruning(edge_selbool, outputs_ft, ('tracks', 'to', 'tracks'))
-            outputs_ft["frag_y"] = frag_in_evt
-            outputs_ft["frag_pid"] = frag_pid
+
+            if "frag" in outputs_ft["tracks"]: # how in the world does this make sense?
+                outputs_ft["frag_y"] = frag_in_evt
+                outputs_ft["frag_pid"] = frag_pid
             self.sig_df, self.evt_df = reco_event(outputs_ft, batch_idx, self.configs, self.signal, self.sig_df,
                                                   self.evt_df, ft_des=ft_des)
 
@@ -145,12 +176,13 @@ class IFTLightningModule(L.LightningModule):
     def on_test_epoch_end(self):
         if self.is_train:
             self.version = self.logger.version
-        self.sig_df.to_csv(f'lightning_logs/IFT/version_{self.version}/signal_df_{self.signal}.csv', index=False)
-        self.evt_df.to_csv(f'lightning_logs/IFT/version_{self.version}/event_df_{self.signal}.csv', index=False)
+        self.sig_df.to_csv(f'{self.log_dir}/IFT/version_{self.version}/signal_df_{self.signal}.csv', index=False)
+        self.evt_df.to_csv(f'{self.log_dir}/IFT/version_{self.version}/event_df_{self.signal}.csv', index=False)
+        obtain_reco_accuracy(self.sig_df, self.version, self.signal, self.log_dir, model="IFT")
         # Removing heavy hadron daughters of B since they are classified as signal (Ds in Bs->Dspi for example)
-        if self.signal.startswith("Bs"):
+        if "Bs" in self.signal:
             sig_id = 531
-        elif self.signal.startswith("Bd"):
+        elif "Bd" in self.signal:
             sig_id = 511
         else:
             ValueError("Currently undefined")
@@ -158,5 +190,5 @@ class IFTLightningModule(L.LightningModule):
         sig_id_selbool = np.abs(self.sig_df["B_id"]) != sig_id
         self.sig_df = self.sig_df[~(sig_selbool * sig_id_selbool)]
         if self.configs["FT"]:
-            process_ft(self.tst_log, self.sig_df, self.version, self.signal)
-            analyze_tagging_power(self.sig_df, self.version, self.signal)
+            process_ft(self.tst_log, self.sig_df, self.version, self.signal, log_dir=self.log_dir)
+            analyze_tagging_power(self.sig_df, self.version, self.signal, log_dir=self.log_dir)
