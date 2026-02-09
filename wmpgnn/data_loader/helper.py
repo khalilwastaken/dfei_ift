@@ -1,4 +1,5 @@
 from itertools import chain
+import copy
 
 import torch
 from torch_geometric.loader import DataLoader
@@ -43,7 +44,7 @@ def pv_asso(data, metrics, node_thrs):
         graph[('tracks', 'tracks')].pred_y = tr_tr_pred_y[tr_tr_selbool]
 
         # add here something linke num_pvs
-        graph["pvs"].num_pvs = torch.tensor([graph["pvs"].x.shape[0]])
+        graph["num_pvs"] = torch.tensor([graph["pvs"].x.shape[0]])
 
         tr_pv_selbool = (track_batch[tr_pv_edge_idx[0]] == i) & (pv_batch[tr_pv_edge_idx[1]] == i)
         pv_desc = tr_pv_pred_y[tr_pv_selbool]
