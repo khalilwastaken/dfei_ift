@@ -1,6 +1,7 @@
 from itertools import chain
 import copy
 
+from multiprocessing.pool import ThreadPool
 import torch
 from torch_geometric.loader import DataLoader
 
@@ -8,57 +9,29 @@ from wmpgnn.util.pruners import *
 from wmpgnn.data_loader.weights_calculator import get_hetero_weight
 
 
+def pv_asso(data, metrics, node_thrs, n_cores=4): # this is happening on 4
+    def process_single_graph(args):
+        """Process one graph independently"""
+        graph, metric = args
+        graph_results = []
 
-def pv_asso(data, metrics, node_thrs):
-    def check_data(evt):
-        for key in evt["tracks"].keys():
-            if evt["tracks"][key].shape[0] == 0:
-                return False
-        for key in evt["pvs"].keys():
-            if evt["pvs"][key].shape[0] == 0:
-                return False
-        for key in evt[("tracks", "to", "tracks")].keys():
-            if evt[("tracks", "to", "tracks")][key].shape[0] == 0:
-                return False
-        for key in evt[("tracks", "to", "pvs")].keys():
-            if evt[("tracks", "to", "pvs")][key].shape[0] == 0:
-                return False
-        return True
+        # adding the pred information
+        graph["tracks"].pred_y = metric["tracks_pred_y"]
+        graph[('tracks', 'tracks')].lca = metric["lca_score"]
+        graph[('tracks', 'tracks')].pred_y = metric["tr_tr_pred_y"]
 
-    pv_asso_data = []
-    lca_score, tracks_pred_y, tr_tr_pred_y, tr_pv_pred_y = metrics[0], metrics[1], metrics[2], metrics[3]
-
-    # batch information to add later on to batch
-    track_batch = data["tracks"].batch
-    pv_batch = data['pvs'].batch
-    tr_tr_edge_idx = data[('tracks', 'tracks')].edge_index
-    tr_pv_edge_idx = data[('tracks', 'pvs')].edge_index
-
-    graphs = data.to_data_list()
-    for i, graph in enumerate(graphs):
-        track_selbool = track_batch == i
-        graph["tracks"].pred_y = tracks_pred_y[track_selbool]
-
-        tr_tr_selbool = (track_batch[tr_tr_edge_idx[0]] == i) & (track_batch[tr_tr_edge_idx[1]] == i)
-        graph[('tracks', 'tracks')].lca = lca_score[tr_tr_selbool]
-        graph[('tracks', 'tracks')].pred_y = tr_tr_pred_y[tr_tr_selbool]
-
-        # add here something linke num_pvs
-        graph["num_pvs"] = torch.tensor([graph["pvs"].x.shape[0]])
-
-        tr_pv_selbool = (track_batch[tr_pv_edge_idx[0]] == i) & (pv_batch[tr_pv_edge_idx[1]] == i)
-        pv_desc = tr_pv_pred_y[tr_pv_selbool]
-
-        # getting the association per pv for every track
-        ntracks = torch.unique(graph[("tracks", "to", "pvs")]["edge_index"][0]).shape[0]
-        npvs = torch.unique(graph[("tracks", "to", "pvs")]["edge_index"][1]).shape[0]
-        pred_pv = torch.argmax(pv_desc.view(ntracks, npvs), dim=1)
+        # Getting the ntracks npvs for pv asso
+        edge_index = graph[("tracks", "to", "pvs")]["edge_index"]
+        ntracks = edge_index[0].max().item() + 1
+        npvs = edge_index[1].max().item() + 1
+        graph["num_pvs"] = npvs
+        pred_pv = torch.argmax( metric["pv_desc"].view(ntracks, npvs), dim=1)
 
         # finding the pv which are interesting
-        node_selbool = tracks_pred_y[track_selbool] >= node_thrs
+        node_selbool = metric["tracks_pred_y"] >= node_thrs
         pv_oi, counts = torch.unique(pred_pv[node_selbool], return_counts=True)
-        # Here we can do some fancy stuff to boost the pv asso, later on which should also be time efficient
-        pv_oi = pv_oi[counts > 2]  # require at least two identified signal track to point to the same pv
+        pv_oi = pv_oi[counts > 2]
+
         for pv in pv_oi:
             if pv_oi.shape[0] == 1:
                 pv_oi_data = graph
@@ -76,8 +49,23 @@ def pv_asso(data, metrics, node_thrs):
 
             true_node_pruning(pv_selbool, pv_oi_data, "pvs", [('tracks', 'to', 'pvs')])
             del pv_oi_data["last_chunk"]
-            if check_data(pv_oi_data):  # some data safety checks
-                pv_asso_data.append(pv_oi_data.to('cpu'))
+            graph_results.append(pv_oi_data) # check data dont need
+        return graph_results
+
+
+    graphs = data.to_data_list()
+    metrics = metrics
+    args_list = [(graph, metric) for graph, metric in zip(graphs, metrics)]
+
+    # Parallel processing of graphs
+    with ThreadPool(processes=n_cores) as pool:
+        results_nested = pool.map(process_single_graph, args_list)
+
+    # Flatten results
+    pv_asso_data = []
+    for graph_results in results_nested:
+        pv_asso_data.extend(graph_results)
+
     return pv_asso_data
 
 
@@ -104,8 +92,8 @@ def load_dataset(path, configs, mode="train", pv_asso_model=None):
             if evt[("tracks", "to", "tracks")].y.shape[0] == 0 or torch.all(evt[("tracks", "to", "tracks")].y == 0):
                 data_selbool[i] = 0
         filtered_data = [d for d, sel in zip(data, data_selbool) if sel]
-    elif pv_asso_model is not None:
-        pv_data = DataLoader(filtered_data if filtered_data is not None else data, batch_size=512)
+    elif pv_asso_model is not None: # this is happening on 2 cpus
+        pv_data = DataLoader(filtered_data if filtered_data is not None else data, batch_size=1024)
         filtered_data = []
         for evt in pv_data:
             if pv_asso_model.name == "pv_asso_module":

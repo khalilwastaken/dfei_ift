@@ -45,7 +45,6 @@ class pv_asso_module(L.LightningModule):
         self.node_thrs = configs["DFEI_pv_asso"]["settings"]["node_prune_thr"]
         self.use_pid = configs["DFEI_pv_asso"]["use_pid"]
         self.model.eval()
-        self.model = self.model.to(self.device)
         self.lock = threading.Lock()
 
     @torch.no_grad()
@@ -58,15 +57,38 @@ class pv_asso_module(L.LightningModule):
                     batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
 
             # Obtain the predicted quantity from the DFEI model
-            outputs = self.model(batch)
+            outputs = self.model(batch.to(self.model.device))
             lca_score = outputs[('tracks', 'to', 'tracks')].edges
             tracks_pred_y = self.model._blocks[-1].node_weights["tracks"].squeeze()
             tr_tr_pred_y = self.model._blocks[-1].edge_weights[('tracks', 'to', 'tracks')].squeeze()
             tr_pv_pred_y = self.model._blocks[-1].edge_weights[('tracks', 'to', 'pvs')]
+
+            track_batch = batch["tracks"].batch
+            pv_batch = batch['pvs'].batch
+            tr_tr_edge_idx = batch[('tracks', 'tracks')].edge_index
+            tr_pv_edge_idx = batch[('tracks', 'pvs')].edge_index
+
+            n_graphs = track_batch.max().item() + 1
+            graph_ids = torch.arange(n_graphs, device=self.model.device)
+            track_masks = track_batch.unsqueeze(1) == graph_ids.unsqueeze(0)  # Shape: [n_tracks, n_graphs]
+
+            precomputed_slices = []
+            for i in range(n_graphs):
+                track_mask = track_masks[:, i]
+
+                tr_tr_mask = track_masks[tr_tr_edge_idx[0], i] & track_masks[tr_tr_edge_idx[1], i]
+                pv_mask = pv_batch == i
+                tr_pv_mask = track_masks[tr_pv_edge_idx[0], i] & pv_mask[tr_pv_edge_idx[1]]
+
+                # saving everything transferred to cpu for remaining parallel processing
+                precomputed_slices.append({
+                    'tracks_pred_y': tracks_pred_y[track_mask].cpu(),
+                    'lca_score': lca_score[tr_tr_mask].cpu(),
+                    'tr_tr_pred_y': tr_tr_pred_y[tr_tr_mask].cpu(),
+                    'pv_desc': tr_pv_pred_y[tr_pv_mask].cpu(),
+                })
             torch.cuda.empty_cache()
-            return lca_score, tracks_pred_y, tr_tr_pred_y, tr_pv_pred_y
-
-
+            return precomputed_slices
 
 
 class true_pv_asso(L.LightningModule):
@@ -148,7 +170,7 @@ def get_trn_val_loaders(configs):
     nevts = {"training": {}, "validation": {}}
     print("Start reading in the data")
     data_dir = configs["settings"]["data_dir"]
-    ncpus = configs["settings"]["ncpu"]
+    ncpus = int(configs["settings"]["ncpu"] / 4) # default is 8 -> using 2 to load in data
 
     start = time.time()
     print("Training:")
@@ -215,7 +237,7 @@ def get_tst_loader(configs, model="DFEI"):
     load_tst_dataset = partial(load_dataset, configs=configs, mode="val", pv_asso_model=pv_model)
     tst_dataset = []
     tst_paths = sorted(glob.glob(f'{configs["settings"]["data_dir"]}/{sample}/tst_data_*'))[:nfiles]
-    with ThreadPool(processes=configs["settings"]["ncpu"]) as pool: #
+    with ThreadPool(processes=int(configs["settings"]["ncpu"] / 2)) as pool:  #
         results = list(
             tqdm(pool.imap(load_tst_dataset, tst_paths), total=len(tst_paths),
                  desc=f"Loading {sample} test dataset"))
