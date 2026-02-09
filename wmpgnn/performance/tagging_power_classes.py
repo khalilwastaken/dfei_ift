@@ -22,9 +22,12 @@ hep.style.use(hep.style.LHCb2)
 @dataclass
 class TaggingMetrics:
     """Container for tagging performance metrics with uncertainties."""
-    # epsilon binned
-    binned_wrong_fraction: tuple[np.array, np.array]
-    binned_power: tuple[np.array, np.array]
+    # eta mistag binned
+    eta_wrong_fraction: tuple[np.array, np.array]
+    eta_power: tuple[np.array, np.array]
+    # binned in npvs
+    npvs_wrong_fraction: tuple[np.array, np.array]
+    npvs_power: tuple[np.array, np.array]
     # Combined quantity
     wrong_fraction: tuple[float, float]
     power: tuple[float, float]
@@ -35,12 +38,18 @@ class TaggingMetrics:
 class TaggingPowerAnalyzer:
     """Analyzes flavor tagging performance across different event configurations."""
 
-    def __init__(self, version, channel, log_dir, eta_centers: List[float] = None, eta_bins: List[float] = None):
-        self.eta_centers = eta_centers or [0.05, 0.15, 0.25, 0.35, 0.45, 0.55]
-        self.eta_bins = eta_bins or [0, 0.1, 0.2, 0.3, 0.4, 0.5, 1]
+    def __init__(self, version, channel, log_dir):
+        self.eta_centers = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55]
+        self.eta_bins = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 1]
         x_err_lower = [center - self.eta_bins[i] for i, center in enumerate(self.eta_centers)]
         x_err_upper = [self.eta_bins[i + 1] - center for i, center in enumerate(self.eta_centers)]
-        self.x_err = [x_err_lower, x_err_upper]
+        self.x_err_eta = [x_err_lower, x_err_upper]
+        # here we also need to define it for npvs
+        self.npvs_centers = np.arange(1, 16)
+        self.npvs_bins = np.arange(0, 16) + 0.5
+        x_err_lower = [center - self.npvs_bins[i] for i, center in enumerate(self.npvs_centers)]
+        x_err_upper = [self.npvs_bins[i + 1] - center for i, center in enumerate(self.npvs_centers)]
+        self.x_err_npvs = [x_err_lower, x_err_upper]
 
         self.outdir = f"{log_dir}/IFT/version_{version}/plots_{channel}/tagging_power"
         os.makedirs(self.outdir, exist_ok=True)
@@ -89,12 +98,23 @@ class TaggingPowerAnalyzer:
         df["eta"] = 1 - np.max(df[["ft_b_score", "ft_bbar_score"]], axis=1)
         return df
 
-    def _calculate_per_eta_bin(self, df: pd.DataFrame) -> Tuple[List, List, List]:
+    def _calculate_per_eta_bin(self, df: pd.DataFrame, mode: str) -> Tuple[
+        List, List, List]:  # this we can adapt for npvs and eta
         """Calculate tagging statistics for each eta bin."""
         num_right, num_wrong, num_unclassified = [], [], []
+        if mode == "eta":
+            centers = self.eta_centers
+            bins = self.eta_bins
+            var = df["eta"]
+        elif mode == "npvs":
+            centers = self.npvs_centers
+            bins = self.npvs_bins
+            var = df["num_pvs"]
+        else:
+            raise ValueError(f"Unknown mode: {mode}")
 
-        for i in range(len(self.eta_centers)):
-            in_bin = (df["eta"] >= self.eta_bins[i]) & (df["eta"] < self.eta_bins[i + 1])
+        for i in range(len(centers)):
+            in_bin = (var >= bins[i]) & (var < bins[i + 1])
             bin_df = df[in_bin]
 
             # Count unclassified events
@@ -109,45 +129,65 @@ class TaggingPowerAnalyzer:
             num_wrong.append(np.sum(true_tag != predicted_tag))
             num_unclassified.append(unclassified)
 
-        return num_right, num_wrong, num_unclassified
+        return np.array(num_right), np.array(num_wrong), np.array(num_unclassified)
 
     def compute_tagging_power_per_eta(self, df: pd.DataFrame) -> TaggingMetrics:
         """Compute tagging power across eta bins."""
-        num_right, num_wrong, num_unclassified = self._calculate_per_eta_bin(df)
+        eta_num_right, eta_num_wrong, eta_num_unclassified = self._calculate_per_eta_bin(df, "eta")
+        npvs_num_right, npvs_num_wrong, npvs_num_unclassified = self._calculate_per_eta_bin(df, "npvs")
 
         # Per-bin metrics
-        wrong_frac, power, epsilon, d_squared = self.calculate_tagging_power(
-            np.array(num_right), np.array(num_wrong), np.array(num_unclassified)
-        )
+        eta_res = self.calculate_tagging_power(eta_num_right, eta_num_wrong, eta_num_unclassified)
+        npvs_res = self.calculate_tagging_power(npvs_num_right, npvs_num_wrong, npvs_num_unclassified)
 
         # Combined metrics
-        comb_wrong_frac, comb_power, comb_epsilon, comb_d_squared = self.calculate_tagging_power(
-            np.sum(num_right), np.sum(num_wrong), np.sum(num_unclassified)
+        comb_res = self.calculate_tagging_power(
+            np.sum(eta_num_right), np.sum(eta_num_wrong), np.sum(eta_num_unclassified)
         )
-        return TaggingMetrics(wrong_frac, power,
-                              comb_wrong_frac, comb_power, comb_epsilon, comb_d_squared)
+        return TaggingMetrics(eta_res[0], eta_res[1], npvs_res[0], npvs_res[1],
+                              comb_res[0], comb_res[1], comb_res[2], comb_res[3])
 
-    def plot_tagging_power(self, metrics: TaggingMetrics, eta_dist: np.ndarray,
+    def plot_tagging_power(self, metrics: TaggingMetrics, underlying_dist: np.ndarray, var:str = "eta",
                            label: str = "tagging_power"):
-        """Plot tagging power/wrong fraction vs misstag probability."""
+
+        # here we can switch between eta and npvs
+        """Plot tagging power/wrong fraction vs misstag/npvs probability."""
+        if var == "eta":
+            name = r"$\eta$"
+            power = metrics.eta_power
+            wrong_fraction = metrics.eta_wrong_fraction
+            xlabel = r"Predicted mistag $\eta$"
+            centers = self.eta_centers
+            x_err = self.x_err_eta
+            bins = self.eta_bins
+        elif var == "npvs":
+            name = "npvs" # honestly  this should be done into a struct it would soooo much better but i am too lazy rn
+            power = metrics.npvs_power
+            wrong_fraction = metrics.npvs_wrong_fraction
+            xlabel = "#Pvs"
+            centers = self.npvs_centers
+            x_err = self.x_err_npvs
+            bins = self.npvs_bins
+        else:
+            raise ValueError(f"Unknown var: {var}")
+
         fig, ax = plt.subplots(figsize=(9, 6))
 
         # Plot underlying distribution
-        weights = np.ones_like(eta_dist) / len(eta_dist)
-        ax.hist(eta_dist, bins=self.eta_bins,
-                label=r"Underlying $\eta$ distribution",
+        weights = np.ones_like(underlying_dist) / len(underlying_dist)
+        ax.hist(underlying_dist, bins=bins,
+                label=rf"Underlying {name} distribution",
                 color="grey", weights=weights / 2 * 100)
 
         # Plot metrics
-        ax.errorbar(self.eta_centers, metrics.binned_power[0], xerr=self.x_err, yerr=metrics.binned_power[1],
+        ax.errorbar(centers, power[0], xerr=x_err, yerr=power[1],
                     fmt='o', color="red", label="Tagging Power")
-        ax.errorbar(self.eta_centers, metrics.binned_wrong_fraction[0], xerr=self.x_err,
-                    yerr=metrics.binned_wrong_fraction[1],
+        ax.errorbar(centers, wrong_fraction[0], xerr=x_err, yerr=wrong_fraction[1],
                     fmt='o', color="blue", label="Wrong Fraction")
 
         ax.set_xlim(0, 0.5)
         ax.set_ylim(0, 105)
-        ax.set_xlabel(r"Predicted mistag $\eta$")
+        ax.set_xlabel(xlabel)
         ax.set_ylabel("[%]")
         ax.legend()
         plt.savefig(f"{self.outdir}/{label}.pdf")
