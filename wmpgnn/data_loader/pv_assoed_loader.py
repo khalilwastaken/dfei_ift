@@ -7,6 +7,7 @@ import glob
 
 from multiprocessing.pool import ThreadPool
 from functools import partial
+import threading
 
 import torch
 import pytorch_lightning as L
@@ -38,56 +39,40 @@ class pv_asso_module(L.LightningModule):
     # Model split an event to a single pp collision based on DFEI decision
     def __init__(self, model, configs):
         super().__init__()
+        self.name = "pv_asso_module"
         self.model = model
         self.configs = configs
         self.node_thrs = configs["DFEI_pv_asso"]["settings"]["node_prune_thr"]
         self.use_pid = configs["DFEI_pv_asso"]["use_pid"]
+        self.model.eval()
+        self.model = self.model.to(self.device)
+        self.lock = threading.Lock()
 
     @torch.no_grad()
     def forward(self, batch):
-        self.model.eval()
-        pv_asso_data = []
-        if self.use_pid:
-            if self.use_pid == "realistic":
-                batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].real_pid], dim=1)
-            else:
-                batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
+        with self.lock:
+            if self.use_pid:
+                if self.use_pid == "realistic":
+                    batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].real_pid], dim=1)
+                else:
+                    batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
 
-        original_data = copy.deepcopy(batch)
+            # Obtain the predicted quantity from the DFEI model
+            outputs = self.model(batch)
+            lca_score = outputs[('tracks', 'to', 'tracks')].edges
+            tracks_pred_y = self.model._blocks[-1].node_weights["tracks"].squeeze()
+            tr_tr_pred_y = self.model._blocks[-1].edge_weights[('tracks', 'to', 'tracks')].squeeze()
+            tr_pv_pred_y = self.model._blocks[-1].edge_weights[('tracks', 'to', 'pvs')]
+            torch.cuda.empty_cache()
+            return lca_score, tracks_pred_y, tr_tr_pred_y, tr_pv_pred_y
 
-        # Obtain the predicted quantity from the DFEI model
-        outputs = self.model(batch)
-        original_data[('tracks', 'to', 'tracks')].lca = outputs[('tracks', 'to', 'tracks')].edges
-        original_data["tracks"].pred_y = self.model._blocks[-1].node_weights["tracks"].squeeze()
-        original_data[('tracks', 'to', 'tracks')].pred_y = self.model._blocks[-1].edge_weights[
-            ('tracks', 'to', 'tracks')].squeeze()
 
-        # here we need to get the threshold
-        ntracks = torch.unique(outputs[("tracks", "to", "pvs")]["edge_index"][0]).shape[0]
-        npvs = torch.unique(outputs[("tracks", "to", "pvs")]["edge_index"][1]).shape[0]
-        pred_pv = torch.argmax(self.model._blocks[-1].edge_weights[('tracks', 'to', 'pvs')].view(ntracks, npvs), dim=1)
-        node_selbool = self.model._blocks[-1].node_weights["tracks"].squeeze() >= self.node_thrs
-        pv_oi = torch.unique(pred_pv[node_selbool])  # identify to which pv a sig node has an edge
-        for pv in pv_oi:
-            pv_oi_data = copy.deepcopy(original_data)
-            nodes_asso_pv_selbool = pred_pv == pv
-            pv_selbool = torch.zeros(pv_oi_data["pvs"].x.shape[0], dtype=torch.bool, device=self.device)
-            pv_selbool[pv] = True
-
-            # removes all the nodes associated to a different pv
-            true_node_pruning(nodes_asso_pv_selbool, pv_oi_data,
-                              "tracks", [('tracks', 'to', 'tracks'), ('tracks', 'to', 'pvs')])
-            # lastly we need to remove the other pvs within the event and their edges to the tracks
-            true_node_pruning(pv_selbool, pv_oi_data, "pvs", [('tracks', 'to', 'pvs')])
-            del pv_oi_data["last_chunk"]
-            if check_data(pv_oi_data):  # some data saftey checks
-                pv_asso_data.append(pv_oi_data.to('cpu'))
-        return pv_asso_data
 
 
 class true_pv_asso(L.LightningModule):
     def __init__(self, configs):
         self.configs = configs
+        self.name = "ip/true"
         # here do selection if either ip or true
 
     def forward(self, batch):
@@ -230,7 +215,7 @@ def get_tst_loader(configs, model="DFEI"):
     load_tst_dataset = partial(load_dataset, configs=configs, mode="val", pv_asso_model=pv_model)
     tst_dataset = []
     tst_paths = sorted(glob.glob(f'{configs["settings"]["data_dir"]}/{sample}/tst_data_*'))[:nfiles]
-    with ThreadPool(processes=configs["settings"]["ncpu"]) as pool:
+    with ThreadPool(processes=configs["settings"]["ncpu"]) as pool: #
         results = list(
             tqdm(pool.imap(load_tst_dataset, tst_paths), total=len(tst_paths),
                  desc=f"Loading {sample} test dataset"))
