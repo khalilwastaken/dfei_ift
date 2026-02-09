@@ -23,12 +23,14 @@ class DFEILightningModule(L.LightningModule):
                 **configs,
                 "pos_weights": make_loggable(pos_weights)
             })
+        elif configs['IFT']['dfei_model']:
+            self.version = configs['IFT']['dfei_model']
         elif configs["evaluate"]["model_arch"] == "DFEI":
             self.version = re.search(r'version_(\d+)', configs[model_name]["cpt"]).group(1)
         elif configs["evaluate"]["model_arch"] == "IFT":
             self.version = configs["evaluate"]["dfei_model"]
         else:
-            raise NotImplementedError
+            self.version = None
 
         if model_name == "DFEI":
             self.signal = configs["evaluate"]["sample"]
@@ -126,7 +128,8 @@ class DFEILightningModule(L.LightningModule):
                     get_block_score(log, block.edge_weights[('tracks', 'to', 'tracks')].squeeze(), y_edges, i,
                                     var="edges")
             if self.configs["pv_asso"]:
-                loss["pv_asso"] += self.pv_asso_criterion(block.edge_logits[("tracks", "to", "pvs")][pv_filter],y_pv_asso[pv_filter])
+                loss["pv_asso"] += self.pv_asso_criterion(block.edge_logits[("tracks", "to", "pvs")][pv_filter],
+                                                          y_pv_asso[pv_filter])
                 if mode == "test":
                     get_block_score(log, block.edge_weights[("tracks", "to", "pvs")].squeeze(), y_pv_asso, i,
                                     var="pv_asso")

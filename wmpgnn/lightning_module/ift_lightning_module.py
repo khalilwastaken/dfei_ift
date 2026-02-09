@@ -57,7 +57,10 @@ class IFTLightningModule(L.LightningModule):
         self.node_prune = configs["IFT"]["settings"]["node_prune_thr"]
 
         # TODO, see where to grab it as well if it realistic pid or normal pid
-        self.dfei_use_pid = configs['DFEI']["use_pid"]
+        if 'DFEI' in configs:
+            self.dfei_use_pid = configs['DFEI']["use_pid"]
+        else:
+            self.dfei_use_pid = 'None'
 
         if 'pythia' in configs["IFT"]['settings']['data_dir']:
             self.log_dir = 'pythia_logs'
@@ -132,7 +135,7 @@ class IFTLightningModule(L.LightningModule):
                     edge_selbool = self.dfei_model[0]._blocks[-1].edge_weights[
                                        ('tracks', 'to', 'tracks')].squeeze()[edge_mask] > self.edge_prune
                 elif "pred_y" in outputs_ft[("tracks", "tracks")]:
-                    edge_selbool = outputs_ft[("tracks", "tracks")].pred_y[edge_mask] > self.edge_prune
+                    edge_selbool = outputs_ft[("tracks", "tracks")].pred_y > self.edge_prune
                 else:
                     edge_selbool = lca_score.squeeze()[edge_mask] != 0
                 edge_pruning(edge_selbool, outputs_ft, ('tracks', 'to', 'tracks'))
