@@ -23,12 +23,12 @@ class DFEILightningModule(L.LightningModule):
                 **configs,
                 "pos_weights": make_loggable(pos_weights)
             })
-        elif configs['IFT']['dfei_model']:
+        elif configs.get('IFT', {}).get('dfei_model'):
             self.version = configs['IFT']['dfei_model']
-        elif configs["evaluate"]["model_arch"] == "DFEI":
+        elif configs.get("evaluate", {}).get("model_arch") == "DFEI":
             self.version = re.search(r'version_(\d+)', configs[model_name]["cpt"]).group(1)
-        elif configs["evaluate"]["model_arch"] == "IFT":
-            self.version = configs["evaluate"]["dfei_model"]
+        elif configs.get("evaluate", {}).get("model_arch") == "IFT":
+            self.version = configs.get("evaluate", {}).get("dfei_model")
         else:
             self.version = None
 
