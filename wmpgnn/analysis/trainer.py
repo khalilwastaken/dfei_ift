@@ -85,7 +85,7 @@ if __name__ == "__main__":
             module = load_module(configs, pos_weights, model="DFEI")
             dfei_model = module.model
         else:
-            print("No DFEI model specified. Truth information is used as a replacement")
+            print("No DFEI model specified. Information from pv association or truth information is used as a replacement")
             dfei_model = None
         print("=" * 30)
 
