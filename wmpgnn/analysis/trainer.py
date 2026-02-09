@@ -2,6 +2,7 @@ import sys, os
 
 import pandas as pd
 
+import copy
 import yaml
 from optparse import OptionParser
 
@@ -42,6 +43,7 @@ if __name__ == "__main__":
     # Load config file
     with open(option.CONFIG, "r") as file:
         configs = adjust_config(yaml.safe_load(file))
+    save_config = copy.deepcopy(configs)
 
     for model in ["DFEI", "IFT"]:
         if model in configs.keys():
@@ -104,6 +106,10 @@ if __name__ == "__main__":
                        trn_loader=trn_loader, val_loader=val_loader, chunkloader=chunkloader)
     version = trainer.logger.version
 
+    # Saving the raw input config file
+    with open(f"{log_dir}/{model_name}/version_{version}/input_config.yaml", "w") as file:
+        yaml.dump(save_config, file, default_flow_style=False)
+
     # Start testing
     configs, tst_loader, chunkloader = load_tst_loader(configs, model=model_name)
     evaluate(trainer, module, tst_loader=tst_loader, chunkloader=chunkloader)
@@ -111,3 +117,5 @@ if __name__ == "__main__":
     df = pd.read_csv(metric_path)
     df = df.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
     metrics_eval(df, configs[model_name]["inference"], version, mode=model_name)
+
+
