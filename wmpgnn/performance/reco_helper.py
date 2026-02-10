@@ -28,7 +28,12 @@ def particle_name(id_):
     elif id_ == -4432:
         return 'Omega_cc--'
     else:
-        return Particle.from_pdgid(id_).name
+        try:
+            name = Particle.from_pdgid(id_).name
+        except:
+            print(id_)
+            name = str(id_)
+        return name
 
 
 def make_decay_dict(decay):
