@@ -250,6 +250,8 @@ def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des=None, pv_des
                 sig_dict["RUNNUMBER"] = graph["RUNNUMBER"].item()
             if "num_pvs" in graph.keys():
                 sig_dict["num_pvs"] = graph["num_pvs"]
+            else:
+                sig_dict["num_pvs"]  = graph["pvs"].x.shape[0]
             sig_df = sig_df._append(sig_dict, ignore_index=True)
 
         # temp stuff
