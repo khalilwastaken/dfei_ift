@@ -185,7 +185,10 @@ class TaggingPowerAnalyzer:
         ax.errorbar(centers, wrong_fraction[0], xerr=x_err, yerr=wrong_fraction[1],
                     fmt='o', color="blue", label="Wrong Fraction")
 
-        ax.set_xlim(0, 0.5)
+        if var == "eta":
+            ax.set_xlim(0, 0.5)
+        else:
+            ax.set_xlim(0, 15)
         ax.set_ylim(0, 105)
         ax.set_xlabel(xlabel)
         ax.set_ylabel("[%]")
