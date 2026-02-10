@@ -51,18 +51,21 @@ def load_tst_loader(configs, model="DFEI"):
         return configs, tst_loader, chunkloader
 
     if "true" in configs[model]["settings"]["graph_mode"]:
+        print("Using filtered data loader")
         from wmpgnn.data_loader.data_loader import get_tst_loader
 
         tst_loader, nevts = get_tst_loader(configs, model=model)
         configs[model].update({"num_events": nevts})
         return configs, tst_loader, chunkloader
 
-    if "nu7p6" in configs[model]["settings"]["data_dir"]:
+    if "nu7p6" in configs[model]["settings"]["data_dir"] or "LHCbcollision" in configs[model]["settings"]["data_dir"]:
+        print("Using chunk loader")
         from wmpgnn.data_loader.chunk_loader import get_tst_loader
 
         chunkloader = get_tst_loader(configs, model=model)
         configs[model].update({"num_files": chunkloader.tst_dataset.n_files})
     else:
+        print("Using data loader")
         from wmpgnn.data_loader.data_loader import get_tst_loader
 
         tst_loader, nevts = get_tst_loader(configs, model=model)
