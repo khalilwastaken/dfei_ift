@@ -43,6 +43,7 @@ class pv_asso_module(L.LightningModule):
         self.model = model
         self.configs = configs
         self.node_thrs = configs["DFEI_pv_asso"]["settings"]["node_prune_thr"]
+        self.edge_thrs = configs["DFEI_pv_asso"]["settings"]["edge_prune_thr"]
         self.use_pid = configs["DFEI_pv_asso"]["use_pid"]
         self.model.eval()
         self.lock = threading.Lock()
@@ -81,10 +82,13 @@ class pv_asso_module(L.LightningModule):
                 tr_pv_mask = track_masks[tr_pv_edge_idx[0], i] & pv_mask[tr_pv_edge_idx[1]]
 
                 # saving everything transferred to cpu for remaining parallel processing
+                graph_tr_tr_pred_y = tr_tr_pred_y[tr_tr_mask]
+                tr_tr_edge_selbool = graph_tr_tr_pred_y > self.edge_thrs
                 precomputed_slices.append({
                     'tracks_pred_y': tracks_pred_y[track_mask].cpu(),
                     'lca_score': lca_score[tr_tr_mask].cpu(),
-                    'tr_tr_pred_y': tr_tr_pred_y[tr_tr_mask].cpu(),
+                    'tr_tr_pred_y': graph_tr_tr_pred_y.cpu(),
+                    "tr_tr_edge_selbool": tr_tr_edge_selbool.cpu(),
                     'pv_desc': tr_pv_pred_y[tr_pv_mask].cpu(),
                 })
             torch.cuda.empty_cache()
@@ -237,7 +241,7 @@ def get_tst_loader(configs, model="DFEI"):
     load_tst_dataset = partial(load_dataset, configs=configs, mode="val", pv_asso_model=pv_model)
     tst_dataset = []
     tst_paths = sorted(glob.glob(f'{configs["settings"]["data_dir"]}/{sample}/tst_data_*'))[:nfiles]
-    with ThreadPool(processes=int(configs["settings"]["ncpu"] / 2)) as pool:  #
+    with ThreadPool(processes=int(configs["settings"]["ncpu"] / 2)) as pool:
         results = list(
             tqdm(pool.imap(load_tst_dataset, tst_paths), total=len(tst_paths),
                  desc=f"Loading {sample} test dataset"))

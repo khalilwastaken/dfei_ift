@@ -7,9 +7,12 @@ from torch_geometric.loader import DataLoader
 
 from wmpgnn.util.pruners import *
 from wmpgnn.data_loader.weights_calculator import get_hetero_weight
+from wmpgnn.util.pv_association import pv_association
 
 
-def pv_asso(data, metrics, node_thrs, n_cores=4): # this is happening on 4
+
+
+def create_pv_assoed_data(data, metrics, node_thrs, n_cores=4): # this is happening on 4
     def process_single_graph(args):
         """Process one graph independently"""
         graph, metric = args
@@ -22,10 +25,10 @@ def pv_asso(data, metrics, node_thrs, n_cores=4): # this is happening on 4
 
         # Getting the ntracks npvs for pv asso
         edge_index = graph[("tracks", "to", "pvs")]["edge_index"]
-        ntracks = edge_index[0].max().item() + 1
-        npvs = edge_index[1].max().item() + 1
-        graph["num_pvs"] = npvs
-        pred_pv = torch.argmax( metric["pv_desc"].view(ntracks, npvs), dim=1)
+        graph["num_pvs"] = edge_index[1].max().item() + 1
+        pred_pv = pv_association(edge_index, metric["pv_desc"])
+
+
 
         # finding the pv which are interesting
         node_selbool = metric["tracks_pred_y"] >= node_thrs
@@ -99,7 +102,7 @@ def load_dataset(path, configs, mode="train", pv_asso_model=None):
             if pv_asso_model.name == "pv_asso_module":
                 original_data = copy.deepcopy(evt)
                 metrics = pv_asso_model.forward(evt)
-                res = pv_asso(original_data, metrics, pv_asso_model.node_thrs)
+                res = create_pv_assoed_data(original_data, metrics, pv_asso_model.node_thrs)
             else:
                 res = pv_asso_model.forward(evt)
 
