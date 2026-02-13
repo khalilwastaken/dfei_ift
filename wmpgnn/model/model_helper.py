@@ -1,11 +1,8 @@
-import os, sys
-
 import torch.nn as nn
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from wmpgnn.model.mlp_class import MLP
-from wmpgnn.gnn.hetero_graphcoder import HeteroGraphCoder
-from wmpgnn.gnn.hetero_graph_network import HeteroGraphNetwork
+from wmpgnn.model.gnn.hetero_graphcoder import HeteroGraphCoder
+from wmpgnn.model.gnn.hetero_graph_network import HeteroGraphNetwork
 
 
 def get_blocks(config, node_types, edge_types):

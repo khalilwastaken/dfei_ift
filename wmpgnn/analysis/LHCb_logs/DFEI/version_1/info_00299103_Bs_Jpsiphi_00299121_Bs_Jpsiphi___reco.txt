@@ -1,0 +1,42 @@
+==============================
+Reconstruction efficiency (386): 
+all_particles : 59.59 +/- 4.96 
+perfect_reco  : 59.59 +/- 4.96 
+none_iso      : 8.55 +/- 1.55 
+part_reco     : 30.05 +/- 3.18 
+==============================
+Reconstruction efficiency inclusive (224): 
+all_particles : 18.75 +/- 3.15 
+perfect_reco  : 14.73 +/- 2.75 
+none_iso      : 21.43 +/- 3.41 
+part_reco     : 43.30 +/- 5.26 
+==============================
+Reconstruction efficiency only 1 B in event (187): 
+all_particles : 98.93 +/- 10.26 
+perfect_reco  : 98.93 +/- 10.26 
+none_iso      : 1.07 +/- 0.76 
+part_reco     : 0.00 +/- nan 
+==============================
+Reconstruction efficiency only 2 B in event (195): 
+all_particles : 23.08 +/- 3.82 
+perfect_reco  : 23.08 +/- 3.82 
+none_iso      : 15.90 +/- 3.07 
+part_reco     : 58.46 +/- 6.89 
+==============================
+Reconstruction efficiency more than 2 B in event (4): 
+all_particles : 0.00 +/- nan 
+perfect_reco  : 0.00 +/- nan 
+none_iso      : 0.00 +/- nan 
+part_reco     : 50.00 +/- 43.30 
+==============================
+Reconstruction efficiency negative id (194): 
+all_particles : 62.37 +/- 7.23 
+perfect_reco  : 62.37 +/- 7.23 
+none_iso      : 8.76 +/- 2.22 
+part_reco     : 27.32 +/- 4.23 
+==============================
+Reconstruction efficiency positive id (192): 
+all_particles : 56.77 +/- 6.81 
+perfect_reco  : 56.77 +/- 6.81 
+none_iso      : 8.33 +/- 2.17 
+part_reco     : 32.81 +/- 4.76 

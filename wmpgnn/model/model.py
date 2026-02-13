@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 
 from wmpgnn.model.model_helper import *
-from wmpgnn.gnn.hetero_graphcoder import HeteroGraphCoder
-from wmpgnn.gnn.hetero_output_trafo import HeteroGraphTrafo
+from wmpgnn.model.gnn.hetero_graphcoder import HeteroGraphCoder
+from wmpgnn.model.gnn.hetero_output_trafo import HeteroGraphTrafo
 
 import pytorch_lightning as pl
 

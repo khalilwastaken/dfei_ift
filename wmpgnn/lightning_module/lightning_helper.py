@@ -1,3 +1,4 @@
+import pdb
 import re
 
 import torch
@@ -5,9 +6,9 @@ import torch
 import pandas as pd
 
 
-def make_loggable(hparams_dict):
+def make_loggable(pos_weight_dict):
     loggable = {}
-    for k, v in hparams_dict.items():
+    for k, v in pos_weight_dict.items():
         if isinstance(v, torch.Tensor):
             if v.ndim == 0:
                 loggable[k] = v.item()  # convert scalar tensor to float
@@ -18,11 +19,12 @@ def make_loggable(hparams_dict):
     return loggable
 
 
-def init_logs(configs, mode="train", model="DFEI"):
-    loss_config = configs[model]["inference"]
+def init_logs(configs, mode="train"):
+    model = configs["model"]
+    loss_config = configs["inference"]
 
     log = {}
-    if "DFEI" in model:
+    if model == "DFEI":
         log["combined_loss"] = []
         gn_blocks = configs[model]["GNblocks"]["nBlocks"]
         if loss_config["LCA"]:

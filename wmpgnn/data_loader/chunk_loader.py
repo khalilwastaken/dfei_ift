@@ -1,7 +1,4 @@
 import gc
-import os
-from optparse import OptionParser
-import yaml
 import glob
 from tqdm import tqdm
 
@@ -9,9 +6,9 @@ from multiprocessing.pool import ThreadPool
 from functools import partial
 from itertools import chain
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
-import numpy as np
 from torch.utils.data import IterableDataset
 from torch_geometric.loader import DataLoader
 
@@ -19,8 +16,8 @@ from wmpgnn.data_loader.helper import *
 
 
 class ChunkDataset(IterableDataset):
-    # if find a way to load the data during training -> need twice amount of cpu mem
-    def __init__(self, file_paths, configs, mode="train", n_chunks=40):
+    # Loading a chunk of the dataset to cpu memory instead of all files
+    def __init__(self, file_paths, configs, mode="train", n_chunks=32):
         super().__init__()
         self.file_paths = file_paths
         self.n_chunks = n_chunks
@@ -36,7 +33,6 @@ class ChunkDataset(IterableDataset):
             file_index.append(self._generate_groups(n_chunks=self.n_chunks,
                                                     low=cumulative_sizes[i],
                                                     high=cumulative_sizes[i + 1]))
-
         self.chunk_index = torch.cat(file_index, dim=1).to(torch.long)
         self.files_per_chunk = self.chunk_index.shape[1]
         self.n_files = {}
@@ -48,7 +44,7 @@ class ChunkDataset(IterableDataset):
         self.seed_tracker = 0
 
     @staticmethod
-    def _generate_groups(n_chunks=20, low=0, high=80):
+    def _generate_groups(n_chunks: int, low: int, high: int)-> torch.Tensor:
         groups = []
         available = np.arange(low, high)
         interval_size = high - low
@@ -118,27 +114,26 @@ class ChunkDataset(IterableDataset):
 
             # create index
             idx = torch.arange(0, len(chunk_events))
-            # we always shuffle val not sure if this is correct or only in the initial one
             if self.mode == "train":
+                idx = idx[torch.randperm(len(idx))]
+            else:
+                # val and test are shuffled
                 g = torch.Generator()
                 g.manual_seed(self.seeds[self.seed_tracker].item())
                 self.seed_tracker += 1
                 idx = idx[torch.randperm(len(idx), generator=g)]
-            else:
-                idx = idx[torch.randperm(len(idx))]
 
             # Yield events in shuffled order
             for i, i_idx in enumerate(idx):
-                chunk_events[i_idx]["last_chunk"] = (i == len(idx) - 1)
+                chunk_events[i_idx]["last_chunk"] = (i == len(idx) - 1) # this is a legacy of the pv_asso in old trainer
                 yield chunk_events[i_idx]
 
             del chunk_events
             gc.collect()
 
     def get_weights(self):
-        # pass n entries
         weights = {}
-        for i in range(10):
+        for i in range(1):
             weights[i] = self._load_chunk(i, mode="weights")
         return weights
 
@@ -156,12 +151,10 @@ class ChunkLoader(pl.LightningDataModule):
             self.batchsize = batchsize
         else:
             self.batch_size = self.configs["settings"]["batch_size"]
-        if num_workers is not None:
+        if isinstance(num_workers, int):  # we need to be cautious to not load too much to cpu mem
             self.num_workers = num_workers
         else:
-            self.num_workers = 8  # lets test with 4
-        # self.num_workers = self.configs["settings"]["ncpu"] * 2
-        # persistent workers take too much mem
+            self.num_workers = self.configs["settings"]["ncpu"] * 2
 
     def train_dataloader(self):
         if not isinstance(self.trn_dataset, type(None)):
@@ -184,76 +177,54 @@ class ChunkLoader(pl.LightningDataModule):
     def test_dataloader(self):
         if not isinstance(self.tst_dataset, type(None)):
             val_loader = DataLoader(self.tst_dataset, batch_size=1, num_workers=self.num_workers,
-                                    drop_last=True, persistent_workers=False,
+                                    drop_last=False, persistent_workers=False,
                                     pin_memory=False)
         else:
             raise ValueError("tst_dataset not must be None")
         return val_loader
 
 
-def get_trn_val_loaders(configs):
-    print("Start collecting file paths")
-    samples = configs["settings"]["sample"]
-    nfiles = {}
-    for sample, nfile in zip(samples, configs["settings"]["nfiles"]):
-        nfiles[sample] = nfile
-    data_dir = configs["settings"]["data_dir"]
+def get_trn_val_loaders(_configs) -> ChunkLoader:
+    data_dir = _configs["settings"]["data_dir"]
+    num_workers = _configs["settings"]["ncpu"] * 2
+    nfiles = get_nfiles(_configs["settings"])
 
     """Training"""
     path_dict = {}
-    for sample in samples:
-        path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/trn_data_*'))[:nfiles[sample]]
-    trn_dataset = ChunkDataset(path_dict, configs, mode="train")
+    for sample, files in nfiles.items():
+        path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/trn_data_*'))[:files]
+
+    # Number of chunks definition and safeguard for the files per chunk to be less than 8
+    min_files = min(len(v) for v in path_dict.values() if len(v) > 0)
+    total_files = sum(len(v) for v in path_dict.values())
+    num_chunks = np.ceil(min_files / num_workers).astype(int) * num_workers
+    # Safeguard: increase chunks until files_per_chunk < 8, this can be adapted
+    while total_files / num_chunks >= 8:
+        num_chunks += num_workers
+    print(f"Number of chunks: {num_chunks}")
+    print(f"Files per chunk: {np.ceil(total_files / num_chunks).astype(int)}")
+
+    trn_dataset = ChunkDataset(path_dict, _configs, mode="train", n_chunks=num_chunks)
 
     """Validation"""
     path_dict = {}
-    for sample in samples:
-        path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/val_data_*'))[:nfiles[sample]]
-    val_dataset = ChunkDataset(path_dict, configs, mode="validation")
+    for sample, files  in nfiles.items():
+        path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/val_data_*'))[:files]
+    val_dataset = ChunkDataset(path_dict, _configs, mode="validation", n_chunks=num_chunks)
 
-    return ChunkLoader(configs, trn_dataset=trn_dataset, val_dataset=val_dataset)
-
-
-def get_tst_loader(configs, model):
-    sample = configs["evaluate"]["sample"]
-    nfiles = configs["evaluate"]["nfiles"]
-    data_dir = configs[model]["settings"]["data_dir"]
-    configs = configs[model]
-
-    path_dict = {}
-    mode = "tst"
-    if "data_overwrite" in configs.keys():
-        mode = configs["data_overwrite"]
-    path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/{mode}_data_*'))[:nfiles]
-
-    tst_dataset = ChunkDataset(path_dict, configs, mode="test", n_chunks=nfiles)
-
-    return ChunkLoader(configs, tst_dataset=tst_dataset, batchsize=1, num_workers=1)
+    return ChunkLoader(_configs, trn_dataset=trn_dataset, val_dataset=val_dataset)
 
 
-if __name__ == "__main__":
-    usage = "usage: %prog [options]"
-    parser = OptionParser(usage)
-    parser.add_option("", "--config", type=str, default=None,
-                      dest="CONFIG", help="Config file path")
-    (option, args) = parser.parse_args()
-    if len(args) != 0:
-        raise RuntimeError("Got undefined arguments", " ".join(args))
+def get_tst_loader(_configs) -> ChunkLoader:
+    data_dir = _configs["settings"]["data_dir"]
+    nfiles = get_nfiles(_configs["evaluate"])
 
-    with open(option.CONFIG, "r") as file:
-        configs = yaml.safe_load(file)
-
-    samples = configs["settings"]["sample"]
-    data_dir = configs["settings"]["data_dir"]
-    path_dict = {}
-    for sample in samples:
-        path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/trn_data_*'))
-
-    dataset = ChunkDataset(path_dict)
-    import pdb;
-
-    pdb.set_trace()
-
-# 80 + 80 + 200 = 360 -> factor 10
-
-# 36 -> 18 -> 20 chunks
+    """Testing"""
+    path_dict = {"testing": []}
+    for sample, files in nfiles.items():
+        path_dict["testing"].append(sorted(glob.glob(f'{data_dir}/{sample}/tst_data_*'))[:files])
+    path_dict["testing"] = sum(path_dict["testing"], [])
+    # Each file is saved individually in a chunk
+    tst_dataset = ChunkDataset(path_dict, _configs, mode="test", n_chunks=len(path_dict["testing"]))
+    batch_size = _configs["settings"]["batch_size"] * 2 # increased bs possible during testing
+    return ChunkLoader(_configs, tst_dataset=tst_dataset, batchsize=batch_size)

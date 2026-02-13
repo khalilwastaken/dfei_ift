@@ -1,0 +1,14 @@
+evaluate:
+  model_arch: "DFEI" # architecture of the model to evaluate
+  model: 10 # version number or full path
+  # dfei model for IFT, always specify for logging with clear information
+  data_dir: "/eos/user/y/yukaiz/DFEI_IFT/cached_data/DFEI_LHCb_LHCbcollision_normed_pt_data/"
+  ncpu: 8  # NCPUs for data loader, full dataset limited to 8 for workers due to cpu mem constraints
+  edge_prune_thr: 0.9  # Edge prune threshold during reco
+  node_prune_thr: 0.9  # Node prune threshold during reco
+  optimize_thr: False
+
+
+  sample: "00258329_inclusive" #
+  nfiles: 20
+  over_write: "test" # add additional information to model name

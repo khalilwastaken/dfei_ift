@@ -12,33 +12,31 @@ from wmpgnn.util.pruners import edge_pruning, true_node_pruning
 from wmpgnn.performance.reco_accuracy import obtain_reco_accuracy
 from wmpgnn.performance.plotter import *
 from wmpgnn.performance.tagging_power import analyze_tagging_power
-from wmpgnn.performance.reconstruction import reco_event
+from wmpgnn.reconstruction.reconstruction import reco_event
 
 
 class IFTLightningModule(L.LightningModule):
-    def __init__(self, model, dfei_model, optimizer_class, optimizer_params, configs, pos_weights, is_train=True):
+    def __init__(self, model, dfei_model, optimizer_class, optimizer_params, configs, pos_weights):
         super().__init__()
-        self.is_train = is_train
-        if is_train:
-            self.version = None
-            self.save_hyperparameters({
-                **configs,
-                "pos_weights": make_loggable(pos_weights)
-            })
-        else:
-            self.version = re.search(r'version_(\d+)', configs["IFT"]["cpt"]).group(1)
-        self.signal = configs["evaluate"]["sample"]
-        if configs["evaluate"]["over_write"] != "None" and not is_train:
+        self.version = None
+        self.save_hyperparameters({
+            **configs,
+            "pos_weights": make_loggable(pos_weights)
+        })
+
+        self.signal = "_".join(configs["evaluate"]["sample"])
+        if configs["evaluate"]["over_write"] != "None":
             self.signal += "__" + configs["evaluate"]["over_write"]
 
-        self.configs = configs["IFT"]["inference"]
+        self.configs = configs["inference"]
         self.model = model
 
         self.dfei_model = [dfei_model]  # doesnt get saved in ckpt
         if self.dfei_model[0] is not None:
-            self.dfei_need_pid = configs["DFEI"]["use_pid"]
             for param in self.dfei_model[0].parameters():
                 param.requires_grad = False
+        self.dfei_use_pid = configs['DFEI']["use_pid"] if "DFEI" in configs else "None"
+        self.ift_use_pid = configs["IFT"]["use_pid"]
 
         self.optimizer_class = optimizer_class
         self.optimizer_params = optimizer_params
@@ -48,26 +46,15 @@ class IFTLightningModule(L.LightningModule):
         if self.configs["FT"]:
             self.ft_criterion = nn.CrossEntropyLoss(weight=pos_weights["FT"])
 
-        self.trn_log, self.val_log = init_logs(configs, model="IFT")
-        self.tst_log = init_logs(configs, mode="test", model="IFT")
+        self.trn_log, self.val_log = init_logs(configs)
+        self.tst_log = init_logs(configs, mode="test")
         self.sig_df, self.evt_df = None, None
 
         # Pruning threshold for reco
-        self.edge_prune = configs["IFT"]["settings"]["edge_prune_thr"]
-        self.node_prune = configs["IFT"]["settings"]["node_prune_thr"]
+        self.edge_prune = configs["inference"]["edge_prune_thr"]
+        self.node_prune = configs["inference"]["node_prune_thr"]
 
-        # TODO, see where to grab it as well if it realistic pid or normal pid
-        if 'DFEI' in configs:
-            self.dfei_use_pid = configs['DFEI']["use_pid"]
-        else:
-            self.dfei_use_pid = 'None'
-
-        if 'pythia' in configs["IFT"]['settings']['data_dir']:
-            self.log_dir = 'pythia_logs'
-        elif 'LHCb' in configs["IFT"]['settings']['data_dir']:
-            self.log_dir = 'LHCb_logs'
-        else:
-            raise ValueError("Invalid config")
+        self.log_dir = configs["log_dir"]
 
     def forward(self, batch):
         return self.model(batch)
@@ -82,25 +69,28 @@ class IFTLightningModule(L.LightningModule):
         # Adding lca information to edges
         if self.dfei_model[0] is not None:  # lca from dfei model, overwrites from pv asso
             dfei_input = copy.deepcopy(batch)
-            if self.dfei_use_pid != 'None':
-                if self.dfei_use_pid == "realistic":
-                    dfei_input["tracks"].x = torch.cat([dfei_input["tracks"].x, dfei_input["tracks"].real_pid], dim=1)
-                else:
-                    dfei_input["tracks"].x = torch.cat([dfei_input["tracks"].x, dfei_input["tracks"].pid], dim=1)
+            if self.dfei_use_pid == "realistic":
+                dfei_input["tracks"].x = torch.cat([dfei_input["tracks"].x, dfei_input["tracks"].real_pid], dim=1)
+            elif self.dfei_use_pid == "true":
+                dfei_input["tracks"].x = torch.cat([dfei_input["tracks"].x, dfei_input["tracks"].pid], dim=1)
             self.dfei_model[0] = self.dfei_model[0].to(self.device)
-            dfei_outputs = self.dfei_model[0](dfei_input)  # adjust with non as well, check if it has the key lca score
+            dfei_outputs = self.dfei_model[0](dfei_input)
             lca = dfei_outputs[("tracks", "to", "tracks")].edges
         elif "lca" in batch[("tracks", "to", "tracks")]:  # using the information from the pv asso model
             lca = batch[("tracks", "to", "tracks")].lca
         else:  # using truth information
             lca = torch.nn.functional.one_hot(batch[("tracks", "tracks")].y.to(torch.long), num_classes=4).to(
                 torch.float32)
-
         lca_score = torch.argmax(lca, dim=1).unsqueeze(1)
         batch[("tracks", "tracks")].edges = torch.cat([batch[("tracks", "tracks")].edges, lca_score], dim=1)
 
         # Adding pid information to nodes, here again realistic or not
-        batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
+        if self.ift_use_pid == "realistic":
+            batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].real_pid], dim=1)
+        elif self.ift_use_pid == "true":
+            batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
+
+        # Forward pass of IFt model
         outputs_ft = self.model(batch)
         outputs_ft[("tracks", "to", "tracks")].lca = lca
 
@@ -177,7 +167,7 @@ class IFTLightningModule(L.LightningModule):
         self.val_log = defaultdict(list)
 
     def on_test_epoch_end(self):
-        if self.is_train:
+        if self.version is None:
             self.version = self.logger.version
         self.sig_df.to_csv(f'{self.log_dir}/IFT/version_{self.version}/signal_df_{self.signal}.csv', index=False)
         self.evt_df.to_csv(f'{self.log_dir}/IFT/version_{self.version}/event_df_{self.signal}.csv', index=False)

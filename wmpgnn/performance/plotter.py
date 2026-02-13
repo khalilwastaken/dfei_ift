@@ -1,6 +1,7 @@
 import os, re
 
 import numpy as np
+import pandas as pd
 
 from sklearn.metrics import roc_curve, roc_auc_score
 import matplotlib.pyplot as plt
@@ -191,8 +192,14 @@ def plot_loss(df, version, loss, mode="DFEI", log_dir='lightning_logs'):
     plt.close()
 
 
-def metrics_eval(metrics, configs, version, mode="DFEI", log_dir='lightning_logs'):
-    if configs.get("LCA", False) and mode == "DFEI":
+def metrics_eval(metrics_path, configs, version):
+    log_dir = configs["log_dir"]
+    model = configs["model"]
+
+    # Removing empty row and so on
+    metrics = pd.read_csv(metrics_path)
+    metrics = metrics.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
+    if configs.get("LCA", False) and model == "DFEI":
         plot_LCA_acc(metrics, version, log_dir=log_dir)
 
     loss_val = [
@@ -202,7 +209,7 @@ def metrics_eval(metrics, configs, version, mode="DFEI", log_dir='lightning_logs
     ]
 
     for loss in loss_val:
-        plot_loss(metrics, version, loss, mode=mode, log_dir=log_dir)
+        plot_loss(metrics, version, loss, mode=model, log_dir=log_dir)
 
 
 def plot_pv_missasso(log, version, channel, selbool=None, log_dir='lightning_logs'):

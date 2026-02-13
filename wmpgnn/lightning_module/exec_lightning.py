@@ -6,85 +6,12 @@ from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 import torch
 
 torch.set_float32_matmul_precision("high")
-
-from wmpgnn.analysis.trainer_helper import *
-from wmpgnn.model.model import DFEI_HGNN, FT_HGNN
-from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
-from wmpgnn.lightning_module.ift_lightning_module import IFTLightningModule
-
 seed_everything(42, workers=True)
 
 
-def load_module(configs, pos_weights, model, dfei_model=None, is_train=True):
-    # Checking if need to load from cpt
-    load_from_cpt = configs[model]["cpt"]
-    if isinstance(load_from_cpt, int):
-        bis_model = get_bis_model(load_from_cpt, model, configs[model])
-    elif isinstance(load_from_cpt, str):
-        bis_model = load_from_cpt
-    else:
-        bis_model = "None"
-    configs[model]["cpt"] = bis_model
-    lr = float(configs[model]["settings"]["lr"])
-    weight_decay = float(configs[model]["settings"]["weight_decay"])
-
-    if model == "DFEI" or model == "DFEI_pv_asso":
-        model = DFEI_HGNN(configs[model])
-        if load_from_cpt == "None":
-            module = DFEILightningModule(
-                model=model,
-                optimizer_class=torch.optim.Adam,
-                optimizer_params={"lr": lr, "weight_decay": weight_decay},
-                configs=configs,
-                pos_weights=pos_weights,
-                is_train=is_train
-            )
-        else:
-            print("Loading from checkpoint")
-            print(bis_model)
-            print("=" * 30)
-            module = DFEILightningModule.load_from_checkpoint(
-                checkpoint_path=bis_model,
-                model=model,
-                pos_weights=pos_weights,
-                optimizer_class=torch.optim.Adam,
-                optimizer_params={"lr": lr, "weight_decay": weight_decay},
-                configs=configs,
-                is_train=is_train
-            )
-    elif model == "IFT":
-        model = FT_HGNN(configs["IFT"])
-        if load_from_cpt == "None":
-            module = IFTLightningModule(
-                model=model,
-                dfei_model=dfei_model,
-                optimizer_class=torch.optim.Adam,
-                optimizer_params={"lr": lr, "weight_decay": weight_decay},
-                configs=configs,
-                pos_weights=pos_weights,
-                is_train=is_train
-            )
-        else:
-            print("Loading from checkpoint")
-            print(bis_model)
-            print("=" * 30)
-            module = IFTLightningModule.load_from_checkpoint(
-                checkpoint_path=bis_model,
-                model=model,
-                dfei_model=dfei_model,
-                pos_weights=pos_weights,
-                optimizer_class=torch.optim.Adam,
-                optimizer_params={"lr": lr, "weight_decay": weight_decay},
-                configs=configs,
-                is_train=is_train
-            )
-    else:
-        raise ValueError("Invalid model")
-    return module
-
-
-def training(module, configs, model="DFEI", trn_loader=None, val_loader=None, chunkloader=None):
+def training(module, configs, trn_loader=None, val_loader=None, chunkloader=None):
     # module = torch.compile(module)
+    model = configs["model"]
 
     monitoring_loss = "val_combined_loss" if model == "DFEI" else "val_ft_loss"
 
@@ -102,16 +29,11 @@ def training(module, configs, model="DFEI", trn_loader=None, val_loader=None, ch
         save_top_k=5
     )
 
-    if 'pythia' in  configs['settings']['data_dir']:
-        log_dir = 'pythia_logs'
-    elif 'LHCb' in configs['settings']['data_dir']:
-        log_dir = 'LHCb_logs'
-    else:
-        raise ValueError("Invalid config")
-
+    log_dir = configs["log_dir"]
     tb_logger = TensorBoardLogger(save_dir=log_dir, name=model)
     csv_logger = CSVLogger(save_dir=log_dir, name=model, version=tb_logger.version)
-    configs = configs[model]["settings"]
+
+    configs = configs["settings"]
     trainer = Trainer(
         logger=[csv_logger, tb_logger],
         max_epochs=configs["epochs"],
@@ -124,9 +46,6 @@ def training(module, configs, model="DFEI", trn_loader=None, val_loader=None, ch
         num_sanity_val_steps=0,
         gradient_clip_val=1.0,
         benchmark=True,
-        # limit_train_batches=1,
-        # limit_val_batches=1,
-        # limit_test_batches=1,
     )
 
     """Start training"""

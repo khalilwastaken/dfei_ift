@@ -1,0 +1,112 @@
+# Global settings
+settings:
+  data_dir: "/eos/user/y/yukaiz/DFEI_IFT/cached_data/DFEI_LHCb_LHCbcollision_normed_pt_data/" # DFEI_pythia_nu7p6_normed_pt_data, DFEI_LHCb_LHCbcollision_normed_pt_data
+  sample: [ "00299121_Bs_Jpsiphi", "00258329_inclusive", "00258341_inclusive", "00299103_Bs_Jpsiphi"]
+  nfiles: [ 100, 100, 100, 100 ]
+  batch_size: 16
+  lr: 1e-3
+  weight_decay: 1e-5
+  epochs: 40
+  gacc: 1  # gradient accumulation if using smaller batch size
+  ngpu: 1  # need roughly 40 Gb for bs of 12 for full pythia graphs
+  ncpu: 8  # NCPUs for data loader, full dataset limited to 8 for workers due to cpu mem constraints
+  graph_mode: "none"  # Apply pruning on initial graph, can use true_frag for true graph with frag, default None
+  node_sel: "true"  # way of apply pruning on initial graph, requires graph_mode to be true: true, default, zeros
+  pv_model: "None" # Make single pp collision data, passing: dfei model number, true, ip, None
+  edge_prune_thr: 0.9  # Edge prune threshold during reco
+  node_prune_thr: 0.9  # Node prune threshold during reco
+
+inference:
+  LCA: True
+  LCA_weights: True
+  node_prune: True # True
+  node_prune_weights: True
+  edge_prune: True # True
+  edge_prune_weights: True
+  pv_asso: True # True, always false for now sincle looking at single pp
+  pv_asso_weights: True
+
+
+evaluate:
+  sample: "00299103_Bs_Jpsiphi"
+  nfiles: 20
+  over_write: "None"
+  model: "None" # this path here is grabbed during evaluation
+
+
+DFEI:
+  use_pid: True # None, True, realistic
+  cpt: 9 # "None"
+  node_types: [ 'tracks', 'pvs' ]  # Graph node settings
+  edge_types: [ "tracks_tracks", "tracks_pvs" ]  # Graph edge settings
+  encoder:
+    usage: True
+    global:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "graph_norm", "None" ] # pass single string or [layers - 2 specific norms]
+      dropout: 0.01 # pass single float or [layers - 1 specific dropout values]
+    tracks:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "graph_norm", "None" ]
+      dropout: 0.01
+    pvs:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "graph_norm", "None" ]
+      dropout: 0.01
+    tracks_tracks:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "graph_norm", "None" ]
+      dropout: 0.01
+    tracks_pvs:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "graph_norm", "None" ]
+      dropout: 0.01
+  GNblocks:
+    nBlocks: 4
+    use_globals: True
+    use_node_weights: True # MLP to infer a node weight, also necessary for node pruning
+    use_edge_weights: True # MLP to infer an edge weight, also necessary for edge pruning
+    weighted_pass: True # Whether to pass the weights, requires above
+    MLP_forward:
+      layers: [ -1, 128, 128, 16 ]
+      norm: "None"
+      dropout: 0.01
+    MLP_infer:
+      layers: [ -1, 16, 16, 16, 1 ]
+      norm: "None"
+      dropout: 0.01
+  decoder:
+    usage: True
+    global:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "None", "None" ] # pass single string or [layers - 2 specific norms]
+      dropout: 0.01 # pass single float or [layers - 1 specific dropout values]
+    tracks:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "None", "None" ]
+      dropout: 0.01
+    pvs:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "None", "None" ]
+      dropout: 0.01
+    tracks_tracks:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "None", "None" ]
+      dropout: 0.01
+    tracks_pvs:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "None", "None" ]
+      dropout: 0.01
+  op_trafo: # transforms output to desired dimension
+    usage: True
+    tr_tr: 4  # Output dim of edges, 4 for LCA edges
+    tr_pv: None
+    tr: None
+    pv: None
+    global: None
+    MLP:
+      layers: [ -1, -1 ]
+      norm: "None"
+      dropout: 0.01
+
+

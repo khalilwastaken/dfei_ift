@@ -1,0 +1,190 @@
+DFEI:
+  GNblocks:
+    MLP_forward:
+      dropout: 0.01
+      layers:
+      - -1
+      - 128
+      - 128
+      - 16
+      norm: None
+    MLP_infer:
+      dropout: 0.01
+      layers:
+      - -1
+      - 16
+      - 16
+      - 16
+      - 1
+      norm: None
+    nBlocks: 4
+    use_edge_weights: true
+    use_globals: true
+    use_node_weights: true
+    weighted_pass: true
+  cpt: 0
+  decoder:
+    global:
+      dropout: 0.01
+      layers:
+      - -1
+      - 128
+      - 128
+      - 16
+      norm:
+      - None
+      - None
+    pvs:
+      dropout: 0.01
+      layers:
+      - -1
+      - 128
+      - 128
+      - 16
+      norm:
+      - None
+      - None
+    tracks:
+      dropout: 0.01
+      layers:
+      - -1
+      - 128
+      - 128
+      - 16
+      norm:
+      - None
+      - None
+    tracks_pvs:
+      dropout: 0.01
+      layers:
+      - -1
+      - 128
+      - 128
+      - 16
+      norm:
+      - None
+      - None
+    tracks_tracks:
+      dropout: 0.01
+      layers:
+      - -1
+      - 128
+      - 128
+      - 16
+      norm:
+      - None
+      - None
+    usage: true
+  edge_types:
+  - tracks_tracks
+  - tracks_pvs
+  encoder:
+    global:
+      dropout: 0.01
+      layers:
+      - -1
+      - 128
+      - 128
+      - 16
+      norm:
+      - graph_norm
+      - None
+    pvs:
+      dropout: 0.01
+      layers:
+      - -1
+      - 128
+      - 128
+      - 16
+      norm:
+      - graph_norm
+      - None
+    tracks:
+      dropout: 0.01
+      layers:
+      - -1
+      - 128
+      - 128
+      - 16
+      norm:
+      - graph_norm
+      - None
+    tracks_pvs:
+      dropout: 0.01
+      layers:
+      - -1
+      - 128
+      - 128
+      - 16
+      norm:
+      - graph_norm
+      - None
+    tracks_tracks:
+      dropout: 0.01
+      layers:
+      - -1
+      - 128
+      - 128
+      - 16
+      norm:
+      - graph_norm
+      - None
+    usage: true
+  node_types:
+  - tracks
+  - pvs
+  op_trafo:
+    MLP:
+      dropout: 0.01
+      layers:
+      - -1
+      - -1
+      norm: None
+    global: None
+    pv: None
+    tr: None
+    tr_pv: None
+    tr_tr: 4
+    usage: true
+  use_pid: 'True'
+evaluate:
+  nfiles:
+  - 1
+  - 1
+  over_write: ''
+  sample:
+  - 00299103_Bs_Jpsiphi
+  - 00299121_Bs_Jpsiphi
+inference:
+  LCA: true
+  LCA_weights: true
+  edge_prune: false
+  edge_prune_thr: 0.9
+  edge_prune_weights: true
+  node_prune: false
+  node_prune_thr: 0.9
+  node_prune_weights: true
+  pv_asso: false
+  pv_asso_weights: true
+settings:
+  batch_size: 128
+  data_dir: /eos/user/y/yukaiz/DFEI_IFT/cached_data/DFEI_LHCb_LHCbcollision_normed_pt_data/
+  epochs: 1
+  gacc: 1
+  graph_mode: 'true'
+  lr: 1e-3
+  ncpu: 8
+  nfiles:
+  - 5
+  - 5
+  - 0
+  - 0
+  ngpu: 1
+  node_sel: 'true'
+  pv_model: None
+  sample:
+  - 00299121_Bs_Jpsiphi
+  - 00299103_Bs_Jpsiphi
+  - 00258329_inclusive
+  - 00258341_inclusive
+  weight_decay: 1e-5
