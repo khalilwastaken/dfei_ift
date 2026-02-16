@@ -17,11 +17,14 @@ from wmpgnn.performance.plot_results import process_ft
 class IFTLightningModule(L.LightningModule):
     def __init__(self, model, dfei_model, optimizer_class, optimizer_params, configs, pos_weights):
         super().__init__()
-        self.version = None
-        self.save_hyperparameters({
-            **configs,
-            "pos_weights": make_loggable(pos_weights)
-        })
+        if "model" in configs["settings"]:
+            self.version = configs["settings"]["model"]
+        else:
+            self.version = None
+            self.save_hyperparameters({
+                **configs,
+                "pos_weights": make_loggable(pos_weights)
+            })
 
         self.signal = "_".join(configs["evaluate"]["sample"])
         if configs["evaluate"]["over_write"] != "None":

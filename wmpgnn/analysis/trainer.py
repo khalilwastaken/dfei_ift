@@ -20,19 +20,19 @@ if __name__ == "__main__":
     (option, args) = parser.parse_args()
     if len(args) != 0:
         raise RuntimeError("Got undefined arguments", " ".join(args))
-
+    print("=" * 45)
     print("Starting the training script")
 
     # Load config file
     with open(option.CONFIG, "r") as file:
         configs = yaml.safe_load(file)
         save_config = copy.deepcopy(configs)  # creating the raw input configs to be saved later in the version dir
-    configs = adjust_config(configs)
+    configs = adjust_config_training(configs)
 
     configs, weights, trn_loader, val_loader, chunkloader = load_trn_val_loader(configs)
     pos_weights = transform_pos_weight(weights, configs["inference"])
-    # Obtaining the lightning module for training
 
+    # Obtaining the lightning module for training
     if configs["model"] == "DFEI":
         # Obtain the DFEI module
         module = load_module(configs, pos_weights)
@@ -59,3 +59,4 @@ if __name__ == "__main__":
     metric_path = f"{configs['log_dir']}/{configs['model']}/version_{version}/metrics.csv"
     metrics_eval(metric_path, configs, version)
     print("Done")
+    print("=" * 45)

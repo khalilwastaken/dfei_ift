@@ -1,14 +1,20 @@
-evaluate:
+settings:
   model_arch: "DFEI" # architecture of the model to evaluate
   model: 0 # version number or full path
   # dfei model for IFT, always specify for logging with clear information
   data_dir: "/eos/user/y/yukaiz/DFEI_IFT/cached_data/DFEI_LHCb_LHCbcollision_normed_pt_data/"
   ncpu: 8  # NCPUs for data loader, full dataset limited to 8 for workers due to cpu mem constraints
+
+inference:
   edge_prune_thr: 0.9  # Edge prune threshold during reco
   node_prune_thr: 0.9  # Node prune threshold during reco
-  optimize_thr: False
+  optimize_thr: false
+  # allows enabling disabling certain plot features
+  plt_nodes: false
+  plt_edges: false
+  plt_pvs: false
 
-
+evaluate:
   sample: [ "00299103_Bs_Jpsiphi", "00299121_Bs_Jpsiphi" ]
-  nfiles: [ 1 , 1 ]
+  nfiles: [ 1 , 0 ]
   over_write: "test" # argument to overwrite the output names to rerun safely the same sample: "" for no overwrite
