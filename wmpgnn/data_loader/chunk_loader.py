@@ -79,14 +79,14 @@ class ChunkDataset(IterableDataset):
             dataset = []
             load_dataset_part = partial(load_dataset, configs=self.configs, mode=mode)
             with ThreadPool(processes=self.configs["settings"]["ncpu"]) as pool:
-                for r in tqdm(pool.imap(load_dataset_part, files), total=len(files), desc=desc):
+                for r in tqdm(pool.imap(load_dataset_part, files), total=len(files), desc=desc, leave=False):
                     dataset.extend(r)
             return dataset
         elif mode == "weights":
             weights = {}
             load_dataset_part = partial(load_dataset, configs=self.configs, mode="weights_only")
             with ThreadPool(processes=self.configs["settings"]["ncpu"]) as pool:
-                for r in tqdm(pool.imap(load_dataset_part, files), total=len(files), desc=desc):
+                for r in tqdm(pool.imap(load_dataset_part, files), total=len(files), desc=desc, leave=False):
                     for key, value in r.items():
                         if key not in weights:
                             weights[key] = value
@@ -125,7 +125,6 @@ class ChunkDataset(IterableDataset):
 
             # Yield events in shuffled order
             for i, i_idx in enumerate(idx):
-                chunk_events[i_idx]["last_chunk"] = (i == len(idx) - 1) # this is a legacy of the pv_asso in old trainer
                 yield chunk_events[i_idx]
 
             del chunk_events

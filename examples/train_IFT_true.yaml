@@ -3,7 +3,7 @@ settings:
   # Input file information
   data_dir: "/eos/user/y/yukaiz/DFEI_IFT/cached_data/DFEI_LHCb_LHCbcollision_normed_pt_data" # DFEI_pythia_nu7p6_normed_pt_data, DFEI_LHCb_LHCbcollision_normed_pt_data
   sample: [ "00299121_Bs_Jpsiphi", "00258329_inclusive", "00258341_inclusive", "00299103_Bs_Jpsiphi" ]
-  nfiles: [ 5, 5, 0, 0 ]
+  nfiles: [ 2, 2, 0, 0 ]
   # Training settings
   batch_size: 128
   lr: 1e-3
