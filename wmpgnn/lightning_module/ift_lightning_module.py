@@ -9,10 +9,11 @@ import torch.nn as nn
 
 from wmpgnn.lightning_module.lightning_helper import *
 from wmpgnn.util.pruners import edge_pruning, true_node_pruning
+from wmpgnn.reconstruction.reconstruction import reco_event
 from wmpgnn.performance.reco_accuracy import obtain_reco_accuracy
 from wmpgnn.performance.plotter import *
 from wmpgnn.performance.tagging_power import analyze_tagging_power
-from wmpgnn.reconstruction.reconstruction import reco_event
+from wmpgnn.performance.tagging_accuracy import process_ft
 
 
 class IFTLightningModule(L.LightningModule):

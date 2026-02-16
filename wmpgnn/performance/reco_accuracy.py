@@ -1,6 +1,33 @@
+import os
+
 import pandas as pd
 import numpy as np
-import os
+import torch
+
+
+def acc_four_class(pred, label):
+    pred_argmax = torch.argmax(pred, dim=1)
+
+    res = {}
+    for i in range(4):
+        classi_selbool = label == i
+
+        res[f"LCA_class{i}_num"] = torch.sum(classi_selbool).float().item()
+        if res[f"LCA_class{i}_num"] == 0:
+            res[f"LCA_class{i}_pred_class0"] = 0.
+            res[f"LCA_class{i}_pred_class1"] = 0.
+            res[f"LCA_class{i}_pred_class2"] = 0.
+            res[f"LCA_class{i}_pred_class3"] = 0.
+        else:
+            res[f"LCA_class{i}_pred_class0"] = torch.sum(pred_argmax[classi_selbool] == 0).item() / res[
+                f"LCA_class{i}_num"]
+            res[f"LCA_class{i}_pred_class1"] = torch.sum(pred_argmax[classi_selbool] == 1).item() / res[
+                f"LCA_class{i}_num"]
+            res[f"LCA_class{i}_pred_class2"] = torch.sum(pred_argmax[classi_selbool] == 2).item() / res[
+                f"LCA_class{i}_num"]
+            res[f"LCA_class{i}_pred_class3"] = torch.sum(pred_argmax[classi_selbool] == 3).item() / res[
+                f"LCA_class{i}_num"]
+    return res
 
 
 def calculate_accuracy(df):
@@ -54,7 +81,7 @@ def obtain_reco_accuracy(df, version, signal, log_dir, model):
         bkg_df = None
 
     performance = calculate_accuracy(sig_df)
-    write_to_file(file, cond, performance, entries=len(sig_df),label="")
+    write_to_file(file, cond, performance, entries=len(sig_df), label="")
 
     if bkg_df is not None:
         performance = calculate_accuracy(bkg_df)
@@ -82,6 +109,7 @@ def obtain_reco_accuracy(df, version, signal, log_dir, model):
     usage_df = sig_df[np.sign(sig_df["B_id"]) == 1]
     performance = calculate_accuracy(usage_df)
     write_to_file(file, "a", performance, entries=len(usage_df), label=" positive id")
+
 
 if __name__ == "__main__":
     df = pd.read_csv(

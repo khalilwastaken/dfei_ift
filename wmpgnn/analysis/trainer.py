@@ -9,7 +9,7 @@ from wmpgnn.analysis.load_module import *
 from wmpgnn.data_loader.get_data_loader import load_trn_val_loader, load_tst_loader
 from wmpgnn.data_loader.weights_calculator import transform_pos_weight
 from wmpgnn.lightning_module.exec_lightning import training, evaluate
-from wmpgnn.performance.plotter import metrics_eval
+from wmpgnn.performance.plot_results import metrics_eval
 
 if __name__ == "__main__":
     # python trainer.py  --config  ../../config_files/lightning.yaml
