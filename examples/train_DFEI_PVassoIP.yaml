@@ -2,7 +2,7 @@ settings:
   # Input file information
   data_dir: "/eos/user/y/yukaiz/DFEI_IFT/cached_data/DFEI_LHCb_LHCbcollision_normed_pt_data/" # DFEI_pythia_nu7p6_normed_pt_data, DFEI_LHCb_LHCbcollision_normed_pt_data
   sample: [ "00299121_Bs_Jpsiphi", "00299103_Bs_Jpsiphi","00258329_inclusive", "00258341_inclusive" ]
-  nfiles: [ 10, 10, 0, 0 ]
+  nfiles: [ 5, 5, 0, 0 ]
   # Training settings
   batch_size: 16
   lr: 1e-3
@@ -14,8 +14,7 @@ settings:
   # Preselection filters
   graph_mode: "None"  # Apply pruning on initial graph: "true", "true_frag" "None"
   node_sel: "true"  # Pruner used to apply the graph mode above: "true", "zeros", "default"
-  pv_model: 2 # Initial PV association: DFEI_model_number, "true", "ip", "None"
-  # can add additional pv settings here
+  pv_model: "ip" # Initial PV association: DFEI_model_number, "true", "ip", "None"
 
 inference:
   LCA: true

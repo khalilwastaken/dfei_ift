@@ -12,7 +12,7 @@ def get_ref_signal(ref_signal):  # Here we can define them all
         signal_decay = {'daughters': ['mu+', 'mu-', 'K+', 'K-'], 'mothers': ['B(s)0']}
         cc_signal_decay = {'daughters': ['mu+', 'mu-', 'K+', 'K-'], 'mothers': ['B(s)~0']}
         return signal_decay, cc_signal_decay
-    elif 'Bd_JpsiKs' in ref_signal:  # Check if this is cor
+    elif 'Bd_JpsiKs' in ref_signal:
         signal_decay = {'daughters': ['mu+', 'mu-', 'pi+', 'pi-'], 'mothers': ['B0']}
         cc_signal_decay = {'daughters': ['mu+', 'mu-', 'pi+', 'pi-'], 'mothers': ['B~0']}
         return signal_decay, cc_signal_decay

@@ -1,5 +1,3 @@
-import re
-
 import pytorch_lightning as L
 
 from collections import defaultdict
@@ -13,7 +11,7 @@ from wmpgnn.reconstruction.reconstruction import reco_event
 from wmpgnn.performance.reco_accuracy import obtain_reco_accuracy
 from wmpgnn.performance.plotter import *
 from wmpgnn.performance.tagging_power import analyze_tagging_power
-from wmpgnn.performance.tagging_accuracy import process_ft
+from wmpgnn.performance.plot_results import process_ft
 
 
 class IFTLightningModule(L.LightningModule):

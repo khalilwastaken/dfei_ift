@@ -1,3 +1,5 @@
+import re
+
 import pandas as pd
 
 from wmpgnn.performance.plotter import *
@@ -48,6 +50,7 @@ def plot_sig_pv_missasso(df, version, signal, log_dir="lightning_logs"):
             pv_log["pv_corr_ml"][npvs[i]].append(np.sum(evt_true_pv == evt_pred_pv))
             pv_log["pv_corr_ip"][npvs[i]].append(np.sum(evt_true_pv == evt_minIP_pv))
             pv_log["pv_total"][npvs[i]].append(evt_true_pv.shape[0])
+        # write to disk
         plot_pv_missasso(pv_log, _version, _signal, selbool if selbool is not None else "no_selection", log_dir=log_dir)
 
     pv_asso(sig_df, version, signal, "PerfectReco")

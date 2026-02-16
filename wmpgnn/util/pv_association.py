@@ -48,6 +48,8 @@ def pv_association(edge_index, pv_desc, edge_selbool=None):
     pv_desc = pv_desc.view(ntracks, npvs)
     pred_pv = torch.argmax(pv_desc, dim=1)
 
+    # Here we implement different models
+
     """b_edge_idx = edge_index[:, edge_selbool]
     b_systems = find_components_bfs(b_edge_idx)
     for b in b_systems:
