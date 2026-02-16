@@ -128,14 +128,14 @@ def obtain_pv_model(configs):
         print(f"Using {pv_model} information for association")
         pv_model = TruePVAssoModule(configs)
     elif isinstance(pv_model, int):
-        print("Using DFEI model version:", configs["settings"]["pv_model"])
+        print("Using DFEI model version:", configs["settings"]["pv_model"], "for PV association")
         log_dir = configs["log_dir"]
         hparams_file = f"{log_dir}/DFEI/version_{configs['settings']['pv_model']}/hparams.yaml"
         with open(hparams_file, "r") as file:
             hparams = yaml.safe_load(file)
         pos_weights = transform_pos_weight(None, None, mode="eval")
         module = load_module(hparams, pos_weights)
-        pv_model = DFEIPVAssoModule(module.model, configs)
+        pv_model = DFEIPVAssoModule(module.model, hparams)
     else:
         raise ValueError("Invalid config")
     return pv_model

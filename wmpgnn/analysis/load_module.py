@@ -1,10 +1,12 @@
 import glob
 import re
+import yaml
 
 import torch
 
 from typing import Dict
 
+from wmpgnn.data_loader.weights_calculator import transform_pos_weight
 from wmpgnn.model.model import DFEI_HGNN, FT_HGNN
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
 from wmpgnn.lightning_module.ift_lightning_module import IFTLightningModule
@@ -12,28 +14,26 @@ from wmpgnn.lightning_module.ift_lightning_module import IFTLightningModule
 
 def load_dfei_for_ift(configs):
     version = configs['IFT']['dfei_model']
+    log_dir = configs['log_dir']
     if version != "None":
         with open(f"{log_dir}/DFEI/version_{version}/hparams.yaml", "r") as file:
             dfei_hparams = yaml.safe_load(file)
-
         if isinstance(version, int):
-            dfei_bis_model = get_bis_model(version, "DFEI", configs)
+            dfei_bis_model = get_bis_model(version, dfei_hparams)
         elif isinstance(version, str):
             dfei_bis_model = version
-            version = re.search(r"version_(\d+)", dfei_bis_model).group(1)
         else:
             raise RuntimeError(f"Unsupported load_dfei: {type(version)}")
         pos_weights = transform_pos_weight(None, None, mode="eval")
         print("Using DFEI model:", dfei_bis_model)
 
+        dfei_hparams["DFEI"]["cpt"] = dfei_bis_model
         configs["DFEI"] = dfei_hparams["DFEI"]
-        configs["DFEI"]["cpt"] = dfei_bis_model
-        module = load_module(configs, pos_weights, model="DFEI")
+        module = load_module(dfei_hparams, pos_weights)
         model = module.model
     else:
         print("No DFEI model specified. Information from pv asso/truth is used as a replacement")
         model = None
-    print("=" * 30)
     return configs, model
 
 

@@ -34,7 +34,6 @@ evaluate:
   over_write: "" # argument to overwrite the output names to rerun safely the same sample: "" for no overwrite
 
 
-
 IFT:
   dfei_model: "None" # DFEI model which is used within IFT: "None", "DFEI_version_number"
   use_pid: "True" # Adding pid information in DFEI model: "None", "True", "realistic"
