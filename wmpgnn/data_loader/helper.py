@@ -8,6 +8,20 @@ from wmpgnn.util.pruners import *
 from wmpgnn.util.pv_association import pv_associate_data
 from wmpgnn.data_loader.weights_calculator import get_hetero_weight
 
+"""
+New file loader for compressed files
+import zstandard as zstd
+import torch
+import io
+def load_compressed(filepath):
+    dctx = zstd.ZstdDecompressor()
+    with open(filepath, 'rb') as f:
+        with dctx.stream_reader(f) as reader:
+            # Read all decompressed data into memory
+            decompressed = reader.read()
+            # Load from BytesIO buffer
+            return torch.load(io.BytesIO(decompressed), weights_only=False)
+"""
 
 def get_nfiles(_configs):
     samples = _configs["sample"]
