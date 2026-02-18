@@ -1,5 +1,7 @@
-from itertools import chain
 import copy
+import io
+import zstandard as zstd
+from itertools import chain
 
 import torch
 from torch_geometric.loader import DataLoader
@@ -32,8 +34,13 @@ def get_nfiles(_configs):
 
 
 def load_dataset(path, configs, mode="train", pv_asso_model=None):
-    with open(path, "rb") as f:
-        data = torch.load(f, weights_only=False)
+    dctx = zstd.ZstdDecompressor()
+    with open(path, 'rb') as f:
+        with dctx.stream_reader(f) as reader:
+            # Read all decompressed data into memory
+            decompressed = reader.read()
+            # Load from BytesIO buffer
+            data =  torch.load(io.BytesIO(decompressed), weights_only=False)
 
     """Applying pruning for different using truth pruning initially"""
     filtered_data = None
