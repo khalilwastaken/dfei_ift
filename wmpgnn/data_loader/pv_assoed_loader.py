@@ -34,11 +34,10 @@ class DFEIPVAssoModule(L.LightningModule):
     @torch.no_grad()
     def forward(self, batch):
         with self.lock:  # trad looking
-            if self.use_pid:
-                if self.use_pid == "realistic":
-                    batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].real_pid], dim=1)
-                else:
-                    batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
+            if self.use_pid == "realistic":
+                batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].real_pid], dim=1)
+            elif self.use_pid == "true":
+                batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
             # Obtain the predicted quantity from the DFEI model
             outputs = self.model(batch.to(self.custom_device))
 
@@ -55,7 +54,6 @@ class DFEIPVAssoModule(L.LightningModule):
             n_graphs = track_batch.max().item() + 1
             graph_ids = torch.arange(n_graphs, device=self.custom_device)
             track_masks = track_batch.unsqueeze(1) == graph_ids.unsqueeze(0)  # Shape: [n_tracks, n_graphs]
-
             precomputed_slices = []
             for i in range(n_graphs):
                 track_mask = track_masks[:, i]
@@ -133,6 +131,7 @@ def obtain_pv_model(configs):
         hparams_file = f"{log_dir}/DFEI/version_{configs['settings']['pv_model']}/hparams.yaml"
         with open(hparams_file, "r") as file:
             hparams = yaml.safe_load(file)
+        hparams['DFEI']['cpt'] = configs["settings"]["pv_model"]
         pos_weights = transform_pos_weight(None, None, mode="eval")
         module = load_module(hparams, pos_weights)
         pv_model = DFEIPVAssoModule(module.model, hparams)

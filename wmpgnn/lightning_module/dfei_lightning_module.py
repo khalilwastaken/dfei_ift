@@ -25,7 +25,7 @@ class DFEILightningModule(L.LightningModule):
             })
 
         self.signal = "_".join(configs["evaluate"]["sample"])
-        if configs["evaluate"]["over_write"] != "None":
+        if configs["evaluate"]["over_write"] != "":
             self.signal += "__" + configs["evaluate"]["over_write"]
 
         self.configs = configs["inference"]
@@ -74,7 +74,6 @@ class DFEILightningModule(L.LightningModule):
             batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].real_pid], dim=1)
         elif self.use_pid == "true":
             batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
-
         if mode == "test" and self.configs["pv_asso"]:
             minip = batch[("tracks", "to", "pvs")].edges.flatten()
 

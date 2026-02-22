@@ -27,7 +27,7 @@ class IFTLightningModule(L.LightningModule):
             })
 
         self.signal = "_".join(configs["evaluate"]["sample"])
-        if configs["evaluate"]["over_write"] != "None":
+        if configs["evaluate"]["over_write"] != "":
             self.signal += "__" + configs["evaluate"]["over_write"]
 
         self.configs = configs["inference"]
