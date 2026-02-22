@@ -132,7 +132,7 @@ class ChunkDataset(IterableDataset):
 
     def get_weights(self):
         weights = {}
-        for i in range(1):
+        for i in range(10):
             weights[i] = self._load_chunk(i, mode="weights")
         return weights
 
@@ -208,7 +208,7 @@ def get_trn_val_loaders(_configs) -> ChunkLoader:
     """Validation"""
     path_dict = {}
     for sample, files  in nfiles.items():
-        path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/val_data_*'))[:files]
+        path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/val_data_*'))[:5]
     val_dataset = ChunkDataset(path_dict, _configs, mode="validation", n_chunks=num_chunks)
 
     return ChunkLoader(_configs, trn_dataset=trn_dataset, val_dataset=val_dataset)
