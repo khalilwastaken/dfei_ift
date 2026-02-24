@@ -90,7 +90,7 @@ def get_tst_loader(configs, model="DFEI"):
     generator = torch.Generator()
     shuffled_indices = torch.randperm(len(tst_dataset), generator=generator).tolist()
     tst_dataset_shuffled = Subset(tst_dataset, shuffled_indices)
-    tst_loader = DataLoader(tst_dataset_shuffled, batch_size=1, num_workers=ncpus * 2)
+    tst_loader = DataLoader(tst_dataset_shuffled, batch_size=512, num_workers=2)
 
     return tst_loader, nevts
 

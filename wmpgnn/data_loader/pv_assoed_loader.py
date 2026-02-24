@@ -69,7 +69,7 @@ class DFEIPVAssoModule(L.LightningModule):
                     'tracks_pred_y': tracks_pred_y[track_mask].cpu(),
                     'lca_score': lca_score[tr_tr_mask].cpu(),
                     'tr_tr_pred_y': graph_tr_tr_pred_y.cpu(),
-                    "tr_tr_edge_selbool": tr_tr_edge_selbool.cpu(),
+                    # "tr_tr_edge_selbool": tr_tr_edge_selbool.cpu(),
                     'pv_desc': tr_pv_pred_y[tr_pv_mask].cpu(),
                 })
             torch.cuda.empty_cache()
@@ -226,5 +226,5 @@ def get_tst_loader(configs, model="DFEI"):
     generator = torch.Generator()
     shuffled_indices = torch.randperm(len(tst_dataset), generator=generator).tolist()
     tst_dataset_shuffled = Subset(tst_dataset, shuffled_indices)
-    tst_loader = DataLoader(tst_dataset_shuffled, batch_size=1, num_workers=ncpus * 2)
+    tst_loader = DataLoader(tst_dataset_shuffled, batch_size=512, num_workers=2)
     return tst_loader, nevts

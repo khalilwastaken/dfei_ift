@@ -139,15 +139,15 @@ class ChunkDataset(IterableDataset):
 
 class ChunkLoader(pl.LightningDataModule):
     # Data container for pytorch lightning module
-    def __init__(self, configs, trn_dataset=None, val_dataset=None, tst_dataset=None, batchsize=None, num_workers=None):
+    def __init__(self, configs, trn_dataset=None, val_dataset=None, tst_dataset=None, batch_size=None, num_workers=None):
         super().__init__()
         self.trn_dataset = trn_dataset
         self.val_dataset = val_dataset
         self.tst_dataset = tst_dataset
         self.configs = configs
 
-        if isinstance(batchsize, int):
-            self.batchsize = batchsize
+        if isinstance(batch_size, int):
+            self.batch_size = batch_size
         else:
             self.batch_size = self.configs["settings"]["batch_size"]
         if isinstance(num_workers, int):  # we need to be cautious to not load too much to cpu mem
@@ -175,12 +175,12 @@ class ChunkLoader(pl.LightningDataModule):
 
     def test_dataloader(self):
         if not isinstance(self.tst_dataset, type(None)):
-            val_loader = DataLoader(self.tst_dataset, batch_size=1, num_workers=self.num_workers,
+            tst_loader = DataLoader(self.tst_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
                                     drop_last=False, persistent_workers=False,
                                     pin_memory=False)
         else:
             raise ValueError("tst_dataset not must be None")
-        return val_loader
+        return tst_loader
 
 
 def get_trn_val_loaders(_configs) -> ChunkLoader:
@@ -224,6 +224,7 @@ def get_tst_loader(_configs) -> ChunkLoader:
         path_dict["testing"].append(sorted(glob.glob(f'{data_dir}/{sample}/tst_data_*'))[:files])
     path_dict["testing"] = sum(path_dict["testing"], [])
     # Each file is saved individually in a chunk
+    batch_size = 512  # increased bs possible during testing
     tst_dataset = ChunkDataset(path_dict, _configs, mode="test", n_chunks=len(path_dict["testing"]))
-    batch_size = _configs["settings"]["batch_size"] * 2 # increased bs possible during testing
-    return ChunkLoader(_configs, tst_dataset=tst_dataset, batchsize=batch_size)
+
+    return ChunkLoader(_configs, tst_dataset=tst_dataset, batch_size=batch_size, num_workers=2)
