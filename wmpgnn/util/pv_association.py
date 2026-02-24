@@ -42,20 +42,12 @@ def find_components_bfs(edge_index):
     return components
 
 
-def pv_association(edge_index, pv_desc, edge_selbool=None):
+def pv_association(edge_index, pv_desc):
     ntracks = edge_index[0].max().item() + 1
     npvs = edge_index[1].max().item() + 1
     pv_desc = pv_desc.view(ntracks, npvs)
+    # here we only want the pv desc
     pred_pv = torch.argmax(pv_desc, dim=1)
-
-    # Here we implement different models
-
-    """b_edge_idx = edge_index[:, edge_selbool]
-    b_systems = find_components_bfs(b_edge_idx)
-    for b in b_systems:
-        print(torch.argmax(torch.sum(pred_desc[b], dim=0)))
-
-    print("="*30)"""
     return pred_pv
 
 
@@ -75,7 +67,7 @@ def pv_associate_graph(args):
     # Adding num pvs to original graph
     edge_index = graph[("tracks", "pvs")]["edge_index"]
     graph["num_pvs"] = edge_index[1].max().item() + 1
-    pred_pv = pv_association(edge_index, metric["pv_desc"],metric["tr_tr_edge_selbool"])
+    pred_pv = pv_association(edge_index, metric["pv_desc"])
 
     # finding the pv which are interesting
     if node_thr is not None:
