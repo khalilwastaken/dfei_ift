@@ -12,6 +12,10 @@ def get_ref_signal(ref_signal):  # Here we can define them all
         signal_decay = {'daughters': ['mu+', 'mu-', 'K+', 'K-'], 'mothers': ['B(s)0']}
         cc_signal_decay = {'daughters': ['mu+', 'mu-', 'K+', 'K-'], 'mothers': ['B(s)~0']}
         return signal_decay, cc_signal_decay
+    elif "Bd_JpsiKst" in ref_signal:
+        signal_decay = {'daughters': ['mu+', 'mu-', 'K+', 'pi-'], 'mothers': ['B0']}
+        cc_signal_decay = {'daughters': ['mu+', 'mu-', 'pi+', 'K-'], 'mothers': ['B~0']}
+        return signal_decay, cc_signal_decay
     elif 'Bd_JpsiKs' in ref_signal:
         signal_decay = {'daughters': ['mu+', 'mu-', 'pi+', 'pi-'], 'mothers': ['B0']}
         cc_signal_decay = {'daughters': ['mu+', 'mu-', 'pi+', 'pi-'], 'mothers': ['B~0']}
@@ -93,18 +97,24 @@ def get_pred_ft(sig_dict, graph, cluster, ft_score):
 
 def get_pv_asso(sig_dict, graph, cluster, pv_des):
     res_dict = sig_dict
-    # Save combined b bbar score, save individual scores, save pid of final
+    # Get the key information of the cluster which is looked at
     cluster_keys = cluster['node_keys']
     keys = graph['final_keys']
     b_daugthers_mask = np.isin(keys, cluster_keys)
 
     # Get the individual scores stored as strings
-    true_pv = pv_des["true"][b_daugthers_mask].cpu()
-    pred_pv = pv_des["pred"][b_daugthers_mask].cpu()
-    minIP_pv = pv_des["minIP"][b_daugthers_mask].cpu()
+    true_pv = pv_des["true"][b_daugthers_mask]
+    minIP_pv = torch.argmin(pv_des["minIP"][b_daugthers_mask], dim=1)
+
+    # Either per track level or on the full B system
+    pred_pv = pv_des["pred"][b_daugthers_mask]
+    pred_pv_track = torch.argmax(pred_pv, dim=1)
+    pred_pv_system = torch.argmax(torch.sum(pred_pv, dim=0))
+
     res_dict["npvs"] = pv_des["npvs"]
     res_dict["true_pv"] = '_'.join(str(x.item()) for x in true_pv)
-    res_dict["pred_pv"] = '_'.join(str(x.item()) for x in pred_pv)
+    res_dict["pred_pv_track"] = '_'.join(str(x.item()) for x in pred_pv_track)
+    res_dict["pred_pv_system"] = pred_pv_system.item()
     res_dict["minIP_pv"] = '_'.join(str(x.item()) for x in minIP_pv)
     return res_dict
 
@@ -172,7 +182,8 @@ def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des=None, pv_des
                 labels = tc['labels']
                 mothers = [label[3:] for label in labels if 'c' == label[0]]
                 node_keys = tc['node_keys']
-                daughters = [label.split(':')[1] for label in labels if int(float(label.split(':')[0][1:])) in node_keys]
+                daughters = [label.split(':')[1] for label in labels if
+                             int(float(label.split(':')[0][1:])) in node_keys]
                 if match_decays(daughters, ref_signal[0]['daughters']) or match_decays(daughters,
                                                                                        ref_signal[1]['daughters']):
                     check_mothers1 = True
@@ -251,7 +262,7 @@ def reco_event(graph, event, config, signal, sig_df, evt_df, ft_des=None, pv_des
             if "num_pvs" in graph.keys():
                 sig_dict["num_pvs"] = graph["num_pvs"].item()
             else:
-                sig_dict["num_pvs"]  = graph["pvs"].x.shape[0]
+                sig_dict["num_pvs"] = graph["pvs"].x.shape[0]
             sig_df = sig_df._append(sig_dict, ignore_index=True)
 
         # temp stuff
