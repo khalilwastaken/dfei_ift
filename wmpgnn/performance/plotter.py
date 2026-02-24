@@ -138,30 +138,31 @@ def plot_loss(df, version, loss, mode="DFEI", log_dir='lightning_logs'):
     plt.close()
 
 
-def plot_pv_missasso(log, version, channel, selbool=None, log_dir='lightning_logs'):
-    pv_asso_ml, pv_asso_ip, pv_asso_ntracks = log["pv_corr_ml"], log["pv_corr_ip"], log["pv_total"]
+def plot_pv_missasso(pv_asso_ml, pv_asso_ip, pv_asso_ntracks, log_npvs,
+                     version, channel, selbool=None, log_dir='lightning_logs'):
     npvs = np.array([])
     nPV_bins = []
     ml_mean, ml_err = [], []
     ip_mean, ip_err = [], []
 
+
     for key in pv_asso_ml.keys():
         nPV_bins.append(key)
+        ml_mean.append(pv_asso_ml[key] / pv_asso_ntracks[key] * 100)
+        ml_err.append(ml_mean[-1] * np.sqrt(1 / pv_asso_ml[key] + 1 / pv_asso_ntracks[key]))
+        if pv_asso_ip is not None:
+            ip_mean.append(pv_asso_ip[key] / pv_asso_ntracks[key] * 100)
+            ip_err.append(ip_mean[-1] * np.sqrt(1 / pv_asso_ip[key] + 1 / pv_asso_ntracks[key]))
 
-        ml_mean.append(np.sum(pv_asso_ml[key]) / np.sum(pv_asso_ntracks[key]) * 100)
-        ip_mean.append(np.sum(pv_asso_ip[key]) / np.sum(pv_asso_ntracks[key]) * 100)
-
-        ml_err.append(ml_mean[-1] * np.sqrt(1 / np.sum(pv_asso_ml[key]) + 1 / np.sum(pv_asso_ntracks[key])))
-        ip_err.append(ip_mean[-1] * np.sqrt(1 / np.sum(pv_asso_ip[key]) + 1 / np.sum(pv_asso_ntracks[key])))
-
-        npvs = np.concatenate([npvs, np.ones(len(pv_asso_ml[key])) * key])
+        npvs = np.concatenate([npvs, np.ones(log_npvs[key]) * key])
     f, ax = plt.subplots(figsize=(9, 6))
     ax.errorbar(nPV_bins, 100 - np.array(ml_mean), yerr=ml_err, fmt='.', color='red', label="HGNN")
-    ax.errorbar(nPV_bins, 100 - np.array(ip_mean), yerr=ip_err, fmt='.', color='black', label="minIP")
+    if pv_asso_ip is not None:
+        ax.errorbar(nPV_bins, 100 - np.array(ip_mean), yerr=ip_err, fmt='.', color='black', label="minIP")
     ax.hist(npvs, bins=15, range=(0.5, 15.5), alpha=.3, color='grey', weights=np.ones_like(npvs) / len(npvs) * 50)
     ax.set_ylabel("PV miss-association rate [%]", fontsize=28)
     ax.set_xlabel("# PVs [a.u.]", fontsize=28)
-    ax.set_ylim([0, 15])
+    ax.set_ylim([0, 30])
     ax.set_xlim([0, 16])
     ax.legend()
 
@@ -171,7 +172,7 @@ def plot_pv_missasso(log, version, channel, selbool=None, log_dir='lightning_log
     if selbool is None:
         info_string = "all_tracks"
     else:
-        info_string = "signal_" + selbool
+        info_string = selbool
     plt.savefig(f"{outdir}/{info_string}_pv_asso.pdf")
     plt.savefig(f"{outdir}/{info_string}_pv_asso.png")
     plt.close()

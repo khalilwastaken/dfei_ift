@@ -26,6 +26,7 @@ def metrics_eval(metrics_path, configs, version):
 
 
 def plot_sig_pv_missasso(df, version, signal, log_dir="lightning_logs"):
+    # Per track quantitiy
     if "inclusive" not in signal:
         sig_df = df[df["SigMatch"] == 1]
     else:
@@ -39,25 +40,62 @@ def plot_sig_pv_missasso(df, version, signal, log_dir="lightning_logs"):
         npvs = _df["npvs"].values
 
         pv_log = {"pv_corr_ml": {}, "pv_corr_ip": {}, "pv_total": {}}
+        _df.drop_duplicates(subset=['EventNumber'], keep='first')
+        keys, counts = np.unique(_df["num_pvs"].values, return_counts=True)
+        pv_log["npvs"] = dict(zip(keys, counts))
 
         for i in range(len(true_pv)):
             if npvs[i] not in pv_log["pv_total"].keys():
-                pv_log["pv_corr_ml"][npvs[i]], pv_log["pv_corr_ip"][npvs[i]], pv_log["pv_total"][npvs[i]] = [], [], []
+                pv_log["pv_corr_ml"][npvs[i]], pv_log["pv_corr_ip"][npvs[i]], pv_log["pv_total"][npvs[i]] = 0, 0, 0
+                pv_log["npvs"][npvs[i]] = 0
 
             evt_true_pv = np.array(true_pv[i].split("_"), dtype=int)
             evt_pred_pv = np.array(pred_pv[i].split("_"), dtype=int)
             evt_minIP_pv = np.array(min_ip_pv[i].split("_"), dtype=int)
-            pv_log["pv_corr_ml"][npvs[i]].append(np.sum(evt_true_pv == evt_pred_pv))
-            pv_log["pv_corr_ip"][npvs[i]].append(np.sum(evt_true_pv == evt_minIP_pv))
-            pv_log["pv_total"][npvs[i]].append(evt_true_pv.shape[0])
+            pv_log["pv_corr_ml"][npvs[i]] += np.sum(evt_true_pv == evt_pred_pv)
+            pv_log["pv_corr_ip"][npvs[i]] += np.sum(evt_true_pv == evt_minIP_pv)
+            pv_log["pv_total"][npvs[i]] += evt_true_pv.shape[0]
+
         # write to disk
-        plot_pv_missasso(pv_log, _version, _signal, selbool if selbool is not None else "no_selection", log_dir=log_dir)
+        label = f"signal_{selbool}" if selbool is not None else "signal_no_selection"
+        plot_pv_missasso(pv_log["pv_corr_ml"], pv_log["pv_corr_ip"], pv_log["pv_total"], pv_log["npvs"],
+                         _version, _signal, label, log_dir=log_dir)
 
     pv_asso(sig_df, version, signal, "PerfectReco")
     pv_asso(sig_df, version, signal, "AllParticles")
     pv_asso(sig_df, version, signal, "NoneIso")
     pv_asso(sig_df, version, signal, "PartReco")
     pv_asso(sig_df, version, signal)
+
+
+def plot_sig_b_system_pv_missasso(df, version, signal, log_dir="lightning_logs"):
+    # B level quantity
+    if "inclusive" not in signal:
+        sig_df = df[df["SigMatch"] == 1]
+    else:
+        sig_df = df
+    sig_df = sig_df[sig_df["AllParticles"] == 1]
+    true_pv, pred_pv, = sig_df["true_pv"].values, sig_df["pred_pv_b_lvl"].values
+    npvs = sig_df["npvs"].values
+
+    pv_log = {"pv_corr_ml": {}, "pv_total": {}}
+    sig_df.drop_duplicates(subset=['EventNumber'], keep='first')
+    keys, counts = np.unique(sig_df["num_pvs"].values, return_counts=True)
+    pv_log["npvs"] = dict(zip(keys, counts))
+
+    for i in range(len(true_pv)):
+        if npvs[i] not in pv_log["pv_total"].keys():
+            pv_log["pv_corr_ml"][npvs[i]], pv_log["pv_total"][npvs[i]] = 0, 0
+            pv_log["npvs"][npvs[i]] = 0
+
+        evt_true_pv = np.array(true_pv[i].split("_"), dtype=int)
+        evt_pred_pv = int(pred_pv[i])
+        pv_log["pv_corr_ml"][npvs[i]] += evt_pred_pv == evt_true_pv[0]
+        pv_log["pv_total"][npvs[i]] += 1
+    # write to disk
+    label = f"signal_b_system"
+    plot_pv_missasso(pv_log["pv_corr_ml"], None, pv_log["pv_total"], pv_log["npvs"],
+                     version, signal, label, log_dir=log_dir)
 
 
 def process_ft(df, sig_df, version, signal, log_dir="lightning_logs"):
