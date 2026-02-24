@@ -111,7 +111,7 @@ def pv_associate_data(data, metrics, node_thr=None, n_cores=4):
     args_list = [(graph, metric, node_thr) for graph, metric in zip(graphs, metrics)]
 
     # Parallel processing of graphs
-    with ThreadPool(processes=n_cores) as pool: # adjust to 1 during develop
+    with ThreadPool(processes=2) as pool: # adjust to 1 during develop
         results_nested = pool.map(pv_associate_graph, args_list)
 
     # Flatten results

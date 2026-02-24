@@ -10,6 +10,7 @@ from wmpgnn.util.pruners import *
 from wmpgnn.util.pv_association import pv_associate_data
 from wmpgnn.data_loader.weights_calculator import get_hetero_weight
 
+
 """
 New file loader for compressed files
 import zstandard as zstd
@@ -80,7 +81,7 @@ def load_dataset(path, configs, mode="train", pv_asso_model=None):
     """PV asso"""
     if pv_asso_model is not None:
         ncpus = int(configs["settings"]["ncpu"] / 2)
-        pv_data = DataLoader(filtered_data, batch_size=1)
+        pv_data = DataLoader(filtered_data, batch_size=512)
         filtered_data = []
         for evt in pv_data:
             if pv_asso_model.name == "pv_asso_module":
