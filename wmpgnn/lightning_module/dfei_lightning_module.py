@@ -5,11 +5,10 @@ from collections import defaultdict
 import torch.nn as nn
 
 from wmpgnn.lightning_module.lightning_helper import *
-from wmpgnn.util.pruners import edge_pruning, true_node_pruning
-from wmpgnn.reconstruction.reconstruction import reco_event
+from wmpgnn.reconstruction.reconstruction import EventReconstruction
 from wmpgnn.performance.plotter import *
 from wmpgnn.performance.reco_accuracy import acc_four_class, obtain_reco_accuracy
-from wmpgnn.performance.plot_results import plot_sig_pv_missasso
+from wmpgnn.performance.plot_results import plot_sig_pv_missasso, plot_sig_b_system_pv_missasso
 
 
 class DFEILightningModule(L.LightningModule):
@@ -47,7 +46,8 @@ class DFEILightningModule(L.LightningModule):
 
         self.trn_log, self.val_log = init_logs(configs)
         self.tst_log = init_logs(configs, mode="test")
-        self.sig_df, self.evt_df = None, None
+        # init event reconstruction class
+        self.evt_reco = EventReconstruction(configs)
 
         # Pruning threshold for reco
         self.edge_prune = configs["inference"]["edge_prune_thr"]
@@ -118,51 +118,24 @@ class DFEILightningModule(L.LightningModule):
 
         # Apply reco
         if mode == "test":
-            # Transfer everything to a function, since if it is batched there will be problems
-
-            # Obtain PV decision
-            if self.configs["pv_asso"]:
-                ntracks = torch.unique(outputs[("tracks", "to", "pvs")]["edge_index"][0]).shape[0]
-                npvs = torch.unique(outputs[("tracks", "to", "pvs")]["edge_index"][1]).shape[0]
-                y_pv = torch.argmax(outputs[("tracks", "to", "pvs")].y.view(ntracks, npvs), dim=1)
-                pred_pv = block.edge_weights[('tracks', 'to', 'pvs')].view(ntracks, npvs)
-                min_ip_pv = minip.view(ntracks, npvs)
-                if self.configs["plt_pvs"]:
-                    if npvs not in log["pv_total"].keys():
-                        log["pv_corr_ml"][npvs], log["pv_corr_ip"][npvs], log["pv_total"][npvs] = [], [], []
-                    log["pv_corr_ml"][npvs].append(torch.sum(y_pv == torch.argmax(pred_pv, dim=1)).item())
-                    log["pv_corr_ip"][npvs].append(torch.sum(y_pv == torch.argmin(min_ip_pv, dim=1)).item())
-                    log["pv_total"][npvs].append(ntracks)
-
-            # Prune the graph based on the threshold
+            # Attaching pruning information to graph
             if self.configs["node_prune"]:
-                node_selbool = block.node_weights["tracks"].squeeze() > self.node_prune
-                edge_mask = true_node_pruning(node_selbool, outputs, "tracks", [('tracks', 'to', 'tracks')])
-                if self.configs["pv_asso"]:
-                    y_pv, pred_pv, min_ip_pv = y_pv[node_selbool], pred_pv[node_selbool], min_ip_pv[node_selbool]
-                edge_selbool = block.edge_weights[('tracks', 'to', 'tracks')].squeeze()[edge_mask] > self.edge_prune
-            else:
-                edge_selbool = block.edge_weights[('tracks', 'to', 'tracks')].squeeze() > self.edge_prune
+                outputs["node_weights"] = block.node_weights["tracks"].squeeze()
             if self.configs["edge_prune"]:
-                edge_pruning(edge_selbool, outputs, ('tracks', 'to', 'tracks'))
-
-            # Create a dict holding PV asso information
+                outputs["edge_weights"] = block.edge_weights[('tracks', 'to', 'tracks')].squeeze()
+            # Getting the PV decisions
             if self.configs["pv_asso"]:
-                pv_asso_des = {"true": y_pv, "pred": pred_pv, "minIP": min_ip_pv, "npvs": npvs}
+                pv_asso_des = {"pred": block.edge_weights[('tracks', 'to', 'pvs')].squeeze(), "minIP": minip,
+                               "true": y_pv_asso.squeeze(), "pv_filter": pv_filter}
             else:
                 pv_asso_des = None
-            # pass to reconstruction
-            self.sig_df, self.evt_df = reco_event(outputs, batch_idx, self.configs, self.signal,
-                                                  self.sig_df, self.evt_df, pv_des=pv_asso_des)
+            self.evt_reco.reconstruct_heavyhadrons(outputs, pv_des=pv_asso_des)
 
         """Logging"""
         log = loss_logging(log, loss, self.configs, mode="DFEI")
 
         log["combined_loss"].append(combined_loss.item())
         return combined_loss
-
-    def on_test_start(self) -> None:
-        self.sig_df, self.evt_df = init_test_df()
 
     def training_step(self, batch, batch_idx):
         loss = self.shared_step(batch, batch_idx, self.trn_log, mode="train")
@@ -191,10 +164,12 @@ class DFEILightningModule(L.LightningModule):
     def on_test_epoch_end(self):
         if self.version is None:
             self.version = self.logger.version
-        self.sig_df.to_csv(f'{self.log_dir}/DFEI/version_{self.version}/signal_reco_df_{self.signal}.csv', index=False)
-        self.evt_df.to_csv(f'{self.log_dir}/DFEI/version_{self.version}/event_reco_df_{self.signal}.csv', index=False)
+        # grab from the class and save to disk
+        sig_df, evt_df = self.evt_reco.collect_results()
+        sig_df.to_csv(f'{self.log_dir}/DFEI/version_{self.version}/signal_reco_df_{self.signal}.csv', index=False)
+        evt_df.to_csv(f'{self.log_dir}/DFEI/version_{self.version}/event_reco_df_{self.signal}.csv', index=False)
         if self.configs["LCA"]:
-            obtain_reco_accuracy(self.sig_df, self.version, self.signal, self.log_dir, model="DFEI")
+            obtain_reco_accuracy(sig_df, self.version, self.signal, self.log_dir, model="DFEI")
         if self.configs["plt_nodes"]:
             for i in range(len(self.model._blocks)):
                 plot_weights(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],
@@ -219,5 +194,8 @@ class DFEILightningModule(L.LightningModule):
                 plot_roc_curve(self.tst_log[f"sig_pv_asso_score_{i}"], self.tst_log[f"bkg_pv_asso_score_{i}"],
                                [f"NN_pv_asso_{i}_roc", "sig", "bkg"], self.version,
                                model="DFEI", channel=self.signal, log_dir=self.log_dir)
-            plot_pv_missasso(self.tst_log, self.version, self.signal, log_dir=self.log_dir)
-            plot_sig_pv_missasso(self.sig_df, self.version, self.signal, log_dir=self.log_dir)
+            log = self.evt_reco.log
+            plot_pv_missasso(log["pv_corr_ml"], log["pv_corr_ip"], log["pv_total"], log["npvs"],
+                             self.version, self.signal, log_dir=self.log_dir)
+            plot_sig_pv_missasso(sig_df, self.version, self.signal, log_dir=self.log_dir)
+            plot_sig_b_system_pv_missasso(sig_df, self.version, self.signal, log_dir=self.log_dir)

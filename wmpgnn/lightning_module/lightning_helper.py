@@ -55,9 +55,7 @@ def init_logs(configs, mode="train"):
                     log[f"sig_pv_asso_score_{i}"] = torch.tensor([], dtype=torch.float16)
                     log[f"bkg_pv_asso_score_{i}"] = torch.tensor([], dtype=torch.float16)
 
-                log["pv_corr_ml"] = {}
-                log["pv_corr_ip"] = {}
-                log["pv_total"] = {}
+
     elif model == "IFT":
         if loss_config["FT"]:
             log["ft_loss"] = []
@@ -78,11 +76,6 @@ def init_loss(device):
             "pv_asso": torch.tensor(0., device=device)}
     return loss
 
-
-def init_test_df():
-    signal_df = pd.DataFrame()
-    event_df = pd.DataFrame()
-    return signal_df, event_df
 
 
 def get_block_score(log, weights, y, layer, var):
