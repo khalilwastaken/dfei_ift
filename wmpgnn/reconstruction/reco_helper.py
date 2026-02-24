@@ -1,39 +1,39 @@
 import pandas as pd
 import numpy as np
+import torch
 from numpy import intersect1d
-
-from particle import Particle
 
 import networkx as nx
 from networkx.drawing.nx_agraph import graphviz_layout
 
+from wmpgnn.reconstruction.signal_dict import particle_name
 
-def particle_name(id_):
-    if id_ == 0:
-        return 'ghost'
-    elif id_ == 10413:
-        return 'D1(2420)+'
-    elif id_ == -10413:
-        return 'D1(2420)-'
-    elif id_ == 4412:
-        return 'Sigma_cc+'
-    elif id_ == -4412:
-        return 'Sigma_cc-'
-    elif id_ == 4422:
-        return 'Chi_cc++'
-    elif id_ == -4422:
-        return 'Chi_cc--'
-    elif id_ == 4432:
-        return 'Omega_cc++'
-    elif id_ == -4432:
-        return 'Omega_cc--'
+
+def lca_reco_matrix(graph, mode="reco"):
+    edge_index = graph[('tracks', 'to', 'tracks')].edge_index.cpu()
+
+    pd_matrix = pd.DataFrame(edge_index.T, columns=['senders', 'receivers'])
+    if mode == "reco":
+        edges = graph[('tracks', 'to', 'tracks')].lca.cpu()
+        pd_matrix["LCA_dec"] = torch.argmax(edges, axis=-1).tolist()  # LCA decision
     else:
-        try:
-            name = Particle.from_pdgid(id_).name
-        except:
-            print(id_)
-            name = str(id_)
-        return name
+        pd_matrix["LCA_dec"] = graph[('tracks', 'to', 'tracks')].y.tolist()  # LCA decision
+    pd_matrix.set_index(['senders', 'receivers'], inplace=True)
+    pd_matrix = pd_matrix.reset_index()
+    pd_matrix = pd_matrix[pd_matrix['senders'] < pd_matrix['receivers']]
+    return pd_matrix
+
+
+def lca_truth_matrix(graph):
+    senders = graph.truth_senders.cpu()
+    receivers = graph.truth_receivers.cpu()
+
+    truth_lca = pd.DataFrame(np.column_stack((senders, receivers)), columns=['senders', 'receivers'])
+    truth_lca['LCA_dec'] = graph["truth_y"].cpu()
+    truth_lca['LCA_id_label'] = list(map(particle_name, graph['truth_moth_ids'].cpu().numpy()))
+    truth_lca['LCA_id'] = graph['truth_moth_ids'].cpu().numpy()
+    truth_lca['TrueFullChainLCA'] = graph['lca_chain'].cpu()
+    return truth_lca
 
 
 def make_decay_dict(decay):
@@ -110,8 +110,6 @@ def reconstruct_decay(triang_LCA_matrix, particle_keys, ax=0, particle_ids=[], t
 
     # Check against empty events
     if current_LCA_matrix.empty:
-        print('No particles found.')
-        print(truth_level_simulation)
         return {}, num_clusters_per_order, max_full_chain_depth_in_event
 
     # Create a dictionary to store the true ID of the ancestors
