@@ -3,7 +3,7 @@ import pandas as pd
 
 import re
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Tuple, List
 
 import matplotlib.pyplot as plt
@@ -35,22 +35,42 @@ class TaggingMetrics:
     d_squared: tuple[float, float]
 
 
+@dataclass
+class EtaConfig:
+    name: str = r"$\eta$"
+    xlabel: str = r"Predicted mistag $\eta$"
+    centers: list = field(default_factory=lambda: [0.05, 0.15, 0.25, 0.35, 0.45, 0.55])
+    bins: list = field(default_factory=lambda: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 1])
+    x_err_lower: list = field(init=False)
+    x_err_upper: list = field(init=False)
+    x_err: list = field(init=False)
+
+    def __post_init__(self):
+        self.x_err_lower = [c - self.bins[i] for i, c in enumerate(self.centers)]
+        self.x_err_upper = [self.bins[i + 1] - c for i, c in enumerate(self.centers)]
+        self.x_err = [self.x_err_lower, self.x_err_upper]
+
+
+@dataclass
+class NPVConfig:
+    name: str = "npvs"
+    xlabel: str = "#Pvs"
+    centers: np.ndarray = field(default_factory=lambda: np.arange(1, 16))
+    bins: np.ndarray = field(default_factory=lambda: np.arange(0, 16) + 0.5)
+    x_err_lower: list = field(init=False)
+    x_err_upper: list = field(init=False)
+    x_err: list = field(init=False)
+
+    def __post_init__(self):
+        self.x_err_lower = [c - self.bins[i] for i, c in enumerate(self.centers)]
+        self.x_err_upper = [self.bins[i + 1] - c for i, c in enumerate(self.centers)]
+        self.x_err = [self.x_err_lower, self.x_err_upper]
+
+
 class TaggingPowerAnalyzer:
     """Analyzes flavor tagging performance across different event configurations."""
 
     def __init__(self, version, channel, log_dir):
-        self.eta_centers = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55]
-        self.eta_bins = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 1]
-        x_err_lower = [center - self.eta_bins[i] for i, center in enumerate(self.eta_centers)]
-        x_err_upper = [self.eta_bins[i + 1] - center for i, center in enumerate(self.eta_centers)]
-        self.x_err_eta = [x_err_lower, x_err_upper]
-        # here we also need to define it for npvs
-        self.npvs_centers = np.arange(1, 16)
-        self.npvs_bins = np.arange(0, 16) + 0.5
-        x_err_lower = [center - self.npvs_bins[i] for i, center in enumerate(self.npvs_centers)]
-        x_err_upper = [self.npvs_bins[i + 1] - center for i, center in enumerate(self.npvs_centers)]
-        self.x_err_npvs = [x_err_lower, x_err_upper]
-
         self.outdir = f"{log_dir}/IFT/version_{version}/plots_{channel}/tagging_power"
         os.makedirs(self.outdir, exist_ok=True)
 
@@ -103,18 +123,16 @@ class TaggingPowerAnalyzer:
         """Calculate tagging statistics for each eta bin."""
         num_right, num_wrong, num_unclassified = [], [], []
         if mode == "eta":
-            centers = self.eta_centers
-            bins = self.eta_bins
+            configs = EtaConfig()
             var = df["eta"]
         elif mode == "npvs":
-            centers = self.npvs_centers
-            bins = self.npvs_bins
+            configs = NPVConfig()
             var = df["num_pvs"]
         else:
             raise ValueError(f"Unknown mode: {mode}")
 
-        for i in range(len(centers)):
-            in_bin = (var >= bins[i]) & (var < bins[i + 1])
+        for i in range(len(configs.centers)):
+            in_bin = (var >= configs.bins[i]) & (var < configs.bins[i + 1])
             bin_df = df[in_bin]
 
             # Count unclassified events
@@ -147,27 +165,19 @@ class TaggingPowerAnalyzer:
         return TaggingMetrics(eta_res[0], eta_res[1], npvs_res[0], npvs_res[1],
                               comb_res[0], comb_res[1], comb_res[2], comb_res[3])
 
-    def plot_tagging_power(self, metrics: TaggingMetrics, underlying_dist: np.ndarray, var:str = "eta",
+    def plot_tagging_power(self, metrics: TaggingMetrics, underlying_dist: np.ndarray, var: str = "eta",
                            label: str = "tagging_power"):
 
         # here we can switch between eta and npvs
         """Plot tagging power/wrong fraction vs misstag/npvs probability."""
         if var == "eta":
-            name = r"$\eta$"
             power = metrics.eta_power
             wrong_fraction = metrics.eta_wrong_fraction
-            xlabel = r"Predicted mistag $\eta$"
-            centers = self.eta_centers
-            x_err = self.x_err_eta
-            bins = self.eta_bins
+            config = EtaConfig()
         elif var == "npvs":
-            name = "npvs" # honestly  this should be done into a struct it would soooo much better but i am too lazy rn
             power = metrics.npvs_power
             wrong_fraction = metrics.npvs_wrong_fraction
-            xlabel = "#Pvs"
-            centers = self.npvs_centers
-            x_err = self.x_err_npvs
-            bins = self.npvs_bins
+            config = NPVConfig()
         else:
             raise ValueError(f"Unknown var: {var}")
 
@@ -175,14 +185,14 @@ class TaggingPowerAnalyzer:
 
         # Plot underlying distribution
         weights = np.ones_like(underlying_dist) / len(underlying_dist)
-        ax.hist(underlying_dist, bins=bins,
-                label=rf"Underlying {name} distribution",
+        ax.hist(underlying_dist, bins=config.bins,
+                label=rf"Underlying {config.name} distribution",
                 color="grey", weights=weights / 2 * 100)
 
         # Plot metrics
-        ax.errorbar(centers, power[0], xerr=x_err, yerr=power[1],
+        ax.errorbar(config.centers, power[0], xerr=config.x_err, yerr=power[1],
                     fmt='o', color="red", label="Tagging Power")
-        ax.errorbar(centers, wrong_fraction[0], xerr=x_err, yerr=wrong_fraction[1],
+        ax.errorbar(config.centers, wrong_fraction[0], xerr=config.x_err, yerr=wrong_fraction[1],
                     fmt='o', color="blue", label="Wrong Fraction")
 
         if var == "eta":
@@ -190,7 +200,7 @@ class TaggingPowerAnalyzer:
         else:
             ax.set_xlim(0, 15)
         ax.set_ylim(0, 105)
-        ax.set_xlabel(xlabel)
+        ax.set_xlabel(config.xlabel)
         ax.set_ylabel("[%]")
         ax.legend()
         plt.savefig(f"{self.outdir}/{label}.pdf")
