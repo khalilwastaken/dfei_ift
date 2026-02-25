@@ -129,8 +129,12 @@ class EventReconstruction:
                             desc="Reconstructing events", leave=False))
 
         for r in res:
-            self.sig_df.append(pd.DataFrame(r[0]))
-            self.evt_df.append(pd.DataFrame([r[1]]))
+            try:
+                self.sig_df.append(pd.DataFrame(r[0]))
+                self.evt_df.append(pd.DataFrame([r[1]]))
+            except:
+                continue
+            
 
     def reconstruct_single_evt(self, args):
         graph, pv_des, ft_des = args
