@@ -23,6 +23,10 @@ def get_ref_signal(ref_signal):  # Here we can define them all
         signal_decay = {'daughters': ['K+', 'K-', 'pi+', 'pi-'], 'mothers': ['B(s)0']}
         cc_signal_decay = {'daughters': ['K+', 'K-', 'pi+', 'pi-'], 'mothers': ['B(s)~0']}
         return signal_decay, cc_signal_decay
+    elif "Bs_Kmunu" == ref_signal:
+        signal_decay = {'daughters': ['K-', 'mu+'], 'mothers': ['B(s)0']}
+        cc_signal_decay = {'daughters': ['K+', 'mu-'], 'mothers': ['B(s)~0']}
+        return signal_decay, cc_signal_decay
     raise NotImplementedError
 
 
