@@ -47,7 +47,6 @@ def plot_sig_pv_missasso(df, version, signal, log_dir="lightning_logs"):
         for i in range(len(true_pv)):
             if npvs[i] not in pv_log["pv_total"].keys():
                 pv_log["pv_corr_ml"][npvs[i]], pv_log["pv_corr_ip"][npvs[i]], pv_log["pv_total"][npvs[i]] = 0, 0, 0
-                pv_log["npvs"][npvs[i]] = 0
 
             evt_true_pv = np.array(true_pv[i].split("_"), dtype=int)
             evt_pred_pv = np.array(pred_pv[i].split("_"), dtype=int)
