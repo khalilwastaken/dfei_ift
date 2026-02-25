@@ -26,7 +26,7 @@ def metrics_eval(metrics_path, configs, version):
 
 
 def plot_sig_pv_missasso(df, version, signal, log_dir="lightning_logs"):
-    # Per track quantitiy
+    # Per track quantity
     if "inclusive" not in signal:
         sig_df = df[df["SigMatch"] == 1]
     else:
@@ -57,14 +57,16 @@ def plot_sig_pv_missasso(df, version, signal, log_dir="lightning_logs"):
 
         # write to disk
         label = f"signal_{selbool}" if selbool is not None else "signal_no_selection"
-        plot_pv_missasso(pv_log["pv_corr_ml"], pv_log["pv_corr_ip"], pv_log["pv_total"], pv_log["npvs"],
-                         _version, _signal, label, log_dir=log_dir)
+        temp = plot_pv_missasso(pv_log["pv_corr_ml"], pv_log["pv_corr_ip"], pv_log["pv_total"], pv_log["npvs"],
+                                _version, _signal, label, log_dir=log_dir)
+        return temp
 
-    pv_asso(sig_df, version, signal, "PerfectReco")
-    pv_asso(sig_df, version, signal, "AllParticles")
-    pv_asso(sig_df, version, signal, "NoneIso")
-    pv_asso(sig_df, version, signal, "PartReco")
-    pv_asso(sig_df, version, signal)
+    res = {"sig_no_selection": pv_asso(sig_df, version, signal),
+           "sig_perfect_reco": pv_asso(sig_df, version, signal, "PerfectReco"),
+           "sig_AllParticles": pv_asso(sig_df, version, signal, "AllParticles"),
+           "sig_NoneIso": pv_asso(sig_df, version, signal, "NoneIso"),
+           "sig_PartReco": pv_asso(sig_df, version, signal, "PartReco")}
+    return res
 
 
 def plot_sig_b_system_pv_missasso(df, version, signal, log_dir="lightning_logs"):
@@ -93,8 +95,9 @@ def plot_sig_b_system_pv_missasso(df, version, signal, log_dir="lightning_logs")
         pv_log["pv_total"][npvs[i]] += 1
     # write to disk
     label = f"signal_b_system"
-    plot_pv_missasso(pv_log["pv_corr_ml"], None, pv_log["pv_total"], pv_log["npvs"],
+    res = plot_pv_missasso(pv_log["pv_corr_ml"], None, pv_log["pv_total"], pv_log["npvs"],
                      version, signal, label, log_dir=log_dir)
+    return res
 
 
 def process_ft(df, sig_df, version, signal, log_dir="lightning_logs"):

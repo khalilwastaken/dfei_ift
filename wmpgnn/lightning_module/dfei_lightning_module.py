@@ -7,7 +7,7 @@ import torch.nn as nn
 from wmpgnn.lightning_module.lightning_helper import *
 from wmpgnn.reconstruction.reconstruction import EventReconstruction
 from wmpgnn.performance.plotter import *
-from wmpgnn.performance.reco_accuracy import acc_four_class, obtain_reco_accuracy
+from wmpgnn.performance.reco_accuracy import acc_four_class, obtain_reco_accuracy, acc_pv_asso
 from wmpgnn.performance.plot_results import plot_sig_pv_missasso, plot_sig_b_system_pv_missasso
 
 
@@ -194,8 +194,13 @@ class DFEILightningModule(L.LightningModule):
                 plot_roc_curve(self.tst_log[f"sig_pv_asso_score_{i}"], self.tst_log[f"bkg_pv_asso_score_{i}"],
                                [f"NN_pv_asso_{i}_roc", "sig", "bkg"], self.version,
                                model="DFEI", channel=self.signal, log_dir=self.log_dir)
+            # Get the PV association performance
             log = self.evt_reco.log
-            plot_pv_missasso(log["pv_corr_ml"], log["pv_corr_ip"], log["pv_total"], log["npvs"],
-                             self.version, self.signal, log_dir=self.log_dir)
-            plot_sig_pv_missasso(sig_df, self.version, self.signal, log_dir=self.log_dir)
-            plot_sig_b_system_pv_missasso(sig_df, self.version, self.signal, log_dir=self.log_dir)
+            pv_perf = {}
+            pv_perf["all_tracks"] = plot_pv_missasso(log["pv_corr_ml"], log["pv_corr_ip"], log["pv_total"], log["npvs"],
+                                                     self.version, self.signal, log_dir=self.log_dir)
+            pv_sig_tracks = plot_sig_pv_missasso(sig_df, self.version, self.signal, log_dir=self.log_dir)
+            pv_perf.update(pv_sig_tracks)
+            pv_perf["sig_b_system"] = plot_sig_b_system_pv_missasso(sig_df, self.version, self.signal,
+                                                                    log_dir=self.log_dir)
+            acc_pv_asso(pv_perf, self.version, self.signal, self.log_dir, model="DFEI")

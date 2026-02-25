@@ -145,7 +145,6 @@ def plot_pv_missasso(pv_asso_ml, pv_asso_ip, pv_asso_ntracks, log_npvs,
     ml_mean, ml_err = [], []
     ip_mean, ip_err = [], []
 
-
     for key in pv_asso_ml.keys():
         nPV_bins.append(key)
         ml_mean.append(pv_asso_ml[key] / pv_asso_ntracks[key] * 100)
@@ -176,3 +175,13 @@ def plot_pv_missasso(pv_asso_ml, pv_asso_ip, pv_asso_ntracks, log_npvs,
     plt.savefig(f"{outdir}/{info_string}_pv_asso.pdf")
     plt.savefig(f"{outdir}/{info_string}_pv_asso.png")
     plt.close()
+
+
+    # Getting the absolute numbers
+    total_tracks = sum(pv_asso_ntracks.values())
+    total_pred = sum(pv_asso_ml.values())
+    total_ip = None
+    if pv_asso_ip is not None:
+        total_ip = sum(pv_asso_ip.values())
+    return total_tracks, total_pred, total_ip
+

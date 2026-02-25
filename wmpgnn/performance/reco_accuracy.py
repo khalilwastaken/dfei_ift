@@ -70,6 +70,9 @@ def obtain_reco_accuracy(df, version, signal, log_dir, model):
     # Signal more than two B events
     file = f"{log_dir}/{model}/version_{version}/info_{signal}_reco.txt"
     cond = "a" if os.path.exists(file) else "w"
+    with open(file, cond) as f:
+        f.write("=" * 50 + "\n")
+        f.write("Reconstruction performance \n")
 
     evtnumber, counts = np.unique(df["EventNumber"], return_counts=True)
 
@@ -81,7 +84,7 @@ def obtain_reco_accuracy(df, version, signal, log_dir, model):
         bkg_df = None
 
     performance = calculate_accuracy(sig_df)
-    write_to_file(file, cond, performance, entries=len(sig_df), label="")
+    write_to_file(file, "a", performance, entries=len(sig_df), label="")
 
     if bkg_df is not None:
         performance = calculate_accuracy(bkg_df)
@@ -109,6 +112,28 @@ def obtain_reco_accuracy(df, version, signal, log_dir, model):
     usage_df = sig_df[np.sign(sig_df["B_id"]) == 1]
     performance = calculate_accuracy(usage_df)
     write_to_file(file, "a", performance, entries=len(usage_df), label=" positive id")
+
+
+def acc_pv_asso(pv_perf, version, signal, log_dir, model):
+    file = f"{log_dir}/{model}/version_{version}/info_{signal}_reco.txt"
+    cond = "a" if os.path.exists(file) else "w"
+    with open(file, cond) as f:
+        f.write("=" * 50 + "\n")
+        f.write("PV association performance \n")
+
+        for key, item in pv_perf.items():
+            f.write("=" * 30 + "\n")
+            f.write(key + ": \n")
+            ntracks, pred, ip = item
+
+            pred_perf = pred / ntracks * 100
+            pred_perf_err = pred_perf * np.sqrt(1 / pred + 1 / ntracks)
+            f.write(f"HGNN association  : {100 - pred_perf:.2f} +/- {pred_perf_err:.2f} \n")
+
+            if ip is not None:
+                ip_perf = ip / ntracks * 100
+                ip_perf_err = ip_perf * np.sqrt(1 / ip + 1 / ntracks)
+                f.write(f"minIP association : {100 - ip_perf:.2f} +/- {ip_perf_err:.2f} \n")
 
 
 if __name__ == "__main__":
