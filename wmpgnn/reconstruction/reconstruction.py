@@ -78,6 +78,8 @@ class EventReconstruction:
             ntracks = torch.unique(evt_tr_pv_edge_idx[0]).shape[0]
             npvs = torch.unique(evt_tr_pv_edge_idx[1]).shape[0]
 
+            # some temp holding final part ids
+            temp = graphs[i]["part_ids"]
 
             # log pv performance for all tracks
             if pv_des is not None:
@@ -106,6 +108,9 @@ class EventReconstruction:
                 edge_selbool = edge_weights[tr_tr_mask] > self.configs["edge_prune_thr"]
             if self.configs.get("edge_prune", True):
                 edge_pruning(edge_selbool, graphs[i], ('tracks', 'to', 'tracks'))
+
+            # attach all part ids again
+            graphs[i]["pid_holder"] = temp
 
             # Apply pruning on pv prediction
             if pv_des is not None:

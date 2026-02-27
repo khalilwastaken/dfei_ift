@@ -39,7 +39,7 @@ def get_pred_ft(sig_dict, graph, cluster, ft_score):
     res_dict["final_bbar_score"] = ','.join(str(x.item()) for x in ft_score[:, 2:].squeeze())
 
     res_dict["ft_b_score"], _, res_dict["ft_bbar_score"] = ft_score.mean(dim=0).tolist()
-
+    res_dict["part_ids"] = '_'.join(str(x.item()) for x in graph["pid_holder"])
     return res_dict
 
 
