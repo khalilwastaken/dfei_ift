@@ -163,8 +163,8 @@ class IFTLightningModule(L.LightningModule):
         if self.version is None:
             self.version = self.logger.version
         sig_df, evt_df = self.evt_reco.collect_results()
-        sig_df.to_csv(f'{self.log_dir}/DFEI/version_{self.version}/signal_reco_df_{self.signal}.csv', index=False)
-        evt_df.to_csv(f'{self.log_dir}/DFEI/version_{self.version}/event_reco_df_{self.signal}.csv', index=False)
+        sig_df.to_csv(f'{self.log_dir}/IFT/version_{self.version}/signal_reco_df_{self.signal}.csv', index=False)
+        evt_df.to_csv(f'{self.log_dir}/IFT/version_{self.version}/event_reco_df_{self.signal}.csv', index=False)
         obtain_reco_accuracy(sig_df, self.version, self.signal, self.log_dir, model="IFT")
         # Removing heavy hadron daughters of B since they are classified as signal (Ds in Bs->Dspi for example)
         if "Bs" in self.signal:
