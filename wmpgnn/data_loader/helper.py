@@ -8,6 +8,7 @@ from torch_geometric.loader import DataLoader
 
 from wmpgnn.util.pruners import *
 from wmpgnn.util.pv_association import pv_associate_data
+from wmpgnn.util.temp_test import adjust_data
 from wmpgnn.data_loader.weights_calculator import get_hetero_weight
 
 
@@ -63,6 +64,10 @@ def load_dataset(path, configs, mode="train", pv_asso_model=None):
         filtered_data = [d for d, sel in zip(data, data_selbool) if sel]
     else:
         filtered_data = data
+
+    # temp set it to full true
+    # pass path to get the decay channel -> we know what is of interest
+    filtered_data = adjust_data(configs, path, filtered_data)
 
     """Making the graph bidirectional"""
     for data in filtered_data:
