@@ -42,7 +42,7 @@ def load_trn_val_loader(configs):
     return configs, weights, trn_loader, val_loader, chunkloader
 
 
-def load_tst_loader(configs, model="DFEI"):
+def load_tst_loader(configs):
     print("Obtaining test loaders:")
     tst_loader, chunkloader = None, None
 
@@ -68,7 +68,7 @@ def load_tst_loader(configs, model="DFEI"):
         from wmpgnn.data_loader.chunk_loader import get_tst_loader
 
         chunkloader = get_tst_loader(configs)
-        configs[model].update({"num_files": chunkloader.tst_dataset.n_files})
+        configs.update({"num_files": chunkloader.tst_dataset.n_files})
     else:
         print("Using data loader")
         from wmpgnn.data_loader.default_data_loader import get_tst_loader
