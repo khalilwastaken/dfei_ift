@@ -154,8 +154,9 @@ def plot_pv_missasso(pv_asso_ml, pv_asso_ip, pv_asso_ntracks, log_npvs,
             ip_err.append(ip_mean[-1] * np.sqrt(1 / pv_asso_ip[key] + 1 / pv_asso_ntracks[key]))
 
         npvs = np.concatenate([npvs, np.ones(log_npvs[key]) * key])
+
     f, ax = plt.subplots(figsize=(9, 6))
-    ax.errorbar(nPV_bins, 100 - np.array(ml_mean), yerr=ml_err, fmt='.', color='red', label="HGNN")
+    ax.errorbar(nPV_bins, 100 - np.array(ml_mean), yerr=ml_err, fmt='.', color='red', label="DFEI")
     if pv_asso_ip is not None:
         ax.errorbar(nPV_bins, 100 - np.array(ip_mean), yerr=ip_err, fmt='.', color='black', label="minIP")
     ax.hist(npvs, bins=15, range=(0.5, 15.5), alpha=.3, color='grey', weights=np.ones_like(npvs) / len(npvs) * 50)
@@ -176,7 +177,6 @@ def plot_pv_missasso(pv_asso_ml, pv_asso_ip, pv_asso_ntracks, log_npvs,
     plt.savefig(f"{outdir}/{info_string}_pv_asso.png")
     plt.close()
 
-
     # Getting the absolute numbers
     total_tracks = sum(pv_asso_ntracks.values())
     total_pred = sum(pv_asso_ml.values())
@@ -184,4 +184,3 @@ def plot_pv_missasso(pv_asso_ml, pv_asso_ip, pv_asso_ntracks, log_npvs,
     if pv_asso_ip is not None:
         total_ip = sum(pv_asso_ip.values())
     return total_tracks, total_pred, total_ip
-
