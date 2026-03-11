@@ -8,24 +8,9 @@ from torch_geometric.loader import DataLoader
 
 from wmpgnn.util.pruners import *
 from wmpgnn.util.pv_association import pv_associate_data
-from wmpgnn.util.temp_test import adjust_data
+from wmpgnn.calibration.calibration_mask import *
 from wmpgnn.data_loader.weights_calculator import get_hetero_weight
 
-
-"""
-New file loader for compressed files
-import zstandard as zstd
-import torch
-import io
-def load_compressed(filepath):
-    dctx = zstd.ZstdDecompressor()
-    with open(filepath, 'rb') as f:
-        with dctx.stream_reader(f) as reader:
-            # Read all decompressed data into memory
-            decompressed = reader.read()
-            # Load from BytesIO buffer
-            return torch.load(io.BytesIO(decompressed), weights_only=False)
-"""
 
 def get_nfiles(_configs):
     samples = _configs["sample"]
@@ -65,10 +50,6 @@ def load_dataset(path, configs, mode="train", pv_asso_model=None):
     else:
         filtered_data = data
 
-    # temp set it to full true
-    # pass path to get the decay channel -> we know what is of interest
-    filtered_data = adjust_data(configs, path, filtered_data)
-
     """Making the graph bidirectional"""
     for data in filtered_data:
         edge_type = ('tracks', 'to', 'tracks')
@@ -98,6 +79,10 @@ def load_dataset(path, configs, mode="train", pv_asso_model=None):
                 res = pv_associate_data(evt, metrics, n_cores=ncpus)
             filtered_data.append(res)
         filtered_data = list(chain.from_iterable(filtered_data))
+
+    """Whitening for calibration"""
+    if configs["settings"]["calibration"]:
+        filtered_data = adjust_for_calibration(configs, path, filtered_data)
 
     if mode == "weights_only":
         weights = get_hetero_weight(filtered_data, configs)
