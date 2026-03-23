@@ -88,6 +88,9 @@ def obtain_normalization(configs):
 
 def whitening(args):
     graph, prune_thr, to_whiten, channel_prop, norm = args
+    graph["tracks"].org_x = graph["tracks"].x.clone()
+    graph["tracks"].org_pid = graph["tracks"].pid.clone()
+
     # Need to apply both node and edge pruning to increase the high purity, edge prune alone can be not sufficient
     node_selbool = graph["tracks"].pred_y > prune_thr[0]
     node_indices = torch.arange(0, graph["tracks"].pred_y.shape[0])[node_selbool]
@@ -145,6 +148,7 @@ def whitening(args):
             node_features = [x for x in norm.node_features if x not in pid_features]
             node_mask = [f in node_features for f in norm.node_features]
 
+            # org contain the raw information which is uses to evaluate
             graph["tracks"].x[nodes_indx] = combined_features[:, node_mask]
             graph["tracks"].pid[nodes_indx] = combined_features[:, pid_mask]
 
