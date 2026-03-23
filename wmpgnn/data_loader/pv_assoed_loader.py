@@ -143,7 +143,7 @@ def obtain_pv_model(configs):
 def get_trn_val_loaders(configs):
     data_dir = configs["settings"]["data_dir"]
     # default 8 -> 2 parallel loading data and forward pass, 4 each during association
-    ncpus =  int(configs["settings"]["ncpu"] / 2)
+    ncpus =  int(configs["settings"]["ncpu"] / 4)
     nfiles = get_nfiles(configs["settings"])
 
     # Getting the PV model
@@ -217,7 +217,7 @@ def get_tst_loader(configs, model="DFEI"):
         tst_paths = sorted(glob.glob(f'{data_dir}/{sample}/tst_data_*'))[:files]
         with ThreadPool(processes=ncpus) as pool:
             results = list(tqdm(pool.imap(load_tst_dataset, tst_paths), total=len(tst_paths),
-                                desc=f"Loading {sample} validation dataset"))
+                                desc=f"Loading {sample} testing dataset"))
         for r in results:
             tst_dataset.extend(r)
             nevts["testing"][sample] += len(r)
