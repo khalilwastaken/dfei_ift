@@ -12,7 +12,7 @@ def metrics_eval(metrics_path, configs, version):
     # Removing empty row and so on
     metrics = pd.read_csv(metrics_path)
     metrics = metrics.groupby('epoch').agg(lambda x: x.dropna().iloc[0] if not x.dropna().empty else None).reset_index()
-    if configs.get("LCA", False) and model == "DFEI":
+    if configs["inference"].get("LCA", False) and model == "DFEI":
         plot_LCA_acc(metrics, version, log_dir=log_dir)
 
     loss_val = [
