@@ -275,6 +275,8 @@ class EventReconstruction:
                     sig_dict["num_pvs"] = graph["num_pvs"].item()
                 else:
                     sig_dict["num_pvs"] = graph["pvs"].x.shape[0]
+                if "is_whiten" in graph.keys():
+                    sig_dict["is_whiten"] = graph["is_whiten"].item()
                 sig_dict_holder.append(sig_dict)
 
             evt_dict = {'NumParticlesInEvent': n_part,

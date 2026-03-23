@@ -166,6 +166,8 @@ class IFTLightningModule(L.LightningModule):
         sig_df.to_csv(f'{self.log_dir}/IFT/version_{self.version}/signal_reco_df_{self.signal}.csv', index=False)
         evt_df.to_csv(f'{self.log_dir}/IFT/version_{self.version}/event_reco_df_{self.signal}.csv', index=False)
         obtain_reco_accuracy(sig_df, self.version, self.signal, self.log_dir, model="IFT")
+        whiten = self.signal + "__is_whiten"
+        obtain_reco_accuracy(sig_df[sig_df["is_whiten"] == 1], self.version,whiten , self.log_dir, model="IFT")
         # Removing heavy hadron daughters of B since they are classified as signal (Ds in Bs->Dspi for example)
         if "Bs" in self.signal:
             sig_id = 531
@@ -179,3 +181,9 @@ class IFTLightningModule(L.LightningModule):
         if self.configs["FT"]:
             process_ft(self.tst_log, sig_df, self.version, self.signal, log_dir=self.log_dir)
             analyze_tagging_power(sig_df, self.version, self.signal, log_dir=self.log_dir)
+            analyze_tagging_power(sig_df, self.version, self.signal, log_dir=self.log_dir)
+            # Only consider event which are whitened
+            whiten_df = sig_df[sig_df["is_whiten"] == 1]
+            process_ft(self.tst_log, whiten_df, self.version, whiten, log_dir=self.log_dir)
+            analyze_tagging_power(whiten_df, self.version, whiten, log_dir=self.log_dir)
+            analyze_tagging_power(whiten_df, self.version, whiten, log_dir=self.log_dir)

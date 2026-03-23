@@ -88,6 +88,8 @@ def obtain_normalization(configs):
 
 def whitening(args):
     graph, prune_thr, to_whiten, channel_prop, norm = args
+
+    is_whiten =  torch.tensor([0]) # flag to add if the event is whiten or not
     graph["tracks"].org_x = graph["tracks"].x.clone()
     graph["tracks"].org_pid = graph["tracks"].pid.clone()
 
@@ -151,7 +153,8 @@ def whitening(args):
             # org contain the raw information which is uses to evaluate
             graph["tracks"].x[nodes_indx] = combined_features[:, node_mask]
             graph["tracks"].pid[nodes_indx] = combined_features[:, pid_mask]
-
+            is_whiten = torch.tensor([1])
+    graph["is_whiten"] = is_whiten
     return graph
 
 
