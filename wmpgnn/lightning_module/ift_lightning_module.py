@@ -181,9 +181,7 @@ class IFTLightningModule(L.LightningModule):
         if self.configs["FT"]:
             process_ft(self.tst_log, sig_df, self.version, self.signal, log_dir=self.log_dir)
             analyze_tagging_power(sig_df, self.version, self.signal, log_dir=self.log_dir)
-            analyze_tagging_power(sig_df, self.version, self.signal, log_dir=self.log_dir)
             # Only consider event which are whitened
             whiten_df = sig_df[sig_df["is_whiten"] == 1]
             process_ft(self.tst_log, whiten_df, self.version, whiten, log_dir=self.log_dir)
-            analyze_tagging_power(whiten_df, self.version, whiten, log_dir=self.log_dir)
             analyze_tagging_power(whiten_df, self.version, whiten, log_dir=self.log_dir)
