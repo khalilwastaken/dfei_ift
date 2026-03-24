@@ -60,7 +60,6 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
         analyzer.plot_tagging_power(metrics_full, full_df["num_pvs"], "npvs", "npvs_tagging_power")
         label = f"Tagging performance for {signal} ({len(full_df)}):"
         write_tagging_power(f, metrics_full, label)
-        # here we want it
 
         """2. Single B events"""
         single_b_df = classifier.filter_n_b_events(df, 1, event_ids, event_counts)
@@ -111,6 +110,7 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
         write_tagging_power(f, metrics_charge, label)
 
         """5. Bias study of signal"""
+        # negative mc id
         neg_df = full_df[np.sign(full_df["B_id"]) == -1]
         metrics_full = analyzer.compute_tagging_power_per_eta(neg_df)
         analyzer.plot_tagging_power(metrics_full, neg_df["eta"], "eta", f"neg_tagging_power")
@@ -119,6 +119,25 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
         ratio = calc.calculate_prediction_correctness(neg_df)
         write_correctness_ratio(f, ratio)
 
+        neg_single_bool = (single_b_df["SigMatch"] == 1) & (np.sign(single_b_df["B_id"]) == -1)
+        neg_sig_df = single_b_df[neg_single_bool]
+        metrics_full = analyzer.compute_tagging_power_per_eta(neg_sig_df)
+        analyzer.plot_tagging_power(metrics_full, neg_sig_df["eta"], "eta", f"neg_single_tagging_power")
+        label = f"Tagging performance for negative single B {signal} ({len(neg_sig_df)}):"
+        write_tagging_power(f, metrics_full, label)
+        ratio = calc.calculate_prediction_correctness(neg_sig_df)
+        write_correctness_ratio(f, ratio)
+
+        neg_double_bool = (two_b_df["SigMatch"] == 1) & (np.sign(two_b_df["B_id"]) == -1)
+        neg_sig_df = two_b_df[neg_double_bool]
+        metrics_full = analyzer.compute_tagging_power_per_eta(neg_sig_df)
+        analyzer.plot_tagging_power(metrics_full, neg_sig_df["eta"], "eta", f"neg_double_tagging_power")
+        label = f"Tagging performance for negative double B {signal} ({len(neg_sig_df)}):"
+        write_tagging_power(f, metrics_full, label)
+        ratio = calc.calculate_prediction_correctness(neg_sig_df)
+        write_correctness_ratio(f, ratio)
+
+        # pos mc id
         pos_df = full_df[np.sign(full_df["B_id"]) == 1]
         metrics_full = analyzer.compute_tagging_power_per_eta(pos_df)
         analyzer.plot_tagging_power(metrics_full, pos_df["eta"], "eta", f"pos_tagging_power")
@@ -127,7 +146,25 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
         ratio = calc.calculate_prediction_correctness(pos_df)
         write_correctness_ratio(f, ratio)
 
-        """6. Performance based on OS reconstruction type"""
+        pos_single_bool = (single_b_df["SigMatch"] == 1) & (np.sign(single_b_df["B_id"]) == 1)
+        pos_sig_df = single_b_df[pos_single_bool]
+        metrics_full = analyzer.compute_tagging_power_per_eta(pos_sig_df)
+        analyzer.plot_tagging_power(metrics_full, pos_sig_df["eta"], "eta", f"pos_single_tagging_power")
+        label = f"Tagging performance for positive single B {signal} ({len(pos_sig_df)}):"
+        write_tagging_power(f, metrics_full, label)
+        ratio = calc.calculate_prediction_correctness(pos_sig_df)
+        write_correctness_ratio(f, ratio)
+
+        pos_double_bool = (two_b_df["SigMatch"] == 1) & (np.sign(two_b_df["B_id"]) == 1)
+        pos_sig_df = two_b_df[pos_double_bool]
+        metrics_full = analyzer.compute_tagging_power_per_eta(pos_sig_df)
+        analyzer.plot_tagging_power(metrics_full, pos_sig_df["eta"], "eta", f"pos_double_tagging_power")
+        label = f"Tagging performance for positive double B {signal} ({len(pos_sig_df)}):"
+        write_tagging_power(f, metrics_full, label)
+        ratio = calc.calculate_prediction_correctness(pos_sig_df)
+        write_correctness_ratio(f, ratio)
+
+        """7. Performance based on OS reconstruction type"""
         os_incl_df = two_b_df[two_b_df["SigMatch"] != 1]
         os_incl_df.loc[os_incl_df["PerfectReco"] == 1, "AllParticles"] = 0
         sig_df = two_b_df[two_b_df["SigMatch"] == 1]
