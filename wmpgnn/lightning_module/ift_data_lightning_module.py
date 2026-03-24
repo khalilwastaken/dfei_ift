@@ -1,17 +1,11 @@
 import pytorch_lightning as L
 
-from collections import defaultdict
 import copy
 
 import torch.nn as nn
 
 from wmpgnn.lightning_module.lightning_helper import *
-from wmpgnn.util.pruners import edge_pruning, true_node_pruning
 from wmpgnn.reconstruction_data.reconstruction import EventReconstruction
-from wmpgnn.performance.reco_accuracy import obtain_reco_accuracy
-from wmpgnn.performance.plotter import *
-from wmpgnn.performance.tagging_power import analyze_tagging_power
-from wmpgnn.performance.plot_results import process_ft
 
 
 class IFTLightningModuleData(L.LightningModule):
@@ -100,8 +94,5 @@ class IFTLightningModuleData(L.LightningModule):
         return {}
 
     def on_test_epoch_end(self):
-        if self.version is None:
-            self.version = self.logger.version
         sig_df = self.evt_reco.collect_results()
         sig_df.to_csv(f'{self.log_dir}/IFT/version_{self.version}/signal_reco_data_df_{self.signal}.csv', index=False)
-
