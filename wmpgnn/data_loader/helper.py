@@ -57,7 +57,8 @@ def load_dataset(path, configs, mode="train", pv_asso_model=None):
 
         store.edge_index = torch.cat([store.edge_index, store.edge_index.flip(0)], dim=1)
         store.edges = store.edges.repeat(2, 1)  # More efficient than cat([x]*2)
-        store.y = store.y.repeat(2)
+        if hasattr(store, 'y') and store.y is not None:
+            store.y = store.y.repeat(2)
         # if exists pred y and lca on edges as well
         if hasattr(store, 'lca') and store.lca is not None:
             store.lca = store.lca.repeat(2, 1)
@@ -67,7 +68,7 @@ def load_dataset(path, configs, mode="train", pv_asso_model=None):
     """PV asso"""
     if pv_asso_model is not None:
         ncpus = int(configs["settings"]["ncpu"] / 2)
-        pv_data = DataLoader(filtered_data, batch_size=512)
+        pv_data = DataLoader(filtered_data, batch_size=200)
         filtered_data = []
         for evt in pv_data:
             if pv_asso_model.name == "pv_asso_module":
