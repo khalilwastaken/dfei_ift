@@ -58,10 +58,10 @@ def obtain_normalization(configs):
     # Obtain the features of how the graph is setup to reverse normalization
     data_dir = configs["settings"]["data_dir"]
     # one of the two should exist
-    if configs.get("settings", {}).get("sample"):
-        channel = configs.get("settings", {}).get("sample")[0]
-    elif configs.get("evaluate", {}).get("channel"):
+    if configs.get("evaluate", {}).get("sample"):
         channel = configs.get("evaluate", {}).get("sample")[0]
+    elif configs.get("settings", {}).get("sample"):
+        channel = configs.get("settings", {}).get("sample")[0]
     else:
         raise NotImplementedError("Something went wrong here pls check")
     with open(f"{data_dir}/{channel}/config.yaml", "r") as file:
