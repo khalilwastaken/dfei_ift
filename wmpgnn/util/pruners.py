@@ -6,7 +6,8 @@ def edge_pruning(edge_indices, graph, edge_type):
     graph[edge_type].edge_index = torch.vstack(
         [graph[edge_type].edge_index[0][edge_indices],
          graph[edge_type].edge_index[1][edge_indices]])
-    graph[edge_type].y = graph[edge_type].y[edge_indices]
+    if "y" in graph[edge_type]:
+        graph[edge_type].y = graph[edge_type].y[edge_indices]
     if "lca" in graph[edge_type]:
         graph[edge_type].lca = graph[edge_type].lca[edge_indices]
     if "pred_y" in graph[edge_type]:
@@ -88,6 +89,7 @@ def true_node_pruning(node_mask, graph, node_type, edge_types):
             graph[edge_type].pred_y = graph[edge_type].pred_y[mask]
         if "filter" in graph[edge_type]:
             graph[edge_type].filter = graph[edge_type].filter[mask]
-        graph[edge_type].y = graph[edge_type].y[mask]
+        if "y" in graph[edge_type]:
+            graph[edge_type].y = graph[edge_type].y[mask]
     # here we need to be careful since it only return 1 mask even though it creates multiple
     return mask
