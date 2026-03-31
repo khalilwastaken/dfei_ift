@@ -147,18 +147,20 @@ def plot_pv_missasso(pv_asso_ml, pv_asso_ip, pv_asso_ntracks, log_npvs,
 
     for key in pv_asso_ml.keys():
         nPV_bins.append(key)
-        ml_mean.append(pv_asso_ml[key] / pv_asso_ntracks[key] * 100)
-        ml_err.append(ml_mean[-1] * np.sqrt(1 / pv_asso_ml[key] + 1 / pv_asso_ntracks[key]))
+        ml_mean.append(100 - pv_asso_ml[key] / pv_asso_ntracks[key] * 100)
+        ml_err.append(
+            pv_asso_ml[key] / pv_asso_ntracks[key] * np.sqrt(1 / pv_asso_ml[key] + 1 / pv_asso_ntracks[key]) * 100)
         if pv_asso_ip is not None:
-            ip_mean.append(pv_asso_ip[key] / pv_asso_ntracks[key] * 100)
-            ip_err.append(ip_mean[-1] * np.sqrt(1 / pv_asso_ip[key] + 1 / pv_asso_ntracks[key]))
+            ip_mean.append(100 - pv_asso_ip[key] / pv_asso_ntracks[key] * 100)
+            ip_err.append(
+                pv_asso_ip[key] / pv_asso_ntracks[key] * np.sqrt(1 / pv_asso_ip[key] + 1 / pv_asso_ntracks[key]) * 100)
 
         npvs = np.concatenate([npvs, np.ones(log_npvs[key]) * key])
 
     f, ax = plt.subplots(figsize=(9, 6))
-    ax.errorbar(nPV_bins, 100 - np.array(ml_mean), yerr=ml_err, fmt='.', color='red', label="DFEI")
+    ax.errorbar(nPV_bins, np.array(ml_mean), yerr=ml_err, fmt='.', color='red', label="DFEI")
     if pv_asso_ip is not None:
-        ax.errorbar(nPV_bins, 100 - np.array(ip_mean), yerr=ip_err, fmt='.', color='black', label="minIP")
+        ax.errorbar(nPV_bins, np.array(ip_mean), yerr=ip_err, fmt='.', color='black', label="minIP")
     ax.hist(npvs, bins=15, range=(0.5, 15.5), alpha=.3, color='grey', weights=np.ones_like(npvs) / len(npvs) * 50)
     ax.set_ylabel("PV miss-association rate [%]", fontsize=28)
     ax.set_xlabel("# PVs [a.u.]", fontsize=28)

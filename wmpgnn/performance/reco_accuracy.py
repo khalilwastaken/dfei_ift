@@ -126,14 +126,14 @@ def acc_pv_asso(pv_perf, version, signal, log_dir, model):
             f.write(key + ": \n")
             ntracks, pred, ip = item
 
-            pred_perf = pred / ntracks * 100
-            pred_perf_err = pred_perf * np.sqrt(1 / pred + 1 / ntracks)
-            f.write(f"HGNN association  : {100 - pred_perf:.2f} +/- {pred_perf_err:.2f} \n")
+            pred_perf = 100 - pred / ntracks * 100
+            pred_perf_err = pred / ntracks * np.sqrt(1 / pred + 1 / ntracks) * 100
+            f.write(f"HGNN association  : {pred_perf:.2f} +/- {pred_perf_err:.2f} \n")
 
             if ip is not None:
-                ip_perf = ip / ntracks * 100
-                ip_perf_err = ip_perf * np.sqrt(1 / ip + 1 / ntracks)
-                f.write(f"minIP association : {100 - ip_perf:.2f} +/- {ip_perf_err:.2f} \n")
+                ip_perf = 100 - ip / ntracks * 100
+                ip_perf_err = ip / ntracks * np.sqrt(1 / ip + 1 / ntracks) * 100
+                f.write(f"minIP association : {ip_perf:.2f} +/- {ip_perf_err:.2f} \n")
 
 
 if __name__ == "__main__":
