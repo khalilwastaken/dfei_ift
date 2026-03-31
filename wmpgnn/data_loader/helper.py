@@ -83,7 +83,7 @@ def load_dataset(path, configs, mode="train", pv_asso_model=None):
 
     """Whitening for calibration"""
     if configs["settings"]["calibration"]:
-        filtered_data = adjust_for_calibration(configs, path, filtered_data)
+        filtered_data = adjust_for_calibration(configs, path, filtered_data, n_cores=int(configs["settings"]["ncpu"] / 2))
 
     if mode == "weights_only":
         weights = get_hetero_weight(filtered_data, configs)
