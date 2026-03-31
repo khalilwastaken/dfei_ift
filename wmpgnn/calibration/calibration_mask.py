@@ -87,11 +87,12 @@ def obtain_normalization(configs):
 
 
 def whitening(args):
-    graph, prune_thr, to_whiten, channel_prop, norm = args
+    graph, prune_thr, to_whiten, channel_prop, norm, path = args
 
     is_whiten =  torch.tensor([0]) # flag to add if the event is whiten or not
-    graph["tracks"].org_x = graph["tracks"].x.clone()
-    graph["tracks"].org_pid = graph["tracks"].pid.clone()
+    if "tst_data" in path:
+        graph["tracks"].org_x = graph["tracks"].x.clone()
+        graph["tracks"].org_pid = graph["tracks"].pid.clone()
 
     # Need to apply both node and edge pruning to increase the high purity, edge prune alone can be not sufficient
     node_selbool = graph["tracks"].pred_y > prune_thr[0]
@@ -141,6 +142,7 @@ def whitening(args):
         true_pos_pid, true_neg_pid = torch.sort(channel_prop[0]).values, torch.sort(-1 * channel_prop[0]).values,
         matching_final = torch.equal(sel_pid, true_pos_pid) or torch.equal(sel_pid, true_neg_pid)
         matching_lca = torch.equal(lca[edges_indx], torch.cat([channel_prop[1], channel_prop[1]]))
+
         if matching_final and matching_lca:
             # what do we want to whiten
             combined_features[:, to_whiten] = 0
@@ -154,7 +156,8 @@ def whitening(args):
             graph["tracks"].x[nodes_indx] = combined_features[:, node_mask]
             graph["tracks"].pid[nodes_indx] = combined_features[:, pid_mask]
             is_whiten = torch.tensor([1])
-    graph["is_whiten"] = is_whiten
+    if "tst_data" in path:
+        graph["is_whiten"] = is_whiten
     return graph
 
 
@@ -189,9 +192,9 @@ def adjust_for_calibration(configs, path, graph_data, n_cores=1):
         else:
             raise NotImplementedError
 
-        args_list = [(graph, prune_thrs, to_whiten, channel_prop, norm) for graph in graph_data]
+        args_list = [(graph, prune_thrs, to_whiten, channel_prop, norm, path) for graph in graph_data]
 
-        with ThreadPool(processes=1) as pool:
+        with ThreadPool(processes=n_cores) as pool:
             results_nested = pool.map(whitening, args_list)
         # Flatten results
         whiten_data = []
