@@ -194,9 +194,10 @@ def get_trn_val_loaders(_configs) -> ChunkLoader:
         path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/trn_data_*'))[:files]
 
     # Number of chunks definition and safeguard for the files per chunk to be less than 8
-    min_files = min(len(v) for v in path_dict.values() if len(v) > 0)
+    min_files\
+        = min(len(v) for v in path_dict.values() if len(v) > 0)
     total_files = sum(len(v) for v in path_dict.values())
-    num_chunks = np.ceil(min_files / num_workers).astype(int) * num_workers
+    num_chunks = np.ceil(min_files / num_workers).astype(int)
     # Safeguard: increase chunks until files_per_chunk < 8, this can be adapted
     while total_files / num_chunks >= 8:
         num_chunks += num_workers
