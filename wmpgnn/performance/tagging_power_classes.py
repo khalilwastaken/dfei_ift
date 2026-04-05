@@ -191,9 +191,9 @@ class TaggingPowerAnalyzer:
 
         # Plot metrics
         ax.errorbar(config.centers, power[0], xerr=config.x_err, yerr=power[1],
-                    fmt='o', color="red", label="Tagging Power")
+                    fmt='o', color="#B22222", label="Tagging Power")
         ax.errorbar(config.centers, wrong_fraction[0], xerr=config.x_err, yerr=wrong_fraction[1],
-                    fmt='o', color="blue", label="Wrong Fraction")
+                    fmt='o', color="#4169E1", label="Wrong Fraction")
 
         if var == "eta":
             ax.set_xlim(0, 0.5)
