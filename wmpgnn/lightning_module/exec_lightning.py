@@ -19,14 +19,21 @@ def training(module, configs, trn_loader=None, val_loader=None, chunkloader=None
         monitor=monitoring_loss,
         verbose=True,
         mode="min",
-        patience=5,
+        patience=15,
     )
 
     best_model_callback = ModelCheckpoint(
         filename=f"best-{{epoch:02d}}-{{{monitoring_loss}:.3f}}",
         monitor=monitoring_loss,
         mode="min",
-        save_top_k=5
+        save_top_k=15
+    )
+    last_epoch_callback = ModelCheckpoint(
+        filename="epoch_{epoch:02d}",
+        monitor=None,
+        save_top_k=-1,
+        every_n_epochs=1,
+        save_last=False,
     )
 
     log_dir = configs["log_dir"]
@@ -40,7 +47,7 @@ def training(module, configs, trn_loader=None, val_loader=None, chunkloader=None
         accelerator="auto",
         devices=configs["ngpu"],
         strategy="auto",
-        callbacks=[early_stopping, best_model_callback],
+        callbacks=[early_stopping, best_model_callback, last_epoch_callback],
         precision="32",
         accumulate_grad_batches=configs["gacc"],
         num_sanity_val_steps=0,
