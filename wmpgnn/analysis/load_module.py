@@ -42,7 +42,7 @@ def get_bis_model(version: int, configs: Dict) -> str:
     # find the model with the best performance in the checkpoints
     model = configs["model"]
     log_dir = configs["log_dir"]
-    files = glob.glob(f"{log_dir}/{model}/version_{version}/checkpoints/*.ckpt")
+    files = glob.glob(f"{log_dir}/{model}/version_{version}/checkpoints/*best-epoch*.ckpt")
     if model == "DFEI":
         pattern = re.compile(r"val_combined_loss=([\d.]+)")
     elif model == "IFT":
@@ -98,6 +98,7 @@ def load_module(configs: Dict, pos_weights:Dict, dfei_model=None, mode="simulati
                     pos_weights=pos_weights,
                 )
             else:
+                #bis_model = "LHCb_logs/IFT/version_2/checkpoints/best-epoch=20-val_ft_loss=0.573.ckpt"
                 print("Loading from checkpoint")
                 print(bis_model)
                 print("=" * 30)
