@@ -63,7 +63,27 @@ class DFEILightningModule(L.LightningModule):
         return self.model(batch)
 
     def configure_optimizers(self):
-        return self.optimizer_class(self.model.parameters(), **self.optimizer_params)
+        optimizer = self.optimizer_class(self.model.parameters(), **self.optimizer_params)
+
+
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode="min",
+            factor=0.5,
+            patience=5,  # Reduce LR after 5 epochs of no improvement
+            min_lr=1e-6,
+        )
+
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "monitor": "val_combined_loss",
+                "interval": "epoch",
+                "frequency": 1,
+                "strict": True,
+            },
+        }
 
     def shared_step(self, batch, batch_idx, log, mode="train"):
         optimizers = self.optimizers()
@@ -114,7 +134,7 @@ class DFEILightningModule(L.LightningModule):
                     get_block_score(log, block.edge_weights[("tracks", "to", "pvs")].squeeze(), y_pv_asso, i,
                                     var="pv_asso")
 
-        combined_loss = loss["LCA"] + loss["t_nodes"] + 33 * loss["tt_edges"] + loss["pv_asso"]
+        combined_loss = loss["LCA"] + loss["t_nodes"] + 33*  loss["tt_edges"] + loss["pv_asso"]
 
         # Apply reco
         if mode == "test":
@@ -154,6 +174,10 @@ class DFEILightningModule(L.LightningModule):
         for key, val in avg_losses.items():
             self.log(f"train_{key}", val, prog_bar=(key == "combined_loss"), on_epoch=True, on_step=False)
         self.trn_log = defaultdict(list)
+
+        optimizer = self.optimizers()
+        current_lr = optimizer.param_groups[0]["lr"]
+        self.log("lr", current_lr, prog_bar=False, on_epoch=True, on_step=False)
 
     def on_validation_epoch_end(self):
         avg_losses = epoch_end_loggable(self.val_log)
