@@ -25,11 +25,14 @@ if __name__ == "__main__":
     true_sig_df = true_df[true_df["SigMatch"] == 1].copy()
     reco_sig_df = reco_df[reco_df["SigLike"] == 1].copy()
 
+    true_sig_df["EVENTNUMBER"] = true_sig_df["EVENTNUMBER"].astype(int)
+    true_sig_df["RUNNUMBER"] = true_sig_df["RUNNUMBER"].astype(int)
+    reco_sig_df["EVENTNUMBER"] = reco_sig_df["EVENTNUMBER"].astype(int)
+    reco_sig_df["RUNNUMBER"] = reco_sig_df["RUNNUMBER"].astype(int)
+
     # Doing a event number matching by cantor pairs instead of tuple lvl
-    true_sig_df["key"] = true_sig_df["EventNumber"].astype(str) + "_" + true_sig_df["EVENTNUMBER"].astype(str) + "_" + \
-                         true_sig_df["RUNNUMBER"].astype(str)
-    reco_sig_df["key"] = reco_sig_df["EventNumber"].astype(str) + "_" + reco_sig_df["EVENTNUMBER"].astype(str) + "_" + \
-                         reco_sig_df["RUNNUMBER"].astype(str)
+    true_sig_df["key"] = true_sig_df["EVENTNUMBER"].astype(str) + "_" + true_sig_df["RUNNUMBER"].astype(str)
+    reco_sig_df["key"] = reco_sig_df["EVENTNUMBER"].astype(str) + "_" + reco_sig_df["RUNNUMBER"].astype(str)
 
     truth_found = true_sig_df["key"].isin(reco_sig_df["key"])
     reco_wrong = reco_sig_df["key"].isin(true_sig_df["key"])
