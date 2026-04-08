@@ -1,12 +1,13 @@
 settings:
   model_arch: "DFEI" # architecture of the model to evaluate
-  model: 4 # version number or full path
-  data_dir: "/eos/user/y/yukaiz/DFEI_IFT/cached_data/DFEI_LHCb_LHCbcollision_normed_pt_data/"
-  ncpu: 8  # NCPUs for data loader, full dataset limited to 8 for workers due to cpu mem constraints
+  model: 7 # version number or full path
+  data_dir: "/eos/user/y/yukaiz/DFEI_IFT/data/DFEI_LHCb_LHCbcollision_normed_pt_data/"
+  ncpu: 16  # NCPUs for data loader, full dataset limited to 8 for workers due to cpu mem constraints
+  calibration: false
 
 inference:
-  edge_prune_thr: 0.9  # Edge prune threshold during reco
-  node_prune_thr: 0.9  # Node prune threshold during reco
+  edge_prune_thr: 0.1  # Edge prune threshold during reco
+  node_prune_thr: 0.1  # Node prune threshold during reco
   optimize_thr: false
   # allows enabling disabling certain plot features
   plt_nodes: true
@@ -14,7 +15,7 @@ inference:
   plt_pvs: true
 
 evaluate:
-  sample: [ "00338627_Bd_JpsiKst", "00338645_Bd_JpsiKst" ]
-  nfiles: [ 20 , 20 ]
-  over_write: "test" # argument to overwrite the output names to rerun safely the same sample: "" for no overwrite
+  sample: [ "00342629_Bs_Jpsiphi" ]
+  nfiles: [ 10 ]
+  over_write: "" # argument to overwrite the output names to rerun safely the same sample: "" for no overwrite
 

@@ -1,11 +1,11 @@
 # Global settings
 settings:
   # Input file information
-  data_dir: "/eos/user/y/yukaiz/DFEI_IFT/cached_data/DFEI_LHCb_LHCbcollision_normed_pt_data" # DFEI_pythia_nu7p6_normed_pt_data, DFEI_LHCb_LHCbcollision_normed_pt_data
-  sample: [ "00342442_inclusive", "00342451_inclusive","00342629_Bs_Jpsiphi", "00342638_Bs_Jpsiphi" ]
-  nfiles: [ 200, 200, 100, 100]
+  data_dir: "/eos/user/y/yukaiz/DFEI_IFT/data/DFEI_LHCb_LHCbcollision_normed_pt_data" # DFEI_pythia_nu7p6_normed_pt_data, DFEI_LHCb_LHCbcollision_normed_pt_data
+  sample: [ "00342629_Bs_Jpsiphi", "00342638_Bs_Jpsiphi", "00342442_inclusive", "00342451_inclusive", "00338645_Bd_JpsiKst", "00338627_Bd_JpsiKst" ]
+  nfiles: [ 100, 100, 200, 200, 100, 100]
   # Training settings
-  batch_size: 64
+  batch_size: 32 # 256
   lr: 1e-3
   weight_decay: 1e-5
   epochs: 100
@@ -15,7 +15,10 @@ settings:
   # Preselection filters
   graph_mode: "None"  # Apply pruning on initial graph: "true", "true_frag" "None"
   node_sel: "true"  # Pruner used to apply the graph mode above: "true", "zeros", "default"
-  pv_model: 4 # Initial PV association: DFEI_model_number, "true", "ip", "None"
+  pv_model: 7 # Initial PV association: DFEI_model_number, "true", "ip", "None"
+  calibration: true
+  calibrate_mode: [ "Bs_Jpsiphi", "Bd_JpsiKst" ]
+  to_whiten: [ "charge" ,'Prob_k', 'Prob_e', 'Prob_mu', 'Prob_p', 'Prob_pi', 'Prob_ghost' ] # list or -1
 
 inference:
   FT: True
@@ -24,8 +27,8 @@ inference:
   frag_weights: False
   # fragmentation inference is decapitated and was pythia simulation exclusive
   # Defining thresholds to remove bkg edges and nodes before reconstruction
-  edge_prune_thr: 0.9  # Edge prune threshold during reco
-  node_prune_thr: 0.9  # Node prune threshold during reco
+  edge_prune_thr: 0.1  # Edge prune threshold during reco
+  node_prune_thr: 0.1  # Node prune threshold during reco
 
 
 evaluate:
