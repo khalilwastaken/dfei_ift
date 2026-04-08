@@ -133,7 +133,12 @@ def obtain_pv_model(configs):
             hparams = yaml.safe_load(file)
         hparams['DFEI']['cpt'] = configs["settings"]["pv_model"]
         pos_weights = transform_pos_weight(None, None, mode="eval")
-        module = load_module(hparams, pos_weights)
+        module, ckpt = load_module(hparams, pos_weights)
+        if configs["settings"]["pv_model_name"] != "None":
+            checkpoint = torch.load(configs["settings"]["pv_model_name"])
+        else:
+            checkpoint = torch.load(ckpt)
+        module.load_state_dict(checkpoint["state_dict"])
         pv_model = DFEIPVAssoModule(module.model, hparams)
     else:
         raise ValueError("Invalid config")
