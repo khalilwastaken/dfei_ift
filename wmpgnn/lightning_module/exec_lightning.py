@@ -9,7 +9,7 @@ torch.set_float32_matmul_precision("high")
 seed_everything(42, workers=True)
 
 
-def training(module, configs, trn_loader=None, val_loader=None, chunkloader=None):
+def training(module, configs, trn_loader=None, val_loader=None, chunkloader=None, ckpt=None):
     # module = torch.compile(module)
     model = configs["model"]
 
@@ -36,6 +36,11 @@ def training(module, configs, trn_loader=None, val_loader=None, chunkloader=None
         save_last=False,
     )
 
+    if ckpt is not None:
+        print("=" * 15)
+        print("Loading checkpoint from")
+        print(ckpt)
+        print("=" * 15)
     log_dir = configs["log_dir"]
     tb_logger = TensorBoardLogger(save_dir=log_dir, name=model)
     csv_logger = CSVLogger(save_dir=log_dir, name=model, version=tb_logger.version)
@@ -57,21 +62,27 @@ def training(module, configs, trn_loader=None, val_loader=None, chunkloader=None
 
     """Start training"""
     if trn_loader is not None and val_loader is not None:
-        trainer.fit(module, trn_loader, val_loader)
+        trainer.fit(module, trn_loader, val_loader, ckpt_path=ckpt)
     elif chunkloader is not None:
-        trainer.fit(module, chunkloader)
+        trainer.fit(module, chunkloader, ckpt_path=ckpt)
     else:
         raise NotImplemented
     _ = trainer.logger.version
     return trainer
 
 
-def evaluate(trainer, module, tst_loader=None, chunkloader=None):
+def evaluate(trainer, module, tst_loader=None, chunkloader=None, ckpt=None):
+    if ckpt is not None:
+        print("=" * 15)
+        print("Loading checkpoint from")
+    else:
+        raise NotImplemented("ckpt needs to be specified")
+
     if trainer is None:
         trainer = Trainer(
             default_root_dir=f'lightning_logs/version_0',  # save the eval stuff in the dir of the model
         )
     if tst_loader is not None:
-        trainer.test(module, dataloaders=tst_loader)
+        trainer.test(module, dataloaders=tst_loader, ckpt_path=ckpt)
     else:
-        trainer.test(module, dataloaders=chunkloader)
+        trainer.test(module, dataloaders=chunkloader, ckpt_path=ckpt)

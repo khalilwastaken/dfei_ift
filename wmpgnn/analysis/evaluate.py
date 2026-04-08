@@ -26,23 +26,26 @@ if __name__ == "__main__":
     with open(option.CONFIG, "r") as file:
         configs = yaml.safe_load(file)
     configs = adjust_config_evaluation(configs)
-
     configs, tst_loader, chunkloader = load_tst_loader(configs)
     pos_weights = transform_pos_weight(None, None, mode="eval")
 
     # Obtaining the lightning module for evaluation
     if configs["model"] == "DFEI":
         # Obtain the DFEI module
-        module = load_module(configs, pos_weights)
+        module, _ = load_module(configs, pos_weights)
     elif configs["model"] == "IFT":
         # Loading the DFEI model by loading the hparams of the used model
         # load dfei module
         configs, dfei_model = load_dfei_for_ift(configs)
-        module = load_module(configs, pos_weights, dfei_model=dfei_model)
+        module, _ = load_module(configs, pos_weights, dfei_model=dfei_model)
     else:
         raise RuntimeError("No configuration file specified")
 
-    evaluate(None, module, tst_loader=tst_loader, chunkloader=chunkloader)
+    if configs["settings"]["model_name"] == "None":
+        ckpt = "best"
+    else:
+        ckpt = configs["settings"]["model_name"]
+    evaluate(None, module, tst_loader=tst_loader, chunkloader=chunkloader, ckpt=ckpt)
     # Creating loss plots and acc evaluation
     version = configs[configs["model"]]["cpt"]
     metric_path = f"{configs['log_dir']}/{configs['model']}/version_{version}/metrics.csv"

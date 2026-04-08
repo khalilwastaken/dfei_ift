@@ -30,7 +30,12 @@ def load_dfei_for_ift(configs):
 
         dfei_hparams["DFEI"]["cpt"] = dfei_bis_model
         configs["DFEI"] = dfei_hparams["DFEI"]
-        module = load_module(dfei_hparams, pos_weights)
+        module, ckpt = load_module(dfei_hparams, pos_weights)
+        if configs["settings"]["dfei_model_name"] != "None":
+            checkpoint = torch.load(configs["settings"]["dfei_model_name"])
+        else:
+            checkpoint = torch.load(ckpt)
+        module.load_state_dict(checkpoint["state_dict"])
         model = module.model
     else:
         print("No DFEI model specified. Information from pv asso/truth is used as a replacement")
@@ -38,106 +43,77 @@ def load_dfei_for_ift(configs):
     return configs, model
 
 
-def get_bis_model(version: int, configs: Dict) -> str:
+def get_bis_model(version: int, configs: Dict, mode: str) -> str:
     # find the model with the best performance in the checkpoints
     model = configs["model"]
     log_dir = configs["log_dir"]
     files = glob.glob(f"{log_dir}/{model}/version_{version}/checkpoints/*best-epoch*.ckpt")
-    if model == "DFEI":
-        pattern = re.compile(r"val_combined_loss=([\d.]+)")
-    elif model == "IFT":
-        pattern = re.compile(r"val_ft_loss=([\d.]+)")
-    else:
-        raise ValueError(f"undefined model: {model}")
-    bis = min(files, key=lambda s: float(pattern.search(s).group(1)[:-1]))
-    return bis
-
-
-def load_module(configs: Dict, pos_weights:Dict, dfei_model=None, mode="simulation"):
-    model = configs["model"]
-    # Checking if need to load from cpt
-    load_from_cpt = configs[model]["cpt"]
-    if isinstance(configs[model]["cpt"], int):  # adjusting if passed an int
-        bis_model = get_bis_model(load_from_cpt, configs)
-    else:
-        bis_model = configs[model]["cpt"]
-    lr = float(configs["settings"]["lr"])
-    weight_decay = float(configs["settings"]["weight_decay"])
-    if mode == "simulation":
-        if model == "DFEI":
-            model = DFEI_HGNN(configs[model])
-            if load_from_cpt == "None":
-                module = DFEILightningModule(
-                    model=model,
-                    optimizer_class=torch.optim.Adam,
-                    optimizer_params={"lr": lr, "weight_decay": weight_decay},
-                    configs=configs,
-                    pos_weights=pos_weights,
-                )
-            else:
-                print("Loading from checkpoint")
-                print(bis_model)
-                print("=" * 30)
-                module = DFEILightningModule.load_from_checkpoint(
-                    checkpoint_path=bis_model,
-                    model=model,
-                    pos_weights=pos_weights,
-                    optimizer_class=torch.optim.Adam,
-                    optimizer_params={"lr": lr, "weight_decay": weight_decay},
-                    configs=configs,
-                )
-        elif model == "IFT":
-            model = FT_HGNN(configs["IFT"])
-            if load_from_cpt == "None":
-                module = IFTLightningModule(
-                    model=model,
-                    dfei_model=dfei_model,
-                    optimizer_class=torch.optim.Adam,
-                    optimizer_params={"lr": lr, "weight_decay": weight_decay},
-                    configs=configs,
-                    pos_weights=pos_weights,
-                )
-            else:
-                #bis_model = "LHCb_logs/IFT/version_2/checkpoints/best-epoch=20-val_ft_loss=0.573.ckpt"
-                print("Loading from checkpoint")
-                print(bis_model)
-                print("=" * 30)
-                module = IFTLightningModule.load_from_checkpoint(
-                    checkpoint_path=bis_model,
-                    model=model,
-                    dfei_model=dfei_model,
-                    pos_weights=pos_weights,
-                    optimizer_class=torch.optim.Adam,
-                    optimizer_params={"lr": lr, "weight_decay": weight_decay},
-                    configs=configs,
-                )
+    if mode == "bis":
+        if "DFEI" in model:
+            pattern = re.compile(r"val_combined_loss=([\d.]+)")
+        elif "IFT" in model:
+            pattern = re.compile(r"val_ft_loss=([\d.]+)")
         else:
-            raise ValueError("Invalid model")
-    elif mode == "data":
-        print("Loading from checkpoint")
-        print(bis_model)
-        print("=" * 30)
-        if model == "DFEI":
-            raise NotImplementedError
-            model = DFEI_HGNN(configs[model])
-            module = DFEILightningModule.load_from_checkpoint(
-                checkpoint_path=bis_model,
+            raise ValueError(f"undefined model: {model}")
+        model = min(files, key=lambda s: float(pattern.search(s).group(1)[:-1]))
+    elif mode == "None":
+        pattern = re.compile(r"best-epoch=([\d]+)")
+        model = max(files, key=lambda s: float(pattern.search(s).group(1)))
+    else:
+        model = f"{log_dir}/{model}/version_{version}/checkpoints/{mode}"
+    return model
+
+
+def load_module(configs: Dict, pos_weights: Dict, dfei_model=None, mode="simulation"):
+    model_name = configs["model"]
+    if model_name == "DFEI":
+        model = DFEI_HGNN(configs[model_name])
+    elif model_name == "IFT":
+        model = FT_HGNN(configs[model_name])
+    else:
+        raise NotImplementedError
+
+    # Checking if need to load from cpt
+    load_from_cpt = configs[model_name]["cpt"]
+    if isinstance(configs[model_name]["cpt"], int):  # adjusting if passed an int
+        bis_model = get_bis_model(load_from_cpt, configs, configs[model_name]["cpt_name"])
+    else:
+        bis_model = None
+
+    if mode == "simulation":
+        lr = float(configs["settings"]["lr"])
+        weight_decay = float(configs["settings"]["weight_decay"])
+        if model_name == "DFEI":
+            module = DFEILightningModule(
                 model=model,
-                pos_weights=pos_weights,
                 optimizer_class=torch.optim.Adam,
                 optimizer_params={"lr": lr, "weight_decay": weight_decay},
                 configs=configs,
+                pos_weights=pos_weights,
             )
-        elif model == "IFT":
-            model = FT_HGNN(configs["IFT"])
-            module = IFTLightningModuleData.load_from_checkpoint(
-                checkpoint_path=bis_model,
+        elif model_name == "IFT":
+            module = IFTLightningModule(
+                model=model,
+                dfei_model=dfei_model,
+                optimizer_class=torch.optim.Adam,
+                optimizer_params={"lr": lr, "weight_decay": weight_decay},
+                configs=configs,
+                pos_weights=pos_weights,
+            )
+        else:
+            raise NotImplementedError
+    elif mode == "data":
+        if model_name == "DFEI":
+            raise NotImplementedError
+        elif model_name == "IFT":
+            module = IFTLightningModuleData(
                 model=model,
                 dfei_model=dfei_model,
                 configs=configs,
             )
         else:
-            raise ValueError("Invalid model")
+            raise NotImplementedError
     else:
-        raise ValueError("Invalid mode")
-    return module
+        raise NotImplementedError
+
+    return module, bis_model

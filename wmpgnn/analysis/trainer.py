@@ -35,17 +35,18 @@ if __name__ == "__main__":
     # Obtaining the lightning module for training
     if configs["model"] == "DFEI":
         # Obtain the DFEI module
-        module = load_module(configs, pos_weights)
+        module, ckpt = load_module(configs, pos_weights)
     elif configs["model"] == "IFT":
         # Loading the DFEI model by loading the hparams of the used model
         # load dfei module
         configs, dfei_model = load_dfei_for_ift(configs)
-        module = load_module(configs, pos_weights, dfei_model=dfei_model)
+        module, ckpt = load_module(configs, pos_weights, dfei_model=dfei_model)
     else:
         raise RuntimeError("No configuration file specified")
 
     """Start the training"""
-    trainer = training(module, configs, trn_loader=trn_loader, val_loader=val_loader, chunkloader=chunkloader)
+    trainer = training(module, configs,
+                       trn_loader=trn_loader, val_loader=val_loader, chunkloader=chunkloader, ckpt=ckpt)
     version = trainer.logger.version
 
     # Saving the raw input config file
@@ -54,7 +55,7 @@ if __name__ == "__main__":
 
     """Start the testing"""
     configs, tst_loader, chunkloader = load_tst_loader(configs)
-    evaluate(trainer, module, tst_loader=tst_loader, chunkloader=chunkloader)
+    evaluate(trainer, module, tst_loader=tst_loader, chunkloader=chunkloader, ckpt="best")
     # Creating loss plots and acc evaluation
     metric_path = f"{configs['log_dir']}/{configs['model']}/version_{version}/metrics.csv"
     metrics_eval(metric_path, configs, version)
