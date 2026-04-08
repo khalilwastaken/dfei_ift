@@ -44,7 +44,7 @@ class ChunkDataset(IterableDataset):
         self.seed_tracker = 0
 
     @staticmethod
-    def _generate_groups(n_chunks: int, low: int, high: int)-> torch.Tensor:
+    def _generate_groups(n_chunks: int, low: int, high: int) -> torch.Tensor:
         groups = []
         available = np.arange(low, high)
         interval_size = high - low
@@ -134,12 +134,15 @@ class ChunkDataset(IterableDataset):
         weights = {}
         for i in range(10):
             weights[i] = self._load_chunk(i, mode="weights")
+        print("Done")
+        print("=" * 15)
         return weights
 
 
 class ChunkLoader(pl.LightningDataModule):
     # Data container for pytorch lightning module
-    def __init__(self, configs, trn_dataset=None, val_dataset=None, tst_dataset=None, batch_size=None, num_workers=None):
+    def __init__(self, configs, trn_dataset=None, val_dataset=None, tst_dataset=None, batch_size=None,
+                 num_workers=None):
         super().__init__()
         self.trn_dataset = trn_dataset
         self.val_dataset = val_dataset
@@ -194,7 +197,7 @@ def get_trn_val_loaders(_configs) -> ChunkLoader:
         path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/trn_data_*'))[:files]
 
     # Number of chunks definition and safeguard for the files per chunk to be less than 8
-    min_files\
+    min_files \
         = min(len(v) for v in path_dict.values() if len(v) > 0)
     total_files = sum(len(v) for v in path_dict.values())
     num_chunks = np.ceil(min_files / num_workers).astype(int)
@@ -208,7 +211,7 @@ def get_trn_val_loaders(_configs) -> ChunkLoader:
 
     """Validation"""
     path_dict = {}
-    for sample, files  in nfiles.items():
+    for sample, files in nfiles.items():
         path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/val_data_*'))[:5]
     val_dataset = ChunkDataset(path_dict, _configs, mode="validation", n_chunks=num_chunks)
 
