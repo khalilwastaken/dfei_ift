@@ -57,7 +57,6 @@ def transform_pos_weight(_weights, _configs, mode="train"):
         "frag": torch.ones(1),
         "pv_asso": torch.ones(1)
     }
-
     if mode == "eval":
         return pos_weight
 
@@ -73,24 +72,24 @@ def transform_pos_weight(_weights, _configs, mode="train"):
     else:
         summed = _weights
 
-    if _configs.get("LCA__weights"):
+    if _configs.get("LCA_weights"):
         pos_weight["LCA"] = torch.sum(summed["LCA"]) / (4 * summed["LCA"])
 
-    if _configs.get("node_prune__weights"):
+    if _configs.get("node_prune_weights"):
         pos_weight["nodes"] = torch.tensor([summed["neg_nodes"] / summed["pos_nodes"]])
 
-    if _configs.get("edge_prune__weights"):
+    if _configs.get("edge_prune_weights"):
         pos_weight["edges"] = torch.tensor([summed["neg_edges"] / summed["pos_edges"]])
 
-    if _configs.get("frag__weights"):
+    if _configs.get("frag_weights"):
         pos_weight["frag"] = torch.tensor(summed["neg_frag"] / summed["pos_frag"])
 
-    if _configs.get("FT__weights"):
+    if _configs.get("FT_weights"):
         ft__weights = torch.sum(summed["FT"]) / (3 * summed["FT"])
         ft__weights[torch.isinf(ft__weights)] = 1.0
         pos_weight["FT"] = ft__weights
 
-    if _configs.get("pv_asso__weights") and summed["neg_pv_asso"] != 0:
+    if _configs.get("pv_asso_weights") and summed["neg_pv_asso"] != 0:
         pos_weight["pv_asso"] = torch.tensor([summed["neg_pv_asso"] / summed["pos_pv_asso"]])
 
     return pos_weight
