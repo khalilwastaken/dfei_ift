@@ -57,13 +57,13 @@ def adjust_config_training(_configs: Dict) -> Dict:
 
     return _configs
 
+
+# function to overwrite the config file with new settings
 def update_nested_dict(target, source):
     keys_to_update = source.keys()
-
     for key in keys_to_update:
         if key not in source:
             continue
-
         if key not in target:
             target[key] = source[key]
         elif isinstance(source[key], dict) and isinstance(target[key], dict):
@@ -71,6 +71,7 @@ def update_nested_dict(target, source):
         else:
             target[key] = source[key]
     return target
+
 
 def adjust_config_evaluation(_configs: Dict) -> Dict:
     # Obtaining the model_to be trained
@@ -87,9 +88,10 @@ def adjust_config_evaluation(_configs: Dict) -> Dict:
         hparams = yaml.safe_load(file)
     # overwriting settings from evaluation
     hparams = update_nested_dict(hparams, _configs)
-    hparams[_configs["model"]]["cpt"] = _configs["settings"]["model"] # loading from cpt for eval
+    hparams[_configs["model"]]["cpt"] = _configs["settings"]["model"]  # loading from cpt for eval
     if _configs["model"] == "DFEI":
         hparams = adjust_dfei_configs(hparams)
+        # here we can overwrite the plot configs
     elif _configs["model"] == "IFT":
         hparams = adjust_ift_configs(hparams)
 
