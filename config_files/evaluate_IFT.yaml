@@ -1,16 +1,19 @@
 settings:
   model_arch: "IFT" # architecture of the model to evaluate
-  model: 0 # version number or full path
+  model: 0 # version number (auto select bis)
+  model_name: "None" # "best-epoch" path, "None" for auto select bis
   # dfei model for IFT, always specify for logging with clear information
-  dfei_model: "None" # DFEI model which is used within IFT: "None", "DFEI_version_number"
-  data_dir: "/eos/user/y/yukaiz/DFEI_IFT/cached_data/DFEI_LHCb_data_normed_pt_data"
+  dfei_model: "None" # DFEI model which is used within IFT: "None", "DFEI_version_number" (auto select bis)
+  dfei_model_name: "None" # name to specify the model, "None" (best model auto selected)
+  data_dir: "/eos/user/y/yukaiz/DFEI_IFT/data/DFEI_LHCb_LHCbcollision_normed_pt_data"
   ncpu: 8  # NCPUs for data loader, full dataset limited to 8 for workers due to cpu mem constraints
+  calibrate_mode: [ "Bu_JpsiK" ] # if adding, the channel will be whitenend additional to the default of the trained one
 
 inference:
   edge_prune_thr: 0.1  # Edge prune threshold during reco
   node_prune_thr: 0.1  # Node prune threshold during reco
 
 evaluate:
-  sample: [ "23456700_Bu_JpsiK" ]
-  nfiles: [ 10 ]
-  over_write: "" # argument to overwrite the output names to rerun safely the same sample: "" for no overwrite
+  sample: [ "00338678_Bu_JpsiK" ]
+  nfiles: [ 1 ]
+  over_write: "test" # argument to overwrite the output names to rerun safely the same sample: "" for no overwrite

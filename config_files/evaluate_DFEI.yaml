@@ -1,6 +1,7 @@
 settings:
   model_arch: "DFEI" # architecture of the model to evaluate
-  model: 7 # version number or full path
+  model: 7 # Only version number, auto select the bis model
+  model_name: "None" # "best-epoch" path, "None" for auto select bis
   data_dir: "/eos/user/y/yukaiz/DFEI_IFT/data/DFEI_LHCb_LHCbcollision_normed_pt_data/"
   ncpu: 16  # NCPUs for data loader, full dataset limited to 8 for workers due to cpu mem constraints
   calibration: false
