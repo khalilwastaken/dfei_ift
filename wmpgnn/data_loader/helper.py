@@ -12,10 +12,9 @@ from wmpgnn.calibration.calibration_mask import *
 from wmpgnn.data_loader.weights_calculator import get_hetero_weight
 
 
-def get_nfiles(_configs):
-    samples = _configs["sample"]
+def get_nfiles(_configs, prefix=""):
     nfiles = {}
-    for sample, nfile in zip(samples, _configs["nfiles"]):
+    for sample, nfile in zip(_configs[f"{prefix}sample"], _configs[f"{prefix}nfiles"]):
         nfiles[sample] = nfile
     return nfiles
 
@@ -83,7 +82,11 @@ def load_dataset(path, configs, mode="train", pv_asso_model=None):
 
     """Whitening for calibration"""
     if configs["settings"]["calibration"]:
-        filtered_data = adjust_for_calibration(configs, path, filtered_data, n_cores=int(configs["settings"]["ncpu"] / 2))
+        filtered_data = adjust_for_calibration(configs, path, filtered_data,
+                                               n_cores=int(configs["settings"]["ncpu"] / 2))
+
+    """Domain adaptation labeling"""
+    usage = configs[configs["model"]].get("domain_adapt", {}).get("usage", False)
 
     if mode == "weights_only":
         weights = get_hetero_weight(filtered_data, configs)
