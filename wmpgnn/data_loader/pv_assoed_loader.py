@@ -157,7 +157,6 @@ def get_trn_val_loaders(configs):
     nevts = {"training": {}, "validation": {}}
 
     """Train and validation data"""
-    print("Training:")
     load_train_dataset = partial(load_dataset, configs=configs, mode="train_weights", pv_asso_model=pv_model)
     load_val_dataset = partial(load_dataset, configs=configs, mode="val", pv_asso_model=pv_model)
     trn_dataset = []
@@ -193,7 +192,7 @@ def get_trn_val_loaders(configs):
             trn_paths = sorted(glob.glob(f'{da_datadir}/{sample}/trn_data_*'))[:files]
             with ThreadPool(processes=ncpus) as pool:
                 results = list(tqdm(pool.imap(load_val_dataset, trn_paths), total=len(trn_paths),
-                                    desc=f"Loading {sample} training dataset"))
+                                    desc=f"Loading {sample} training dataset (da)"))
             for r in results:
                 trn_dataset.extend(r)
                 nevts["training"][sample] += len(r)

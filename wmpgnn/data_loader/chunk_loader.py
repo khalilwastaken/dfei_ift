@@ -200,6 +200,7 @@ def get_trn_val_loaders(_configs) -> ChunkLoader:
 
     # Adding domain adapt data files
     if _configs["settings"].get("domain_adapt"):
+        print("Using domain adaptation")
         da_datadir = _configs["settings"]["da_data_dir"]
         da_nfiles = get_nfiles(_configs["settings"], prefix="da_")
         for sample, files in da_nfiles.items():
