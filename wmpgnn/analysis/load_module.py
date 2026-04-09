@@ -7,7 +7,9 @@ import torch
 from typing import Dict
 
 from wmpgnn.data_loader.weights_calculator import transform_pos_weight
-from wmpgnn.model.model import DFEI_HGNN, FT_HGNN
+from wmpgnn.model.model import *
+
+# change where to import it, so i can have the same naming
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
 from wmpgnn.lightning_module.ift_lightning_module import IFTLightningModule
 from wmpgnn.lightning_module.ift_data_lightning_module import IFTLightningModuleData
@@ -67,7 +69,10 @@ def get_bis_model(version: int, configs: Dict, mode: str) -> str:
 def load_module(configs: Dict, pos_weights: Dict, dfei_model=None, mode="simulation"):
     model_name = configs["model"]
     if model_name == "DFEI":
-        model = DFEI_HGNN(configs[model_name])
+        if configs["settings"].get("domain_adapt"):
+            model = DFEI_DA_HGNN(configs[model_name])
+        else:
+            model = DFEI_HGNN(configs[model_name])
     elif model_name == "IFT":
         model = FT_HGNN(configs[model_name])
     else:

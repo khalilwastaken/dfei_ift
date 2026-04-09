@@ -1,9 +1,11 @@
 import torch
 import torch.nn as nn
+from torch_geometric.data import Batch
 
 from wmpgnn.model.model_helper import *
 from wmpgnn.model.gnn.hetero_graphcoder import HeteroGraphCoder
 from wmpgnn.model.gnn.hetero_output_trafo import HeteroGraphTrafo
+from wmpgnn.model.gnn.hetero_domain_adapt import HeteroDomainAdapt
 
 import pytorch_lightning as pl
 
@@ -16,6 +18,11 @@ def hetero_graph_concat(g1, g2):
         graph[node_type].x = torch.cat([g1[node_type].x, g2[node_type].x], -1)
     graph['globals'].x = torch.cat([g1['globals'].x, g2['globals'].x], -1)
     return graph
+
+
+"""
+Normally used models
+"""
 
 
 class DFEI_HGNN(pl.LightningModule):
@@ -42,6 +49,7 @@ class DFEI_HGNN(pl.LightningModule):
             self._op_trafo = HeteroGraphTrafo(config["op_trafo"])
 
     def forward(self, data):
+        # this init_graph_pid is not used anymore, was used during GNblock FT inference
         init_graph_pid = data['tracks'].x[:, -6:]  # charge + 5 pid, hard coded be careful
         # Latent graph
         if self.encode:
@@ -85,6 +93,7 @@ class FT_HGNN(nn.Module):
             self._op_trafo = HeteroGraphTrafo(config["op_trafo"])
 
     def forward(self, data):
+        # this init_graph_pid is not used anymore, was used during GNblock FT inference
         init_graph_pid = data['tracks'].x[:, -6:]  # charge + 5 pid, hard coded be careful
 
         # Latent graph
@@ -103,6 +112,11 @@ class FT_HGNN(nn.Module):
         data = self._op_trafo(data)
 
         return data
+
+
+"""
+Combined training of DFEI and FT model
+"""
 
 
 class DFEIFT(pl.LightningModule):
@@ -138,4 +152,66 @@ class DFEIFT(pl.LightningModule):
 
         if self.dfei_usage:
             data[("tracks", "to", "tracks")].lca = lca
+        return data
+
+
+"""
+Model including Domain adaptation training strategies
+"""
+
+
+class DFEI_DA_HGNN(pl.LightningModule):
+    def __init__(self, config):
+        super().__init__()
+        node_types = config["node_types"]
+        edge_types = [(edge.split('_')[0], 'to', edge.split('_')[1]) for edge in config["edge_types"]]
+
+        # Start setting up the DFEI model
+        self.encode = config["encoder"]["usage"]
+        if self.encode:
+            self._encoder = HeteroGraphCoder(config["encoder"], node_types, edge_types)
+
+
+        self._domain_adapt = HeteroDomainAdapt(config["domain_adapt"], node_types, edge_types)
+
+        self.GN_block = config["GNblocks"]["nBlocks"] > 0
+        if self.GN_block:
+            self._blocks = get_blocks(config["GNblocks"], node_types, edge_types)
+
+        self.decode = config["decoder"]["usage"]
+        if self.decode:
+            self._decoder = HeteroGraphCoder(config["decoder"], node_types, edge_types)
+
+        self.out_trafo = config["op_trafo"]["usage"]
+        if self.out_trafo:
+            self._op_trafo = HeteroGraphTrafo(config["op_trafo"])
+
+    def forward(self, data):
+        # this init_graph_pid is not used anymore, was used during GNblock FT inference
+        init_graph_pid = data['tracks'].x[:, -6:]  # charge + 5 pid, hard coded be careful
+        # Latent graph
+        if self.encode:
+            data = self._encoder(data)
+
+        # get the domain adapt score
+        self._domain_adapt(data)
+
+        # split the graph apart as rest runs on MC only
+        mc_selbool = data["da_label"] == 0
+        indices = mc_selbool.nonzero(as_tuple=True)[0].tolist()
+        data = Batch.from_data_list([data.get_example(i) for i in indices])
+        latent = data.clone()
+
+        import pdb; pdb.set_trace()
+
+        for b, core in enumerate(self._blocks):
+            data = core(data, init_graph_pid)
+            if b < (len(self._blocks) - 1):
+                data = hetero_graph_concat(latent, data)
+
+        if self.decode:
+            data = self._decoder(data)
+
+        data = self._op_trafo(data)
+
         return data
