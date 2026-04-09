@@ -156,12 +156,24 @@ def get_trn_val_loaders(configs):
 
     nevts = {"training": {}, "validation": {}}
 
+    # For domain adaptation matching
+    ex_graph = None
+    if _configs["settings"].get("domain_adapt"):
+        conf = configs["settings"]
+        trn_paths = sorted(glob.glob(f'{conf["data_dir"]}/{conf["sample"][0]}/trn_data_*'))[0]
+        ex_mc = load_file(trn_paths)[0]
+        trn_paths = sorted(glob.glob(f'{conf["da_data_dir"]}/{conf["da_sample"][0]}/trn_data_*'))[0]
+        ex_data = load_file(trn_paths)[0]
+        ex_graph = unify_heterodata(ex_data, ex_mc)
+
     """Train and validation data"""
-    load_train_dataset = partial(load_dataset, configs=configs, mode="train_weights", pv_asso_model=pv_model)
-    load_val_dataset = partial(load_dataset, configs=configs, mode="val", pv_asso_model=pv_model)
+    load_train_dataset = partial(load_dataset, configs=configs, mode="train_weights", pv_asso_model=pv_model,
+                                 ex_graph=ex_graph)
+    load_val_dataset = partial(load_dataset, configs=configs, mode="val", pv_asso_model=pv_model, ex_graph=ex_graph)
     trn_dataset = []
     val_dataset = []
     weights = {}
+
     with Pool(processes=ncpus) as pool:
         for sample, files in nfiles.items():
             # Training

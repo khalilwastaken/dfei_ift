@@ -8,6 +8,7 @@ from torch_geometric.loader import DataLoader
 
 from wmpgnn.util.pruners import *
 from wmpgnn.util.pv_association import pv_associate_data
+from wmpgnn.util.hetero_data_matching import unify_heterodata
 from wmpgnn.calibration.calibration_mask import *
 from wmpgnn.data_loader.weights_calculator import get_hetero_weight
 
@@ -18,8 +19,7 @@ def get_nfiles(_configs, prefix=""):
         nfiles[sample] = nfile
     return nfiles
 
-
-def load_dataset(path, configs, mode="train", pv_asso_model=None):
+def load_file(path):
     dctx = zstd.ZstdDecompressor()
     with open(path, 'rb') as f:
         with dctx.stream_reader(f) as reader:
@@ -27,6 +27,11 @@ def load_dataset(path, configs, mode="train", pv_asso_model=None):
             decompressed = reader.read()
             # Load from BytesIO buffer
             data = torch.load(io.BytesIO(decompressed), weights_only=False)
+    return data
+
+
+def load_dataset(path, configs, mode="train", pv_asso_model=None, ex_graph=None):
+    data = load_file(path)
 
     """Applying pruning for different using truth pruning initially"""
     if "true" in configs["settings"]["graph_mode"]:  # here we need to apply the pv association as well
@@ -93,6 +98,8 @@ def load_dataset(path, configs, mode="train", pv_asso_model=None):
             label = torch.tensor([0]) # MC label
         for evt in filtered_data:
             evt["da_label"] = label
+            if ex_graph is not None:
+                unify_heterodata(evt, ex_graph) # storage within graph which do not exist are padded with 0
 
     if mode == "weights_only":
         weights = get_hetero_weight(filtered_data, configs)
