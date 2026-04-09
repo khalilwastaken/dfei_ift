@@ -122,7 +122,7 @@ class TruePVAssoModule(L.LightningModule):
 def obtain_pv_model(configs):
     # this needs to be adapted
     pv_model = configs["settings"]["pv_model"]
-    if  pv_model == "true" or pv_model == "ip":
+    if pv_model == "true" or pv_model == "ip":
         print(f"Using {pv_model} information for association")
         pv_model = TruePVAssoModule(configs)
     elif isinstance(pv_model, int):
@@ -148,7 +148,7 @@ def obtain_pv_model(configs):
 def get_trn_val_loaders(configs):
     data_dir = configs["settings"]["data_dir"]
     # default 8 -> 2 parallel loading data and forward pass, 4 each during association
-    ncpus =  int(configs["settings"]["ncpu"] / 4)
+    ncpus = int(configs["settings"]["ncpu"] / 4)
     nfiles = get_nfiles(configs["settings"])
 
     # Getting the PV model
@@ -156,11 +156,15 @@ def get_trn_val_loaders(configs):
 
     nevts = {"training": {}, "validation": {}}
 
+    """Train and validation data"""
     print("Training:")
     load_train_dataset = partial(load_dataset, configs=configs, mode="train_weights", pv_asso_model=pv_model)
+    load_val_dataset = partial(load_dataset, configs=configs, mode="val", pv_asso_model=pv_model)
     trn_dataset = []
+    val_dataset = []
     weights = {}
     for sample, files in nfiles.items():
+        # Training
         nevts["training"][sample] = 0
         trn_paths = sorted(glob.glob(f'{data_dir}/{sample}/trn_data_*'))[:files]
         with ThreadPool(processes=ncpus) as pool:
@@ -169,16 +173,9 @@ def get_trn_val_loaders(configs):
         for r in results:
             trn_dataset.extend(r[0])
             for key, value in r[1].items():
-                if key not in weights:
-                    weights[key] = value
-                else:
-                    weights[key] += value
+                weights[key] = weights.get(key, 0) + value
             nevts["training"][sample] += len(r[0])
-
-    print("Validation:")
-    load_val_dataset = partial(load_dataset, configs=configs, mode="val", pv_asso_model=pv_model)
-    val_dataset = []
-    for sample, files in nfiles.items():
+        # Validation
         nevts["validation"][sample] = 0
         val_paths = sorted(glob.glob(f'{data_dir}/{sample}/val_data_*'))[:files]
         with ThreadPool(processes=ncpus) as pool:
@@ -187,13 +184,35 @@ def get_trn_val_loaders(configs):
         for r in results:
             val_dataset.extend(r)
             nevts["validation"][sample] += len(r)
+
+    if _configs["settings"].get("domain_adapt"):
+        da_datadir = _configs["settings"]["da_data_dir"]
+        da_nfiles = get_nfiles(_configs["settings"], prefix="da_")
+        for sample, files in da_nfiles.items():
+            # Training, dont calculate weights -> load_val_dataset
+            trn_paths = sorted(glob.glob(f'{da_datadir}/{sample}/trn_data_*'))[:files]
+            with ThreadPool(processes=ncpus) as pool:
+                results = list(tqdm(pool.imap(load_val_dataset, trn_paths), total=len(trn_paths),
+                                    desc=f"Loading {sample} training dataset"))
+            for r in results:
+                trn_dataset.extend(r)
+                nevts["training"][sample] += len(r)
+            # Validation
+            val_paths = sorted(glob.glob(f'{da_datadir}/{sample}/val_data_*'))[:files]
+            with ThreadPool(processes=ncpus) as pool:
+                results = list(tqdm(pool.imap(load_val_dataset, val_paths), total=len(val_paths),
+                                    desc=f"Loading {sample} validation dataset (da)"))
+            for r in results:
+                val_dataset.extend(r)
+                nevts["validation"][sample] += len(r)
+
     print(f"Train dataset       : {len(trn_dataset)}")
     print(f"Validation dataset  : {len(val_dataset)}")
     print("=" * 30)
+
     # Creating the dataloaders
     batch_size = configs["settings"]["batch_size"]
     trn_loader = DataLoader(trn_dataset, batch_size=batch_size, num_workers=ncpus * 2, drop_last=True, shuffle=True)
-
     # Shuffle the initial dataset of validation as it is currently sorted by the samples
     generator = torch.Generator()
     shuffled_indices = torch.randperm(len(val_dataset), generator=generator).tolist()
@@ -203,7 +222,7 @@ def get_trn_val_loaders(configs):
     return trn_loader, val_loader, weights, nevts
 
 
-def get_tst_loader(configs, model="DFEI"):
+def get_tst_loader(configs):
     data_dir = configs["settings"]["data_dir"]
     # default 8 -> 2 parallel loading data and forward pass, 4 each during association
     ncpus = int(configs["settings"]["ncpu"] / 4)

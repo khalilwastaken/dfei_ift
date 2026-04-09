@@ -191,29 +191,32 @@ def get_trn_val_loaders(_configs) -> ChunkLoader:
     num_workers = _configs["settings"]["ncpu"] * 2
     nfiles = get_nfiles(_configs["settings"])
 
-    """Training"""
-    path_dict = {}
+    """Paths of the train and validation files"""
+    trn_path_dict = {}
+    val_path_dict = {}
     for sample, files in nfiles.items():
-        path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/trn_data_*'))[:files]
+        trn_path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/trn_data_*'))[:files]
+        val_path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/val_data_*'))
+
+    # Adding domain adapt data files
+    if _configs["settings"].get("domain_adapt"):
+        da_datadir = _configs["settings"]["da_data_dir"]
+        da_nfiles = get_nfiles(_configs["settings"], prefix="da_")
+        for sample, files in da_nfiles.items():
+            trn_path_dict[sample] = sorted(glob.glob(f'{da_datadir}/{sample}/trn_data_*'))[:files]
+            val_path_dict[sample] = sorted(glob.glob(f'{da_datadir}/{sample}/val_data_*'))[:files]
 
     # Number of chunks definition and safeguard for the files per chunk to be less than 8
-    min_files \
-        = min(len(v) for v in path_dict.values() if len(v) > 0)
-    total_files = sum(len(v) for v in path_dict.values())
+    min_files = min(len(v) for v in trn_path_dict.values() if len(v) > 0)
+    total_files = sum(len(v) for v in trn_path_dict.values())
     num_chunks = np.ceil(min_files / num_workers).astype(int)
     # Safeguard: increase chunks until files_per_chunk < 8, this can be adapted
     while total_files / num_chunks >= 8:
         num_chunks += num_workers
     print(f"Number of chunks: {num_chunks}")
     print(f"Files per chunk: {np.ceil(total_files / num_chunks).astype(int)}")
-
-    trn_dataset = ChunkDataset(path_dict, _configs, mode="train", n_chunks=num_chunks)
-
-    """Validation"""
-    path_dict = {}
-    for sample, files in nfiles.items():
-        path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/val_data_*'))[:5]
-    val_dataset = ChunkDataset(path_dict, _configs, mode="validation", n_chunks=num_chunks)
+    trn_dataset = ChunkDataset(trn_path_dict, _configs, mode="train", n_chunks=num_chunks)
+    val_dataset = ChunkDataset(val_path_dict, _configs, mode="validation", n_chunks=num_chunks)
 
     return ChunkLoader(_configs, trn_dataset=trn_dataset, val_dataset=val_dataset)
 
