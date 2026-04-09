@@ -86,7 +86,13 @@ def load_dataset(path, configs, mode="train", pv_asso_model=None):
                                                n_cores=int(configs["settings"]["ncpu"] / 2))
 
     """Domain adaptation labeling"""
-    usage = configs[configs["model"]].get("domain_adapt", {}).get("usage", False)
+    if configs["settings"]["domain_adapt"]:
+        if configs["settings"]["da_data_dir"] in path:
+            label = torch.tensor([1]) # data label
+        else:
+            label = torch.tensor([0]) # MC label
+        for evt in filtered_data:
+            evt["da_label"] = label
 
     if mode == "weights_only":
         weights = get_hetero_weight(filtered_data, configs)

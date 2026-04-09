@@ -11,7 +11,16 @@ def get_hetero_weight(_data, _configs):
         "pos_nodes": torch.zeros(1, dtype=torch.int64), "neg_nodes": torch.zeros(1, dtype=torch.int64),
         "pos_edges": torch.zeros(1, dtype=torch.int64), "neg_edges": torch.zeros(1, dtype=torch.int64),
         "pos_frag": torch.zeros(1, dtype=torch.int64), "neg_frag": torch.zeros(1, dtype=torch.int64),
+        "da_data": torch.zeros(1, dtype=torch.int64), "da_mc": torch.zeros(1, dtype=torch.int64),
     }
+
+    # can obtain domain adapt weights
+    if "da_label" in _data[0]:
+        if _data[0]["da_label"] == 1: # data, only get da weights
+            raw_weights["da_data"] += len(_data)
+            return raw_weights
+        else:
+            raw_weights["da_mc"] += len(_data)
 
     for evt in _data:
         if config.get("LCA_weights"):
@@ -55,7 +64,8 @@ def transform_pos_weight(_weights, _configs, mode="train"):
         "edges": torch.ones(1),
         "FT": torch.ones(3),
         "frag": torch.ones(1),
-        "pv_asso": torch.ones(1)
+        "pv_asso": torch.ones(1),
+        "domain_adapt": torch.ones(1),
     }
     if mode == "eval":
         return pos_weight
@@ -91,5 +101,8 @@ def transform_pos_weight(_weights, _configs, mode="train"):
 
     if _configs.get("pv_asso_weights") and summed["neg_pv_asso"] != 0:
         pos_weight["pv_asso"] = torch.tensor([summed["neg_pv_asso"] / summed["pos_pv_asso"]])
+
+    if _configs.get("domain_adapt"):
+        pos_weight["domain_adapt"] = torch.tensor([summed["da_mc"] / summed["da_data"]])
 
     return pos_weight
