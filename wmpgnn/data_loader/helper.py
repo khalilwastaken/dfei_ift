@@ -93,9 +93,9 @@ def load_dataset(path, configs, mode="train", pv_asso_model=None, ex_graph=None)
     """Domain adaptation labeling"""
     if configs["settings"]["domain_adapt"]:
         if configs["settings"]["da_data_dir"] in path:
-            label = torch.tensor([1]) # data label
+            label = torch.tensor([1.], dtype=torch.float32) # data label
         else:
-            label = torch.tensor([0]) # MC label
+            label = torch.tensor([0.], dtype=torch.float32) # MC label
         for evt in filtered_data:
             evt["da_label"] = label
             if ex_graph is not None:
