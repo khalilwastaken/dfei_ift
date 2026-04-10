@@ -202,8 +202,6 @@ class DFEI_DA_HGNN(pl.LightningModule):
         data = Batch.from_data_list([data.get_example(i) for i in indices])
         latent = data.clone()
 
-        import pdb; pdb.set_trace()
-
         for b, core in enumerate(self._blocks):
             data = core(data, init_graph_pid)
             if b < (len(self._blocks) - 1):

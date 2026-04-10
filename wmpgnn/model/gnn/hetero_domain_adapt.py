@@ -1,17 +1,38 @@
 import pytorch_lightning as pl
 import torch
+import torch.nn as nn
 from torch_scatter import scatter_mean, scatter_add, scatter_max, scatter_min
+from torch.autograd import Function
 
 from wmpgnn.model.mlp_class import create_mlp
 
+
+class GradientReversalFunction(Function):
+    @staticmethod
+    def forward(ctx, x, alpha):
+        ctx.alpha = alpha
+        return x.clone()
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return -ctx.alpha * grad_output, None
+
+
+class GRL(nn.Module):
+    def __init__(self, alpha=1.0):
+        super().__init__()
+        self.alpha = alpha
+
+    def forward(self, x):
+        return GradientReversalFunction.apply(x, self.alpha)
 
 
 def get_scatter_func(name: str):
     scatter_funcs = {
         "mean": scatter_mean,
-        "add":  scatter_add,
-        "max":  scatter_max,
-        "min":  scatter_min,
+        "add": scatter_add,
+        "max": scatter_max,
+        "min": scatter_min,
     }
     if name not in scatter_funcs:
         raise ValueError(f"Unknown scatter function: {name}. Choose from {list(scatter_funcs.keys())}")
@@ -24,6 +45,7 @@ class HeteroDomainAdapt(pl.LightningModule):
         self.edge_types = edge_types
         self.node_types = node_types
         self.scatter_func = get_scatter_func(config["scatter_func"])
+        self.grl = GRL(alpha=1.0)
         self.mlp = create_mlp(config["MLP"])
 
         self.da_score = None
@@ -38,7 +60,9 @@ class HeteroDomainAdapt(pl.LightningModule):
             aggregated.append(node_agg)
 
         # Aggregate global features
-        global_agg = self.scatter_func(data['globals'].x, data['globals'].batch, out=data['globals'].x.new_zeros(data['globals'].x.shape[0], data['globals'].x.shape[1]), dim=0)  # [B, D]
+        global_agg = self.scatter_func(data['globals'].x, data['globals'].batch,
+                                       out=data['globals'].x.new_zeros(data['globals'].x.shape[0],
+                                                                       data['globals'].x.shape[1]), dim=0)  # [B, D]
         aggregated.append(global_agg)
 
         # Aggregate edge features
@@ -51,4 +75,5 @@ class HeteroDomainAdapt(pl.LightningModule):
 
         # Concat all and pass to MLP
         x = torch.cat(aggregated, dim=-1)  # [B, D * (n_nodes + 1 + n_edges)]
+        x = self.grl(x)  # <-- GRL applied
         self.da_score = self.mlp(x)
