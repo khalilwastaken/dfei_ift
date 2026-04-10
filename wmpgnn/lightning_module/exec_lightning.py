@@ -37,7 +37,6 @@ def training(module, configs, trn_loader=None, val_loader=None, chunkloader=None
     )
 
     if ckpt is not None:
-        print("=" * 15)
         print("Loading checkpoint from")
         print(ckpt)
         print("=" * 15)
