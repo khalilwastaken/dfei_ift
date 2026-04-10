@@ -131,7 +131,7 @@ class ChunkDataset(IterableDataset):
 
     def get_weights(self):
         weights = {}
-        for i in range(1):
+        for i in range(10):
             weights[i] = self._load_chunk(i, mode="weights")
         print("Done")
         print("=" * 15)
@@ -195,7 +195,7 @@ def get_trn_val_loaders(_configs) -> ChunkLoader:
     val_path_dict = {}
     for sample, files in nfiles.items():
         trn_path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/trn_data_*'))[:files]
-        val_path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/val_data_*'))
+        val_path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/val_data_*'))[:files]
 
     # Adding domain adapt data files
     ex_graph = None
