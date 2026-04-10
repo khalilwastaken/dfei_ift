@@ -1,4 +1,3 @@
-import pdb
 import re
 
 import torch
@@ -48,7 +47,7 @@ def init_logs(configs, mode="train"):
                     log[f"sig_edges_score_{i}"] = torch.tensor([], dtype=torch.float16)
                     log[f"bkg_edges_score_{i}"] = torch.tensor([], dtype=torch.float16)
 
-        if  loss_config["pv_asso"]:
+        if loss_config["pv_asso"]:
             log["tpv_edges_loss"] = []
             if mode == "test":
                 for i in range(gn_blocks):
@@ -59,6 +58,11 @@ def init_logs(configs, mode="train"):
     elif model == "IFT":
         if loss_config["FT"]:
             log["ft_loss"] = []
+
+    # Domain adapt log
+    if configs["settings"].get("domain_adapt", False):
+        log["da_loss"] = []
+
     if mode == "train":
         return log, log
     elif mode == "test":
@@ -73,9 +77,9 @@ def init_loss(device):
             "tt_edges": torch.tensor(0., device=device),
             "tPV_edges": torch.tensor(0., device=device),
             "ft_nodes": torch.tensor(0., device=device),
-            "pv_asso": torch.tensor(0., device=device)}
+            "pv_asso": torch.tensor(0., device=device),
+            "domain_adapt": torch.tensor(0., device=device)}
     return loss
-
 
 
 def get_block_score(log, weights, y, layer, var):
@@ -98,6 +102,8 @@ def loss_logging(log, loss, configs, mode="DFEI"):
             log["frag_loss"].append(loss["frag_nodes"].item())
         if configs["FT"]:
             log["ft_loss"].append(loss["ft_nodes"].item())
+    if loss.get("domain_adapt", False):
+        log["da_loss"].append(loss["domain_adapt"].item())
     return log
 
 

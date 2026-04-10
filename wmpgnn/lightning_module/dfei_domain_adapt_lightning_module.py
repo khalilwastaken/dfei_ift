@@ -3,6 +3,7 @@ import pytorch_lightning as L
 from collections import defaultdict
 
 import torch.nn as nn
+import numpy as np
 
 from wmpgnn.lightning_module.lightning_helper import *
 from wmpgnn.reconstruction.reconstruction import EventReconstruction
@@ -11,7 +12,7 @@ from wmpgnn.performance.reco_accuracy import acc_four_class, obtain_reco_accurac
 from wmpgnn.performance.plot_results import plot_sig_pv_missasso, plot_sig_b_system_pv_missasso
 
 
-class DFEILightningModule(L.LightningModule):
+class DFEIADLightningModule(L.LightningModule):
     def __init__(self, model, optimizer_class, optimizer_params, configs, pos_weights):
         super().__init__()
         if "model" in configs["settings"]:
@@ -43,6 +44,7 @@ class DFEILightningModule(L.LightningModule):
             self.edge_criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights["edges"])
         if self.configs["pv_asso"]:
             self.pv_asso_criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights["pv_asso"])
+        self.da_criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights["domain_adapt"])
 
         self.trn_log, self.val_log = init_logs(configs)
         self.tst_log = init_logs(configs, mode="test")
@@ -64,7 +66,6 @@ class DFEILightningModule(L.LightningModule):
 
     def configure_optimizers(self):
         optimizer = self.optimizer_class(self.model.parameters(), **self.optimizer_params)
-
 
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
@@ -98,10 +99,13 @@ class DFEILightningModule(L.LightningModule):
             minip = batch[("tracks", "to", "pvs")].edges.flatten()
 
         outputs = self.model(batch)
-        #import pdb; pdb.set_trace()
 
+        # Domain adaptation
+        loss["domain_adapt"] = self.da_criterion(self.model._domain_adapt.da_score.squeeze(), batch["da_label"])
+
+        # Remaining DFEI
         if self.configs["LCA"]:
-            y_LCA = batch[('tracks', 'to', 'tracks')].y.to(torch.int64)
+            y_LCA = outputs[('tracks', 'to', 'tracks')].y.to(torch.int64)
             outputs[('tracks', 'to', 'tracks')].lca = outputs[('tracks', 'to', 'tracks')].edges
             loss["LCA"] = self.lca_criterion(outputs[('tracks', 'to', 'tracks')].lca, y_LCA)
             log["LCA_loss"].append(loss["LCA"].item())
@@ -109,13 +113,13 @@ class DFEILightningModule(L.LightningModule):
             for key, values in acc_LCA.items():
                 log[key].append(values)
         if self.configs["node_prune"]:
-            y_nodes = (batch["tracks"].ft != 1).to(torch.float32).unsqueeze(-1)
+            y_nodes = (outputs["tracks"].ft != 1).to(torch.float32).unsqueeze(-1)
         if self.configs["edge_prune"]:
-            y_edges = batch[('tracks', 'to', 'tracks')].y > 0
+            y_edges = outputs[('tracks', 'to', 'tracks')].y > 0
             y_edges = y_edges.to(torch.float32).unsqueeze(-1)
         if self.configs["pv_asso"]:
-            y_pv_asso = batch[("tracks", "to", "pvs")].y.to(torch.float32)
-            pv_filter = batch[('tracks', 'pvs')].filter == 1
+            y_pv_asso = outputs[("tracks", "to", "pvs")].y.to(torch.float32)
+            pv_filter = outputs[('tracks', 'pvs')].filter == 1
 
         for i, block in enumerate(self.model._blocks):
             if self.configs["node_prune"]:
@@ -135,7 +139,7 @@ class DFEILightningModule(L.LightningModule):
                     get_block_score(log, block.edge_weights[("tracks", "to", "pvs")].squeeze(), y_pv_asso, i,
                                     var="pv_asso")
 
-        combined_loss = loss["LCA"] + loss["t_nodes"] + 33*  loss["tt_edges"] + loss["pv_asso"]
+        combined_loss = loss["LCA"] + loss["t_nodes"] + 33 * loss["tt_edges"] + loss["pv_asso"] + loss["domain_adapt"]
 
         # Apply reco
         if mode == "test":
@@ -169,6 +173,12 @@ class DFEILightningModule(L.LightningModule):
     def test_step(self, batch, batch_idx):
         _ = self.shared_step(batch, batch_idx, self.tst_log, mode="test")
         return {}
+
+    def on_train_epoch_start(self):
+        progress = self.current_epoch / max(self.trainer.max_epochs, 1)
+        alpha = 2 / (1 + np.exp(-10 * progress)) - 1
+        self.model._domain_adapt.grl.alpha = alpha
+        self.log("grl_alpha", alpha, on_epoch=True)
 
     def on_train_epoch_end(self):
         avg_losses = epoch_end_loggable(self.trn_log)
