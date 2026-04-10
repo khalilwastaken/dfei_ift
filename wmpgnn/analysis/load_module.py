@@ -8,10 +8,12 @@ from typing import Dict
 
 from wmpgnn.data_loader.weights_calculator import transform_pos_weight
 from wmpgnn.model.model import *
-
-# change where to import it, so i can have the same naming
+# standard
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
 from wmpgnn.lightning_module.ift_lightning_module import IFTLightningModule
+# domain adapt
+from wmpgnn.lightning_module.dfei_domain_adapt_lightning_module import DFEIADLightningModule
+# data path
 from wmpgnn.lightning_module.ift_data_lightning_module import IFTLightningModuleData
 
 
@@ -89,13 +91,22 @@ def load_module(configs: Dict, pos_weights: Dict, dfei_model=None, mode="simulat
         lr = float(configs["settings"]["lr"])
         weight_decay = float(configs["settings"]["weight_decay"])
         if model_name == "DFEI":
-            module = DFEILightningModule(
-                model=model,
-                optimizer_class=torch.optim.Adam,
-                optimizer_params={"lr": lr, "weight_decay": weight_decay},
-                configs=configs,
-                pos_weights=pos_weights,
-            )
+            if configs["settings"].get("domain_adapt"):
+                module = DFEIADLightningModule(
+                    model=model,
+                    optimizer_class=torch.optim.Adam,
+                    optimizer_params={"lr": lr, "weight_decay": weight_decay},
+                    configs=configs,
+                    pos_weights=pos_weights,
+                )
+            else:
+                module = DFEILightningModule(
+                    model=model,
+                    optimizer_class=torch.optim.Adam,
+                    optimizer_params={"lr": lr, "weight_decay": weight_decay},
+                    configs=configs,
+                    pos_weights=pos_weights,
+                )
         elif model_name == "IFT":
             module = IFTLightningModule(
                 model=model,
