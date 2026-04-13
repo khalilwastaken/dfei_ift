@@ -66,8 +66,12 @@ class IFTLightningModuleData(L.LightningModule):
         elif self.ift_use_pid == "true":
             batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
 
+        org_x = batch["tracks"].x.clone()
+        org_pid = batch["tracks"].pid.clone()
         outputs_ft = self.model(batch)
         outputs_ft[("tracks", "to", "tracks")].lca = lca
+        outputs_ft['tracks'].org_x = org_x
+        outputs_ft['tracks'].org_pid = org_pid
 
         # Adjusting quantities for evaluation
         ft_des = torch.softmax(outputs_ft["tracks"].x, dim=1)

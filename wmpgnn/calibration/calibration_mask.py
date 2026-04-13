@@ -90,9 +90,6 @@ def whitening(args):
     graph, prune_thr, to_whiten, channel_prop, norm, path = args
 
     is_whiten =  torch.tensor([0]) # flag to add if the event is whiten or not
-    if "tst_data" in path:
-        graph["tracks"].org_x = graph["tracks"].x.clone()
-        graph["tracks"].org_pid = graph["tracks"].pid.clone()
 
     # Need to apply both node and edge pruning to increase the high purity, edge prune alone can be not sufficient
     node_selbool = graph["tracks"].pred_y > prune_thr[0]
