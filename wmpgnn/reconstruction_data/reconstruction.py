@@ -171,12 +171,21 @@ class EventReconstruction:
             # Get PV association
             # Get the pid
             sig_df["final_pid"] = ','.join(str(x.item()) for x in graph["tracks"].pid[nodes_indx])
-            
+
             # Get the individual scores stored as strings
-            """ft_score = ft_des[nodes_indx]
-            sig_df["final_b_score"] = ','.join(str(x.item()) for x in ft_score[:, :1].squeeze())
-            sig_df["final_bbar_score"] = ','.join(str(x.item()) for x in ft_score[:, 2:].squeeze())
-            sig_df["ft_b_score"], _, sig_df["ft_bbar_score"] = ft_score.mean(dim=0).tolist()"""
+            if ft_des is not None:
+                ft_score = ft_des[nodes_indx]
+                sig_df["final_b_score"] = ','.join(str(x.item()) for x in ft_score[:, :1].squeeze())
+                sig_df["final_bbar_score"] = ','.join(str(x.item()) for x in ft_score[:, 2:].squeeze())
+                sig_df["ft_b_score"], _, sig_df["ft_bbar_score"] = ft_score.mean(dim=0).tolist()
+
+            if pv_des is not None:
+                sig_df["minIP_pv"] = ','.join(str(x.item()) for x in pv_des["ip"][nodes_indx])
+                # DFEI prediction
+                pv_score = pv_des["pred"][nodes_indx]
+                sig_df["pred_pv"] = ','.join(str(x.item()) for x in torch.argmax(pv_score, dim=1))
+                sig_df["pred_pv_b_lvl"] = torch.argmax(torch.sum(pv_score, dim=0)).item()
+                sig_df["npvs"] = pv_des["npvs"]
 
             p = graph["tracks"].x[nodes_indx][:, self.momentum_mask[:graph["tracks"].x.shape[1]]]
             sig_df["final_px"] = ','.join(str(x.item()) for x in p[:, 0:1])
