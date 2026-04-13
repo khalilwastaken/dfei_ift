@@ -3,7 +3,7 @@ from tqdm import tqdm
 import pandas as pd
 import torch
 
-from multiprocessing import Pool
+from multiprocessing.pool import ThreadPool
 
 from wmpgnn.util.pruners import edge_pruning, true_node_pruning
 from wmpgnn.reconstruction.signal_dict import get_ref_signal
@@ -129,7 +129,7 @@ class EventReconstruction:
         # now multiprocess the reco
         args_list = [(graph.cpu(), pv_desc, ft_desc) for graph, pv_desc, ft_desc in
                      zip(graphs, precomputed_pv_desc, precomputed_ft_desc)]
-        with Pool(processes=4) as pool:
+        with ThreadPool(processes=4) as pool:
             res = list(tqdm(pool.imap(self.reconstruct_single_evt, args_list), total=len(args_list),
                             desc="Reconstructing events", leave=False))
 
