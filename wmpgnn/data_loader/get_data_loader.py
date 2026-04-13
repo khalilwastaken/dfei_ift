@@ -63,7 +63,7 @@ def load_tst_loader(configs):
         return configs, tst_loader, chunkloader
 
     data_dir = configs["settings"]["data_dir"]
-    if "nu7p6" in data_dir or "LHCbcollision" in data_dir:
+    if "nu7p6" in data_dir or "LHCbcollision" in data_dir or "LHCb_data" in data_dir:
         print("Using chunk loader")
         from wmpgnn.data_loader.chunk_loader import get_tst_loader
 
