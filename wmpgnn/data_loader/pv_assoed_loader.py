@@ -158,7 +158,7 @@ def get_trn_val_loaders(configs):
 
     # For domain adaptation matching
     ex_graph = None
-    if _configs["settings"].get("domain_adapt"):
+    if configs["settings"].get("domain_adapt"):
         conf = configs["settings"]
         trn_paths = sorted(glob.glob(f'{conf["data_dir"]}/{conf["sample"][0]}/trn_data_*'))[0]
         ex_mc = load_file(trn_paths)[0]
@@ -195,9 +195,9 @@ def get_trn_val_loaders(configs):
                 val_dataset.extend(r)
                 nevts["validation"][sample] += len(r)
 
-        if _configs["settings"].get("domain_adapt"):
-            da_datadir = _configs["settings"]["da_data_dir"]
-            da_nfiles = get_nfiles(_configs["settings"], prefix="da_")
+        if configs["settings"].get("domain_adapt"):
+            da_datadir = configs["settings"]["da_data_dir"]
+            da_nfiles = get_nfiles(configs["settings"], prefix="da_")
             for sample, files in da_nfiles.items():
                 # Training, dont calculate weights -> load_val_dataset
                 trn_paths = sorted(glob.glob(f'{da_datadir}/{sample}/trn_data_*'))[:files]
