@@ -32,18 +32,16 @@ if __name__ == "__main__":
     # Obtaining the lightning module for evaluation
     if configs["model"] == "DFEI":
         # Obtain the DFEI module
-        module, _ = load_module(configs, pos_weights)
+        module, ckpt = load_module(configs, pos_weights, mode='eval')
     elif configs["model"] == "IFT":
         # Loading the DFEI model by loading the hparams of the used model
         # load dfei module
         configs, dfei_model = load_dfei_for_ift(configs)
-        module, _ = load_module(configs, pos_weights, dfei_model=dfei_model)
+        module, ckpt = load_module(configs, pos_weights, dfei_model=dfei_model, mode='eval')
     else:
         raise RuntimeError("No configuration file specified")
 
-    if configs["settings"]["model_name"] == "None":
-        ckpt = "best"
-    else:
+    if configs["settings"]["model_name"] != "None":
         ckpt = configs["settings"]["model_name"]
     evaluate(None, module, tst_loader=tst_loader, chunkloader=chunkloader, ckpt=ckpt)
     # Creating loss plots and acc evaluation
