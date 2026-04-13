@@ -19,6 +19,7 @@ def get_nfiles(_configs, prefix=""):
         nfiles[sample] = nfile
     return nfiles
 
+
 def load_file(path):
     dctx = zstd.ZstdDecompressor()
     with open(path, 'rb') as f:
@@ -89,17 +90,19 @@ def load_dataset(path, configs, mode="train", pv_asso_model=None, ex_graph=None)
     if configs["settings"]["calibration"]:
         filtered_data = adjust_for_calibration(configs, path, filtered_data,
                                                n_cores=int(configs["settings"]["ncpu"] / 2))
-
     """Domain adaptation labeling"""
     if configs["settings"]["domain_adapt"]:
         if configs["settings"]["da_data_dir"] in path:
-            label = torch.tensor([1.], dtype=torch.float32) # data label
+            if 'tst' not in path:
+                label = torch.tensor([1.], dtype=torch.float32)  # data label
+            else:
+                label = torch.tensor([0.], dtype=torch.float32)  # set to 0 to run dfei during testing
         else:
-            label = torch.tensor([0.], dtype=torch.float32) # MC label
+            label = torch.tensor([0.], dtype=torch.float32)  # MC label
         for evt in filtered_data:
             evt["da_label"] = label
             if ex_graph is not None:
-                unify_heterodata(evt, ex_graph) # storage within graph which do not exist are padded with 0
+                unify_heterodata(evt, ex_graph)  # storage within graph which do not exist are padded with 0
 
     if mode == "weights_only":
         weights = get_hetero_weight(filtered_data, configs)
