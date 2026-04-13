@@ -6,7 +6,7 @@ from wmpgnn.lightning_module.lightning_helper import *
 from wmpgnn.reconstruction_data.reconstruction import EventReconstruction
 
 
-class DFEILightningModule(L.LightningModule):
+class DFEILightningModuleData(L.LightningModule):
     def __init__(self, model, configs):
         super().__init__()
         self.version = configs["settings"]["model"]
@@ -27,6 +27,7 @@ class DFEILightningModule(L.LightningModule):
             self.edge_criterion = nn.BCEWithLogitsLoss(pos_weight=torch.ones(1))
         if self.configs["pv_asso"]:
             self.pv_asso_criterion = nn.BCEWithLogitsLoss(pos_weight=torch.ones(1))
+        self.da_criterion = nn.BCEWithLogitsLoss(pos_weight=torch.ones(1))
 
         # init event reconstruction class
         self.evt_reco = EventReconstruction(configs)
@@ -48,16 +49,27 @@ class DFEILightningModule(L.LightningModule):
         elif self.use_pid == "true":  # mc response for lhcb or onehot for pythia
             batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
 
+        if self.configs["pv_asso"]:
+            minip = batch[("tracks", "to", "pvs")].edges.flatten()
+
+        org_x = batch["tracks"].x.clone()
+        org_pid = batch["tracks"].pid.clone()
         outputs = self.model(batch)
+        outputs[("tracks", "to", "tracks")].lca = outputs[("tracks", "to", "tracks")].edges
+        outputs['tracks'].org_x = org_x
+        outputs['tracks'].org_pid = org_pid
+
+        outputs['node_weights'] = self.model._blocks[-1].node_weights["tracks"].squeeze()
+        outputs["edge_weights"] = self.model._blocks[-1].edge_weights[('tracks', 'to', 'tracks')].squeeze()
 
         # Getting the PV decisions
         if self.configs["pv_asso"]:
-            minip = batch[("tracks", "to", "pvs")].edges.flatten()
-            pv_asso_des = {"pred": self.model._blocks[-1].edge_weights[('tracks', 'to', 'pvs')].squeeze(), "minIP": minip}
+            pv_asso_des = {"pred": self.model._blocks[-1].edge_weights[('tracks', 'to', 'pvs')].squeeze(),
+                           "minIP": minip}
         else:
             pv_asso_des = None
         self.evt_reco.reconstruct_heavyhadrons(outputs, pv_des=pv_asso_des)
 
     def on_test_epoch_end(self):
         sig_df = self.evt_reco.collect_results()
-        sig_df.to_csv(f'{self.log_dir}/IFT/version_{self.version}/signal_reco_data_df_{self.signal}.csv', index=False)
+        sig_df.to_csv(f'{self.log_dir}/DFEI/version_{self.version}/signal_reco_data_df_{self.signal}.csv', index=False)

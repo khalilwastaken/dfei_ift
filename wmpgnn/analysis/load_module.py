@@ -14,6 +14,7 @@ from wmpgnn.lightning_module.ift_lightning_module import IFTLightningModule
 # domain adapt
 from wmpgnn.lightning_module.dfei_domain_adapt_lightning_module import DFEIADLightningModule
 # data path
+from wmpgnn.lightning_module.dfei_data_lightning_module import DFEILightningModuleData
 from wmpgnn.lightning_module.ift_data_lightning_module import IFTLightningModuleData
 
 
@@ -91,7 +92,7 @@ def load_module(configs: Dict, pos_weights: Dict, dfei_model=None, mode="simulat
         lr = float(configs["settings"]["lr"])
         weight_decay = float(configs["settings"]["weight_decay"])
         if model_name == "DFEI":
-            if configs["settings"].get("domain_adapt"):
+            if configs["settings"].get("domain_adapt") and mode != 'eval':
                 module = DFEIADLightningModule(
                     model=model,
                     optimizer_class=torch.optim.Adam,
@@ -120,7 +121,10 @@ def load_module(configs: Dict, pos_weights: Dict, dfei_model=None, mode="simulat
             raise NotImplementedError
     elif mode == "data":
         if model_name == "DFEI":
-            raise NotImplementedError
+            module = DFEILightningModuleData(
+                model=model,
+                configs=configs,
+            )
         elif model_name == "IFT":
             module = IFTLightningModuleData(
                 model=model,
