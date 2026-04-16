@@ -9,7 +9,9 @@ import torch
 from torch.utils.data import Subset
 from torch_geometric.loader import DataLoader
 
-from wmpgnn.data_loader.helper import *
+from wmpgnn.data_loader.data_loader_class import DataSetLoader
+from wmpgnn.data_loader.helper import load_file, get_nfiles
+from wmpgnn.util.hetero_data_matching import unify_heterodata
 
 
 def get_trn_val_loaders(configs):
@@ -29,9 +31,12 @@ def get_trn_val_loaders(configs):
         ex_data = load_file(trn_paths)[0]
         ex_graph = unify_heterodata(ex_data, ex_mc)
 
+    # Initiate a data set loader
+    data_set_loader = DataSetLoader(configs, ex_graph=ex_graph)
+
     """Train and validation data"""
-    load_train_dataset = partial(load_dataset, configs=configs, mode="train_weights", ex_graph=ex_graph)
-    load_val_dataset = partial(load_dataset, configs=configs, mode="val", ex_graph=ex_graph)
+    load_train_dataset = partial(data_set_loader.load_dataset, configs=configs, mode="train_weights")
+    load_val_dataset = partial(data_set_loader.load_dataset, configs=configs, mode="val")
     trn_dataset = []
     val_dataset = []
     weights = {}
@@ -101,8 +106,11 @@ def get_tst_loader(configs):
 
     nevts = {"testing": {}}
 
+    # Initiate a data set loader
+    data_set_loader = DataSetLoader(configs)
+
     print("Testing:")
-    load_tst_dataset = partial(load_dataset, configs=configs, mode="val")
+    load_tst_dataset = partial(data_set_loader.load_dataset, configs=configs, mode="val")
     tst_dataset = []
     for sample, files in nfiles.items():
         nevts["testing"][sample] = 0

@@ -12,19 +12,20 @@ import torch
 from torch.utils.data import IterableDataset
 from torch_geometric.loader import DataLoader
 
-from wmpgnn.data_loader.helper import *
+from wmpgnn.data_loader.data_loader_class import DataSetLoader
+from wmpgnn.data_loader.helper import get_nfiles, load_file
 from wmpgnn.util.hetero_data_matching import unify_heterodata
 
 
 class ChunkDataset(IterableDataset):
     # Loading a chunk of the dataset to cpu memory instead of all files
-    def __init__(self, file_paths, configs, mode="train", n_chunks=32, ex_graph=None):
+    def __init__(self, file_paths, configs, data_set_loader, mode="train", n_chunks=32):
         super().__init__()
         self.file_paths = file_paths
         self.n_chunks = n_chunks
         self.mode = mode
         self.configs = configs
-        self.ex_graph = ex_graph
+        self.data_set_loader = data_set_loader
         cumulative_sizes = [0]
         total = 0
         file_index = []
@@ -79,15 +80,15 @@ class ChunkDataset(IterableDataset):
         desc = f"Loading {self.mode} chunk {chunk_number + 1}/{self.n_chunks} ({self.files_per_chunk} files, ~{self.files_per_chunk * nevnts} events)"
         if mode == "loading":
             dataset = []
-            load_dataset_part = partial(load_dataset, configs=self.configs, mode=mode, ex_graph=self.ex_graph)
+            load_dataset_part = partial(self.data_set_loader.load_data, mode=mode)
             with ThreadPool(processes=self.configs["settings"]["ncpu"]) as pool:
                 for r in tqdm(pool.imap(load_dataset_part, files), total=len(files), desc=desc, leave=False):
                     dataset.extend(r)
             return dataset
         elif mode == "weights":
             weights = {}
-            load_dataset_part = partial(load_dataset, configs=self.configs, mode="weights_only")
-            with ThreadPool(processes=self.configs["settings"]["ncpu"]) as pool:
+            load_dataset_part = partial(self.data_set_loader.load_data, mode="weights_only")
+            with ThreadPool(processes=1) as pool: #self.configs["settings"]["ncpu"]) as pool:
                 for r in tqdm(pool.imap(load_dataset_part, files), total=len(files), desc=desc, leave=False):
                     for key, value in r.items():
                         weights[key] = weights.get(key, 0) + value
@@ -210,6 +211,9 @@ def get_trn_val_loaders(_configs) -> ChunkLoader:
         ex_data = load_file(trn_path_dict[sample][0])[0]
         ex_graph = unify_heterodata(ex_data, ex_mc)
 
+    # Initiate a data set loader
+    data_set_loader = DataSetLoader(_configs, ex_graph=ex_graph)
+
     # Number of chunks definition and safeguard for the files per chunk to be less than 8
     min_files = min(len(v) for v in trn_path_dict.values() if len(v) > 0)
     total_files = sum(len(v) for v in trn_path_dict.values())
@@ -219,8 +223,8 @@ def get_trn_val_loaders(_configs) -> ChunkLoader:
         num_chunks += num_workers
     print(f"Number of chunks: {num_chunks}")
     print(f"Files per chunk: {np.ceil(total_files / num_chunks).astype(int)}")
-    trn_dataset = ChunkDataset(trn_path_dict, _configs, mode="train", n_chunks=num_chunks, ex_graph=ex_graph)
-    val_dataset = ChunkDataset(val_path_dict, _configs, mode="validation", n_chunks=num_chunks, ex_graph=ex_graph)
+    trn_dataset = ChunkDataset(trn_path_dict, _configs, data_set_loader, mode="train", n_chunks=num_chunks)
+    val_dataset = ChunkDataset(val_path_dict, _configs, data_set_loader, mode="validation", n_chunks=num_chunks)
 
     return ChunkLoader(_configs, trn_dataset=trn_dataset, val_dataset=val_dataset)
 
@@ -234,8 +238,11 @@ def get_tst_loader(_configs) -> ChunkLoader:
     for sample, files in nfiles.items():
         path_dict["testing"].append(sorted(glob.glob(f'{data_dir}/{sample}/tst_data_*'))[:files])
     path_dict["testing"] = sum(path_dict["testing"], [])
+
+    # Initiate a data set loader
+    data_set_loader = DataSetLoader(_configs, ex_graph=ex_graph)
     # Each file is saved individually in a chunk
     batch_size = 512  # increased bs possible during testing
-    tst_dataset = ChunkDataset(path_dict, _configs, mode="test", n_chunks=len(path_dict["testing"]))
+    tst_dataset = ChunkDataset(path_dict, _configs, data_set_loader, mode="test", n_chunks=len(path_dict["testing"]))
 
-    return ChunkLoader(_configs, tst_dataset=tst_dataset, batch_size=batch_size, num_workers=2)
+    return ChunkLoader(_configs, tst_dataset=tst_dataset, batch_size=batch_size)
