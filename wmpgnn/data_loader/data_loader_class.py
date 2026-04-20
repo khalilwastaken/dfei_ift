@@ -93,7 +93,7 @@ class DataSetLoader():
             for evt in data:
                 evt["da_label"] = label
                 if ex_graph is not None:
-                    unify_heterodata(evt, ex_graph)  # storage within graph which do not exist are padded with 0
+                    unify_heterodata(evt, self.ex_graph)  # storage within graph which do not exist are padded with 0
 
         if mode == "weights_only":
             weights = get_hetero_weight(data, configs)
