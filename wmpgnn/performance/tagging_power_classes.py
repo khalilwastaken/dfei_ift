@@ -164,6 +164,11 @@ class TaggingPowerAnalyzer:
         )
         return TaggingMetrics(eta_res[0], eta_res[1], npvs_res[0], npvs_res[1],
                               comb_res[0], comb_res[1], comb_res[2], comb_res[3])
+    @staticmethod
+    def compute_tagging_power_per_event(df: pd.DataFrame) -> float:
+        classified_mask = (df["ft_b_score"] > 0.5) | (df["ft_bbar_score"] > 0.5)
+        sel_df = df[classified_mask]
+        return np.sum((1 - 2 * sel_df["eta"]) ** 2) / len(sel_df["eta"]) * 100
 
     def plot_tagging_power(self, metrics: TaggingMetrics, underlying_dist: np.ndarray, var: str = "eta",
                            label: str = "tagging_power"):

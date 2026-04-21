@@ -8,10 +8,12 @@ except ImportError:
     from tagging_power_classes import *
 
 
-def write_tagging_power(file, metric, label):
+def write_tagging_power(file, metric, label, per_event=None):
     file.write(f"{'=' * 20}\n")
     file.write(f"{label}\n")
     file.write(f"Tagging power  : ({metric.power[0]:.4f} +/- {metric.power[1]:.4f})%\n")
+    if per_event is not None:
+        file.write(f"per event      : ({per_event:.4f})%\n")
     file.write(f"Wrong fraction : ({metric.wrong_fraction[0]:.4f} +/- {metric.wrong_fraction[1]:.4f})%\n")
     file.write(f"Epsilon        : ({metric.epsilon[0]:.4f} +/- {metric.epsilon[1]:.4f})%\n")
     file.write(f"Dsquared       : ({metric.d_squared[0]:.4f} +/- {metric.d_squared[1]:.4f})%\n")
@@ -58,16 +60,18 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
         metrics_full = analyzer.compute_tagging_power_per_eta(full_df)
         analyzer.plot_tagging_power(metrics_full, full_df["eta"], "eta", "tagging_power")
         analyzer.plot_tagging_power(metrics_full, full_df["num_pvs"], "npvs", "npvs_tagging_power")
+        per_event_tagging_power = analyzer.compute_tagging_power_per_event(full_df)
         label = f"Tagging performance for {signal} ({len(full_df)}):"
-        write_tagging_power(f, metrics_full, label)
+        write_tagging_power(f, metrics_full, label, per_event=per_event_tagging_power)
 
         """2. Single B events"""
         single_b_df = classifier.filter_n_b_events(df, 1, event_ids, event_counts)
         signal_single_b = single_b_df[single_b_df["SigMatch"] == 1]
         metrics_single = analyzer.compute_tagging_power_per_eta(signal_single_b)
         analyzer.plot_tagging_power(metrics_single, signal_single_b["eta"], "eta", "singleB_tagging_power")
+        per_event_tagging_power = analyzer.compute_tagging_power_per_event(single_b_df)
         label = f"1 B candidate present in event ({np.sum(event_counts == 1)}):"
-        write_tagging_power(f, metrics_single, label)
+        write_tagging_power(f, metrics_single, label, per_event=per_event_tagging_power)
         # Obtaining correctness ratio and with regard to fragmentation tracks
         ratio = calc.calculate_prediction_correctness(signal_single_b)
         frag_results = calc.calculate_by_fragmentation(signal_single_b)
@@ -78,8 +82,9 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
         signal_two_b = two_b_df[two_b_df["SigMatch"] == 1]
         metrics_two = analyzer.compute_tagging_power_per_eta(signal_two_b)
         analyzer.plot_tagging_power(metrics_two, signal_two_b["eta"], "eta", "doubleB_tagging_power")
+        per_event_tagging_power = analyzer.compute_tagging_power_per_event(two_b_df)
         label = f"2 B candidate present in event ({np.sum(event_counts == 2)}):"
-        write_tagging_power(f, metrics_two, label)
+        write_tagging_power(f, metrics_two, label, per_event=per_event_tagging_power)
         ratio = calc.calculate_prediction_correctness(signal_two_b)
         frag_results = calc.calculate_by_fragmentation(signal_two_b)
         write_correctness_ratio(f, ratio, frag_results)
@@ -91,31 +96,35 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
         bpm_signal = bpm_df[bpm_df["SigMatch"] == 1]
         metrics_bpm_sig = analyzer.compute_tagging_power_per_eta(bpm_signal)
         analyzer.plot_tagging_power(metrics_bpm_sig, bpm_signal["eta"], "eta", "doubleB_ospm_tagging_power")
+        per_event_tagging_power = analyzer.compute_tagging_power_per_event(bpm_signal)
         label = f"Signal has OS B+/- Events: {len(bpm_signal)}"
-        write_tagging_power(f, metrics_bpm_sig, label)
+        write_tagging_power(f, metrics_bpm_sig, label, per_event=per_event_tagging_power)
 
         # The performance of the OS B+/- itself
         bpm_os = bpm_df[bpm_df["SigMatch"] == 0]
         metrics_bpm_os = analyzer.compute_tagging_power_per_eta(bpm_os)
         analyzer.plot_tagging_power(metrics_bpm_os, bpm_os["eta"], "eta", "osB_pm_tagging_power")
+        per_event_tagging_power = analyzer.compute_tagging_power_per_event(bpm_os)
         charge_frac, charge_correct_df = calc.verify_charge_reconstruction(bpm_os)
         label = f"OS B+/- Events: {len(bpm_os)}"
-        write_tagging_power(f, metrics_bpm_os, label)
+        write_tagging_power(f, metrics_bpm_os, label, per_event=per_event_tagging_power)
         f.write(f"B+/- charge reconstruction correctness: {charge_frac * 100:.2f}%\n")
 
         # If based on sum of charge it matches the OS B+/- charge
         metrics_charge = analyzer.compute_tagging_power_per_eta(charge_correct_df)
         analyzer.plot_tagging_power(metrics_charge, charge_correct_df["eta"], "eta", "osB_pm_true_charge_tagging_power")
+        per_event_tagging_power = analyzer.compute_tagging_power_per_event(charge_correct_df)
         label = "Charged correct OS B+/- Events:"
-        write_tagging_power(f, metrics_charge, label)
+        write_tagging_power(f, metrics_charge, label, per_event=per_event_tagging_power)
 
         """5. Bias study of signal"""
         # negative mc id
         neg_df = full_df[np.sign(full_df["B_id"]) == -1]
         metrics_full = analyzer.compute_tagging_power_per_eta(neg_df)
         analyzer.plot_tagging_power(metrics_full, neg_df["eta"], "eta", f"neg_tagging_power")
+        per_event_tagging_power = analyzer.compute_tagging_power_per_event(neg_df)
         label = f"Tagging performance for negative {signal} ({len(neg_df)}):"
-        write_tagging_power(f, metrics_full, label)
+        write_tagging_power(f, metrics_full, label, per_event=per_event_tagging_power)
         ratio = calc.calculate_prediction_correctness(neg_df)
         write_correctness_ratio(f, ratio)
 
@@ -123,8 +132,9 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
         neg_sig_df = single_b_df[neg_single_bool]
         metrics_full = analyzer.compute_tagging_power_per_eta(neg_sig_df)
         analyzer.plot_tagging_power(metrics_full, neg_sig_df["eta"], "eta", f"neg_single_tagging_power")
+        per_event_tagging_power = analyzer.compute_tagging_power_per_event(neg_sig_df)
         label = f"Tagging performance for negative single B {signal} ({len(neg_sig_df)}):"
-        write_tagging_power(f, metrics_full, label)
+        write_tagging_power(f, metrics_full, label, per_event=per_event_tagging_power)
         ratio = calc.calculate_prediction_correctness(neg_sig_df)
         write_correctness_ratio(f, ratio)
 
@@ -132,8 +142,9 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
         neg_sig_df = two_b_df[neg_double_bool]
         metrics_full = analyzer.compute_tagging_power_per_eta(neg_sig_df)
         analyzer.plot_tagging_power(metrics_full, neg_sig_df["eta"], "eta", f"neg_double_tagging_power")
+        per_event_tagging_power = analyzer.compute_tagging_power_per_event(neg_sig_df)
         label = f"Tagging performance for negative double B {signal} ({len(neg_sig_df)}):"
-        write_tagging_power(f, metrics_full, label)
+        write_tagging_power(f, metrics_full, label, per_event=per_event_tagging_power)
         ratio = calc.calculate_prediction_correctness(neg_sig_df)
         write_correctness_ratio(f, ratio)
 
@@ -141,8 +152,9 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
         pos_df = full_df[np.sign(full_df["B_id"]) == 1]
         metrics_full = analyzer.compute_tagging_power_per_eta(pos_df)
         analyzer.plot_tagging_power(metrics_full, pos_df["eta"], "eta", f"pos_tagging_power")
+        per_event_tagging_power = analyzer.compute_tagging_power_per_event(pos_df)
         label = f"Tagging performance for positive {signal} ({len(pos_df)}):"
-        write_tagging_power(f, metrics_full, label)
+        write_tagging_power(f, metrics_full, label, per_event=per_event_tagging_power)
         ratio = calc.calculate_prediction_correctness(pos_df)
         write_correctness_ratio(f, ratio)
 
@@ -150,8 +162,9 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
         pos_sig_df = single_b_df[pos_single_bool]
         metrics_full = analyzer.compute_tagging_power_per_eta(pos_sig_df)
         analyzer.plot_tagging_power(metrics_full, pos_sig_df["eta"], "eta", f"pos_single_tagging_power")
+        per_event_tagging_power = analyzer.compute_tagging_power_per_event(pos_sig_df)
         label = f"Tagging performance for positive single B {signal} ({len(pos_sig_df)}):"
-        write_tagging_power(f, metrics_full, label)
+        write_tagging_power(f, metrics_full, label, per_event=per_event_tagging_power)
         ratio = calc.calculate_prediction_correctness(pos_sig_df)
         write_correctness_ratio(f, ratio)
 
@@ -159,8 +172,9 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
         pos_sig_df = two_b_df[pos_double_bool]
         metrics_full = analyzer.compute_tagging_power_per_eta(pos_sig_df)
         analyzer.plot_tagging_power(metrics_full, pos_sig_df["eta"], "eta", f"pos_double_tagging_power")
+        per_event_tagging_power = analyzer.compute_tagging_power_per_event(pos_sig_df)
         label = f"Tagging performance for positive double B {signal} ({len(pos_sig_df)}):"
-        write_tagging_power(f, metrics_full, label)
+        write_tagging_power(f, metrics_full, label, per_event=per_event_tagging_power)
         ratio = calc.calculate_prediction_correctness(pos_sig_df)
         write_correctness_ratio(f, ratio)
 
@@ -174,8 +188,9 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
             usage_df = sig_df[sig_df["EventNumber"].isin(evts)]
             metrics_two = analyzer.compute_tagging_power_per_eta(usage_df)
             analyzer.plot_tagging_power(metrics_two, usage_df["eta"], "eta", f"doubleB_OS{condition}_tagging_power")
+            per_event_tagging_power = analyzer.compute_tagging_power_per_event(usage_df)
             label = f"2 B candidate present in event with OS being {condition} ({len(usage_df)}):"
-            write_tagging_power(f, metrics_two, label)
+            write_tagging_power(f, metrics_two, label, per_event=per_event_tagging_power)
             ratio = calc.calculate_prediction_correctness(usage_df)
             frag_results = calc.calculate_by_fragmentation(usage_df)
             write_correctness_ratio(f, ratio, frag_results)
