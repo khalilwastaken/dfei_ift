@@ -43,6 +43,7 @@ def load_trn_val_loader(configs):
 
 
 def load_tst_loader(configs):
+    print("=" * 15)
     print("Obtaining test loaders:")
     tst_loader, chunkloader = None, None
 
