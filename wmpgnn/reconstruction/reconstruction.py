@@ -100,11 +100,12 @@ class EventReconstruction:
                 self.log["npvs"][npvs] += 1
 
             # apply the pruning
+            edge_selbool = None
             if self.configs.get("node_prune", True):
                 node_selbool = node_weights[track_mask] > self.configs["node_prune_thr"]
                 edge_mask = true_node_pruning(node_selbool, graphs[i], "tracks", [('tracks', 'to', 'tracks')])
                 edge_selbool = edge_weights[tr_tr_mask][edge_mask] > self.configs["edge_prune_thr"]
-            else:
+            elif self.configs.get("edge_prune", True):
                 edge_selbool = edge_weights[tr_tr_mask] > self.configs["edge_prune_thr"]
             if self.configs.get("edge_prune", True):
                 edge_pruning(edge_selbool, graphs[i], ('tracks', 'to', 'tracks'))
