@@ -132,8 +132,11 @@ class ChunkDataset(IterableDataset):
 
     def get_weights(self):
         weights = {}
-        for i in range(10):
-            weights[i] = self._load_chunk(i, mode="weights")
+        try:
+            for i in range(10):
+                weights[i] = self._load_chunk(i, mode="weights")
+        except IndexError:
+            print("Using reduced number of chunks for weights:", i)
         print("Done")
         print("=" * 15)
         return weights
@@ -240,7 +243,7 @@ def get_tst_loader(_configs) -> ChunkLoader:
     path_dict["testing"] = sum(path_dict["testing"], [])
 
     # Initiate a data set loader
-    data_set_loader = DataSetLoader(_configs, ex_graph=ex_graph)
+    data_set_loader = DataSetLoader(_configs)
     # Each file is saved individually in a chunk
     batch_size = 512  # increased bs possible during testing
     tst_dataset = ChunkDataset(path_dict, _configs, data_set_loader, mode="test", n_chunks=len(path_dict["testing"]))
