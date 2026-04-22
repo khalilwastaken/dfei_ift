@@ -2,8 +2,7 @@ import torch
 from collections import defaultdict
 
 
-def get_hetero_weight(_data, _configs):
-    config = _configs["inference"]
+def get_hetero_weight(_data, config):
 
     raw_weights = {
         "LCA": torch.zeros(4, dtype=torch.int64),
