@@ -35,8 +35,8 @@ def get_trn_val_loaders(configs):
     data_set_loader = DataSetLoader(configs, ex_graph=ex_graph)
 
     """Train and validation data"""
-    load_train_dataset = partial(data_set_loader.load_dataset, configs=configs, mode="train_weights")
-    load_val_dataset = partial(data_set_loader.load_dataset, configs=configs, mode="val")
+    load_train_dataset = partial(data_set_loader.load_data, mode="train_weights")
+    load_val_dataset = partial(data_set_loader.load_data, mode="val")
     trn_dataset = []
     val_dataset = []
     weights = {}
@@ -110,14 +110,14 @@ def get_tst_loader(configs):
     data_set_loader = DataSetLoader(configs)
 
     print("Testing:")
-    load_tst_dataset = partial(data_set_loader.load_dataset, configs=configs, mode="val")
+    load_tst_dataset = partial(data_set_loader.load_data, mode="val")
     tst_dataset = []
     for sample, files in nfiles.items():
         nevts["testing"][sample] = 0
         tst_paths = sorted(glob.glob(f'{data_dir}/{sample}/tst_data_*'))[:files]
-        with ThreadPool(processes=ncpus) as pool:
+        with Pool(processes=ncpus) as pool:
             results = list(tqdm(pool.imap(load_tst_dataset, tst_paths), total=len(tst_paths),
-                                desc=f"Loading {sample} validation dataset"))
+                                desc=f"Loading {sample} test dataset"))
         for r in results:
             tst_dataset.extend(r)
             nevts["testing"][sample] += len(r)

@@ -3,7 +3,7 @@ from tqdm import tqdm
 import yaml
 import glob
 
-from multiprocessing import Pool
+from multiprocessing.pool import ThreadPool
 from functools import partial
 import threading
 
@@ -16,6 +16,7 @@ from wmpgnn.data_loader.weights_calculator import transform_pos_weight
 from wmpgnn.data_loader.data_loader_class import DataSetLoader
 from wmpgnn.data_loader.helper import load_file, get_nfiles
 from wmpgnn.util.hetero_data_matching import unify_heterodata
+from wmpgnn.analysis.load_module import load_module
 
 
 class DFEIPVAssoModule(L.LightningModule):
@@ -171,13 +172,13 @@ def get_trn_val_loaders(configs):
     data_set_loader = DataSetLoader(configs, pv_model=pv_model, ex_graph=ex_graph)
 
     """Train and validation data"""
-    load_train_dataset = partial(data_set_loader.load_dataset, configs=configs, mode="train_weights")
-    load_val_dataset = partial(data_set_loader.load_dataset, configs=configs, mode="val")
+    load_train_dataset = partial(data_set_loader.load_data, mode="train_weights")
+    load_val_dataset = partial(data_set_loader.load_data, mode="val")
     trn_dataset = []
     val_dataset = []
     weights = {}
 
-    with Pool(processes=ncpus) as pool:
+    with ThreadPool(processes=ncpus) as pool:
         for sample, files in nfiles.items():
             # Training
             nevts["training"][sample] = 0
@@ -242,10 +243,13 @@ def get_tst_loader(configs):
     # Getting the PV model
     pv_model = obtain_pv_model(configs)
 
+    # Initiate a data set loader
+    data_set_loader = DataSetLoader(configs, pv_model=pv_model)
+
     nevts = {"testing": {}}
 
     print("Testing:")
-    load_tst_dataset = partial(load_dataset, configs=configs, mode="val", pv_asso_model=pv_model)
+    load_tst_dataset = partial(data_set_loader.load_data, mode="val")
     tst_dataset = []
     for sample, files in nfiles.items():
         nevts["testing"][sample] = 0
