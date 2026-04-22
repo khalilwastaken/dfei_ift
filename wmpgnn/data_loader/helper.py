@@ -27,14 +27,14 @@ def initial_pruning(data, configs):
     edge_types = [("tracks", "to", "tracks"), ("tracks", "to", "pvs")]
     for i, evt in enumerate(data):
         y_nodes = evt["tracks"].ft != 1  # 0 bbar 2 b
-        if "frag" in configs["settings"]["graph_mode"]:
+        if "frag" in configs["graph_mode"]:
             frag_selbool = evt["tracks"].frag != 0
             y_nodes = y_nodes | frag_selbool
-        if configs["settings"]["node_sel"] == "true":
+        if configs["node_sel"] == "true":
             true_node_pruning(y_nodes, evt, "tracks", edge_types)
-        elif configs["settings"]["node_sel"] == "default":
+        elif configs["node_sel"] == "default":
             node_pruning(y_nodes, evt, "tracks", edge_types)
-        elif configs["settings"]["node_sel"] == "zeros":
+        elif configs["node_sel"] == "zeros":
             test_node_pruning(y_nodes, evt, "tracks", edge_types)
         if evt[("tracks", "to", "tracks")].y.shape[0] == 0 or torch.all(evt[("tracks", "to", "tracks")].y == 0):
             data_selbool[i] = 0

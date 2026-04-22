@@ -66,13 +66,13 @@ class DataSetLoader():
             pv_data = DataLoader(data, batch_size=512)
             data = []
             for evt in pv_data:
-                if pv_asso_model.name == "pv_asso_module":
+                if self.pv_model.name == "pv_asso_module":
                     original_data = copy.deepcopy(evt)
-                    metrics = pv_asso_model.forward(evt)
-                    res = pv_associate_data(original_data, metrics, node_thr=pv_asso_model.node_thrs,
+                    metrics = self.pv_model.forward(evt)
+                    res = pv_associate_data(original_data, metrics, node_thr=self.pv_model.node_thrs,
                                             n_cores=self.ncpus)
                 else:
-                    metrics = pv_asso_model.forward(evt)
+                    metrics = self.pv_model.forward(evt)
                     res = pv_associate_data(evt, metrics, n_cores=self.ncpus)
                 data.append(res)
             data = list(chain.from_iterable(data))
@@ -96,10 +96,10 @@ class DataSetLoader():
                     unify_heterodata(evt, self.ex_graph)  # storage within graph which do not exist are padded with 0
 
         if mode == "weights_only":
-            weights = get_hetero_weight(data, configs)
+            weights = get_hetero_weight(data, self.configs["inference"])
             return weights
         elif "weights" in mode:
-            weights = get_hetero_weight(data, configs)
+            weights = get_hetero_weight(data, self.configs["inference"])
             return data, weights
         else:
             return data
