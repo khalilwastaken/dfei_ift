@@ -5,7 +5,7 @@ settings:
   batch_size: 128
   lr: 1e-3
   weight_decay: 1e-5
-  epochs: 10
+  epochs: 5
   gacc: 1
   ngpu: 1
   ncpu: 16
@@ -32,7 +32,7 @@ evaluate:
   over_write: ''
 DFEI:
   use_pid: 'true'
-  cpt: 0
+  cpt: None
   cpt_name: None
   node_types: [tracks, pvs]
   edge_types: [tracks_tracks, tracks_pvs]
