@@ -12,6 +12,7 @@ from wmpgnn.performance.reco_accuracy import obtain_reco_accuracy
 from wmpgnn.performance.plotter import *
 from wmpgnn.performance.tagging_power import analyze_tagging_power
 from wmpgnn.performance.plot_results import process_ft
+from wmpgnn.calibration.calibration import *
 
 
 class IFTLightningModule(L.LightningModule):
@@ -182,7 +183,10 @@ class IFTLightningModule(L.LightningModule):
             # Only consider event which are whitened
             if "is_whiten" in sig_df.keys():
                 whiten = self.signal + "__is_whiten"
-                obtain_reco_accuracy(sig_df[sig_df["is_whiten"] == 1], self.version, whiten, self.log_dir, model="IFT")
                 whiten_df = sig_df[sig_df["is_whiten"] == 1]
+                obtain_reco_accuracy(whiten_df, self.version, whiten, self.log_dir, model="IFT")
                 process_ft(self.tst_log, whiten_df, self.version, whiten, log_dir=self.log_dir)
                 analyze_tagging_power(whiten_df, self.version, whiten, log_dir=self.log_dir)
+
+                # create calib root file
+                create_calib_root(whiten_df, self.version, whiten, log_dir=self.log_dir)
