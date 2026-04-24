@@ -115,7 +115,8 @@ class TaggingPowerAnalyzer:
         df = df[df["EventNumber"].isin(evts)]
 
         df = df.copy()
-        df["eta"] = 1 - np.max(df[["ft_b_score", "ft_bbar_score"]], axis=1)
+        tag_decision = sig_df[["ft_b_score", "ft_bbar_score"]]
+        df["eta"] = 1 - np.max(tag_decision, axis=1) / np.sum(tag_decision, axis=1)
         return df
 
     def _calculate_per_eta_bin(self, df: pd.DataFrame, mode: str) -> Tuple[
@@ -139,9 +140,9 @@ class TaggingPowerAnalyzer:
             classified_mask = (bin_df["ft_b_score"] > 0.5) | (bin_df["ft_bbar_score"] > 0.5)
             unclassified = len(bin_df) - np.sum(classified_mask)
 
-            # Determine true and predicted tags
-            true_tag = np.sign(bin_df["B_id"])
-            predicted_tag = np.argmax(bin_df[["ft_b_score", "ft_bbar_score"]], axis=1) * 2 - 1
+            # Get the true tag of the classified events and predicted tag
+            true_tag = np.sign(bin_df[classified_mask]["B_id"])
+            predicted_tag = np.argmax(bin_df[classified_mask][["ft_b_score", "ft_bbar_score"]], axis=1) * 2 - 1
 
             num_right.append(np.sum(true_tag == predicted_tag))
             num_wrong.append(np.sum(true_tag != predicted_tag))
