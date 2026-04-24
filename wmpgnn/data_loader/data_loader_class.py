@@ -63,7 +63,7 @@ class DataSetLoader():
 
         """PV association"""
         if self.pv_model is not None:
-            pv_data = DataLoader(data, batch_size=512)
+            pv_data = DataLoader(data, batch_size=1024)
             data = []
             for evt in pv_data:
                 if self.pv_model.name == "pv_asso_module":
@@ -79,7 +79,7 @@ class DataSetLoader():
 
         """Whitening for calibration"""
         if self.configs["settings"]["calibration"]:
-            data = adjust_for_calibration(configs, path, data, n_cores=self.ncpus)
+            data = adjust_for_calibration(self.configs, path, data, n_cores=self.ncpus)
 
         """Domain adaptation labeling"""
         if self.configs["settings"]["domain_adapt"]:
