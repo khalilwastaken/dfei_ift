@@ -27,7 +27,8 @@ class DFEILightningModuleData(L.LightningModule):
             self.edge_criterion = nn.BCEWithLogitsLoss(pos_weight=torch.ones(1))
         if self.configs["pv_asso"]:
             self.pv_asso_criterion = nn.BCEWithLogitsLoss(pos_weight=torch.ones(1))
-        self.da_criterion = nn.BCEWithLogitsLoss(pos_weight=torch.ones(1))
+        # Check if config exist
+        #self.da_criterion = nn.BCEWithLogitsLoss(pos_weight=torch.ones(1))
 
         # init event reconstruction class
         self.evt_reco = EventReconstruction(configs)
