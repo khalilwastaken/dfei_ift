@@ -88,7 +88,7 @@ def load_module(configs: Dict, pos_weights: Dict, dfei_model=None, mode="simulat
     else:
         bis_model = None
 
-    if mode == "simulation":
+    if mode != "data":
         lr = float(configs["settings"]["lr"])
         weight_decay = float(configs["settings"]["weight_decay"])
         if model_name == "DFEI":
