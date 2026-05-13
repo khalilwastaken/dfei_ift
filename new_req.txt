@@ -18,3 +18,4 @@ mplhep
 particle
 nvitop
 tensorboard
+uproot
