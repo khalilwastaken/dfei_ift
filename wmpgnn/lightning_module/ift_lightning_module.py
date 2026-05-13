@@ -94,6 +94,9 @@ class IFTLightningModule(L.LightningModule):
         elif self.ift_use_pid == "true":
             batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
 
+        # Adding y pred score
+        batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pred_y.unsqueeze(dim=1)], dim=1)
+
         # Forward pass of IFt model
         outputs_ft = self.model(batch)
         outputs_ft[("tracks", "to", "tracks")].lca = lca
