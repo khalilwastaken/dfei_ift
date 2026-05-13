@@ -115,7 +115,7 @@ class TaggingPowerAnalyzer:
         df = df[df["EventNumber"].isin(evts)]
 
         df = df.copy()
-        tag_decision = sig_df[["ft_b_score", "ft_bbar_score"]]
+        tag_decision = df[["ft_b_score", "ft_bbar_score"]]
         df["eta"] = 1 - np.max(tag_decision, axis=1) / np.sum(tag_decision, axis=1)
         return df
 
