@@ -60,14 +60,18 @@ class IFTLightningModuleData(L.LightningModule):
         lca_score = torch.argmax(lca, dim=1).unsqueeze(1)
         batch[("tracks", "tracks")].edges = torch.cat([batch[("tracks", "tracks")].edges, lca_score], dim=1)
 
+        org_x = batch["tracks"].x.clone()
+        org_pid = batch["tracks"].pid.clone()
+
         # Adding pid information to nodes, here again realistic or not
         if self.ift_use_pid == "realistic":
             batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].real_pid], dim=1)
         elif self.ift_use_pid == "true":
             batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
 
-        org_x = batch["tracks"].x.clone()
-        org_pid = batch["tracks"].pid.clone()
+        # Adding y pred score
+        batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pred_y.unsqueeze(dim=1)], dim=1)
+
         outputs_ft = self.model(batch)
         outputs_ft[("tracks", "to", "tracks")].lca = lca
         outputs_ft['tracks'].org_x = org_x
