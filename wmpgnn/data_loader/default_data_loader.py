@@ -2,7 +2,7 @@ from tqdm import tqdm
 
 import glob
 
-from multiprocessing import Pool
+from multiprocessing.pool import ThreadPool
 from functools import partial
 
 import torch
@@ -41,7 +41,7 @@ def get_trn_val_loaders(configs):
     val_dataset = []
     weights = {}
 
-    with Pool(processes=ncpus) as pool:
+    with ThreadPool(processes=ncpus) as pool:
         for sample, files in nfiles.items():
             # Training
             nevts["training"][sample] = 0
@@ -115,7 +115,7 @@ def get_tst_loader(configs):
     for sample, files in nfiles.items():
         nevts["testing"][sample] = 0
         tst_paths = sorted(glob.glob(f'{data_dir}/{sample}/tst_data_*'))[:files]
-        with Pool(processes=ncpus) as pool:
+        with ThreadPool(processes=ncpus) as pool:
             results = list(tqdm(pool.imap(load_tst_dataset, tst_paths), total=len(tst_paths),
                                 desc=f"Loading {sample} test dataset"))
         for r in results:
