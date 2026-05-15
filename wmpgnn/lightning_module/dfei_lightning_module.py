@@ -29,7 +29,7 @@ class DFEILightningModule(L.LightningModule):
 
         self.configs = configs["inference"]
         self.model = model
-        self.use_pid = configs["DFEI"]["use_pid"]  # str holding what to do with pid information for DFEI
+        self.use_pid = configs["DFEI"]["use_pid"]  # bool if to use pid or not
 
         self.optimizer_class = optimizer_class
         self.optimizer_params = optimizer_params
@@ -44,18 +44,12 @@ class DFEILightningModule(L.LightningModule):
         if self.configs["pv_asso"]:
             self.pv_asso_criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights["pv_asso"])
 
-        self.trn_log, self.val_log = init_logs(configs)
-        self.tst_log = init_logs(configs, mode="test")
-        # init event reconstruction class
-        self.evt_reco = EventReconstruction(configs)
-
-        # Pruning threshold for reco
-        self.edge_prune = configs["inference"]["edge_prune_thr"]
-        self.node_prune = configs["inference"]["node_prune_thr"]
-
+        # init log directories and event reconstruction class
         self.log_dir = configs["log_dir"]
-
+        (self.trn_log, self.val_log), self.tst_log = init_logs(configs), init_logs(configs, mode="test")
+        self.evt_reco = EventReconstruction(configs)
         self.tst_mode = 'MC'
+
 
     def forward(self, batch):
         if self.use_pid:
