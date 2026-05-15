@@ -3,16 +3,6 @@ import yaml
 from typing import Dict
 
 
-def obtain_log_dir(_configs: Dict) -> Dict:
-    if 'pythia' in _configs["settings"]['data_dir']:
-        _configs["log_dir"] = 'pythia_logs'
-    elif 'LHCb' in _configs["settings"]['data_dir']:
-        _configs["log_dir"] = 'LHCb_logs'
-    else:
-        raise ValueError("Invalid config")
-    return _configs
-
-
 def training_model_name(_configs: Dict) -> Dict:
     for model in ["DFEI", "IFT"]:
         if model in _configs.keys():
@@ -41,7 +31,7 @@ def adjust_config_training(_configs: Dict) -> Dict:
     # Obtaining the model_to be trained
     _configs = training_model_name(_configs)
     # Obtaining log_dir
-    _configs = obtain_log_dir(_configs)
+    _configs = _configs["log_dir"] = 'LHCb_logs'
 
     # Check if weights need to be calculated, to save a bit of performance later on
     _configs["inference"]["get_weights"] = any(
