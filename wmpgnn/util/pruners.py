@@ -59,12 +59,10 @@ def true_node_pruning(node_mask, graph, node_type, edge_types):
     # Removing the edges nodes
     node_keys = list(graph[node_type].keys())
     for node_key in node_keys:
-        if node_key == "ptr" or node_key == "num_pvs":
+        if node_key in['ptr', 'num_pvs', 'sig_keys', 'sig_ids', 'head_ids', 'head_keys']:
             continue
         graph[node_type][node_key] = graph[node_type][node_key][node_mask]
-    if hasattr(graph, "final_keys") and node_type == "tracks":
-        graph.final_keys = graph.final_keys[node_mask]
-        graph.part_ids = graph.part_ids[node_mask]
+
 
     # Adjusting the number of tracks in the global feature
     graph["globals"].x[0][0] = torch.sum(node_mask)  # this needs to be adjusted
