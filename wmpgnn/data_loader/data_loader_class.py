@@ -37,7 +37,7 @@ class DataSetLoader():
             data = initial_pruning(data, self.configs["settings"])
 
         """Apply cuts on the graph"""
-        # apply cut currently done manually TODO: change this
+        """# apply cut currently done manually TODO: change this
         for evt in data:
             ghost_selbool = evt["tracks"].x.T[-1] < 0.6
             angle_selbool = evt[("tracks", "tracks")].edges[:, 1] < 0.0005
@@ -45,7 +45,7 @@ class DataSetLoader():
                 indx = evt[("tracks", "tracks")].edge_index[:, angle_selbool]
                 for j in indx.T:
                     ghost_selbool[j[torch.argmax(evt["tracks"].x[j].T[-1])].item()] = False
-            true_node_pruning(ghost_selbool, evt, "tracks", self.edge_types)
+            true_node_pruning(ghost_selbool, evt, "tracks", self.edge_types)"""
 
         """Making the graph bidirectional"""
         for evt in data:
