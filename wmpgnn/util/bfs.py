@@ -1,3 +1,4 @@
+import torch
 
 # Implementation of bfs to find isolated systems
 def find_components_bfs(edge_index):
@@ -40,3 +41,8 @@ def find_components_bfs(edge_index):
         components.append({"nodes": node_list, "edge_indices": edge_indices})
 
     return components
+
+
+def torch_signed_cantor_pair(a, b):
+    pair = (a + b) * (a + b + 1) // 2 + b
+    return torch.where(a < b, -pair, pair)
