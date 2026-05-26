@@ -45,9 +45,5 @@ if __name__ == "__main__":
     if configs["settings"]["model_name"] != "None":
         ckpt = configs["settings"]["model_name"]
     evaluate(None, module, tst_loader=tst_loader, chunkloader=chunkloader, ckpt=ckpt)
-    # Creating loss plots and acc evaluation
-    version = configs[configs["model"]]["cpt"]
-    metric_path = f"{configs['log_dir']}/{configs['model']}/version_{version}/metrics.csv"
-    metrics_eval(metric_path, configs, version)
     print("Done")
     print("=" * 45)
