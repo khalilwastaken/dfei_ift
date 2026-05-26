@@ -11,11 +11,11 @@ from wmpgnn.model.model import *
 # standard
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
 from wmpgnn.lightning_module.ift_lightning_module import IFTLightningModule
-# domain adapt
+"""# domain adapt
 from wmpgnn.lightning_module.dfei_domain_adapt_lightning_module import DFEIADLightningModule
 # data path
 from wmpgnn.lightning_module.dfei_data_lightning_module import DFEILightningModuleData
-from wmpgnn.lightning_module.ift_data_lightning_module import IFTLightningModuleData
+from wmpgnn.lightning_module.ift_data_lightning_module import IFTLightningModuleData"""
 
 
 def load_dfei_for_ift(configs):
@@ -72,10 +72,11 @@ def get_bis_model(version: int, configs: Dict, mode: str) -> str:
 def load_module(configs: Dict, pos_weights: Dict, dfei_model=None, mode="simulation"):
     model_name = configs["model"]
     if model_name == "DFEI":
-        if configs["settings"].get("domain_adapt"):
-            model = DFEI_DA_HGNN(configs[model_name])
-        else:
-            model = DFEI_HGNN(configs[model_name])
+        """if configs["settings"].get("domain_adapt"):
+            raise NotImplementedError
+            #model = DFEI_DA_HGNN(configs[model_name])
+        else:"""
+        model = DFEI_HGNN(configs[model_name])
     elif model_name == "IFT":
         model = FT_HGNN(configs[model_name])
     else:
@@ -88,51 +89,34 @@ def load_module(configs: Dict, pos_weights: Dict, dfei_model=None, mode="simulat
     else:
         bis_model = None
 
-    if mode != "data":
-        lr = float(configs["settings"]["lr"])
-        weight_decay = float(configs["settings"]["weight_decay"])
-        if model_name == "DFEI":
-            if configs["settings"].get("domain_adapt") and mode != 'eval':
-                module = DFEIADLightningModule(
-                    model=model,
-                    optimizer_class=torch.optim.Adam,
-                    optimizer_params={"lr": lr, "weight_decay": weight_decay},
-                    configs=configs,
-                    pos_weights=pos_weights,
-                )
-            else:
-                module = DFEILightningModule(
-                    model=model,
-                    optimizer_class=torch.optim.Adam,
-                    optimizer_params={"lr": lr, "weight_decay": weight_decay},
-                    configs=configs,
-                    pos_weights=pos_weights,
-                )
-        elif model_name == "IFT":
-            module = IFTLightningModule(
+    lr = float(configs["settings"]["lr"])
+    weight_decay = float(configs["settings"]["weight_decay"])
+    if model_name == "DFEI":
+        """if configs["settings"].get("domain_adapt") and mode != 'eval':
+            module = DFEIADLightningModule(
                 model=model,
-                dfei_model=dfei_model,
                 optimizer_class=torch.optim.Adam,
                 optimizer_params={"lr": lr, "weight_decay": weight_decay},
                 configs=configs,
                 pos_weights=pos_weights,
             )
-        else:
-            raise NotImplementedError
-    elif mode == "data":
-        if model_name == "DFEI":
-            module = DFEILightningModuleData(
-                model=model,
-                configs=configs,
-            )
-        elif model_name == "IFT":
-            module = IFTLightningModuleData(
-                model=model,
-                dfei_model=dfei_model,
-                configs=configs,
-            )
-        else:
-            raise NotImplementedError
+        else:"""
+        module = DFEILightningModule(
+            model=model,
+            optimizer_class=torch.optim.Adam,
+            optimizer_params={"lr": lr, "weight_decay": weight_decay},
+            configs=configs,
+            pos_weights=pos_weights,
+        )
+    elif model_name == "IFT":
+        module = IFTLightningModule(
+            model=model,
+            dfei_model=dfei_model,
+            optimizer_class=torch.optim.Adam,
+            optimizer_params={"lr": lr, "weight_decay": weight_decay},
+            configs=configs,
+            pos_weights=pos_weights,
+        )
     else:
         raise NotImplementedError
 
