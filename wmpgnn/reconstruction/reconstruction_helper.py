@@ -50,6 +50,17 @@ def reco():
     reco_edges = graph[("tracks", "tracks")].edge_index[:, lca_bool]
     reco_lca = lca[lca_bool]
     reco_components = add_lca(find_components_bfs(reco_edges), reco_lca)
+    reco_components = apply_reco_mapping(graph, reco_components, reco_edges)
+
+    # Find the matching reconstructed cluster
+    for reco_component in reco_components:
+
+    # Reconstructed components
+    lca = torch.argmax(graph[("tracks", "tracks")].lca, dim=1)
+    lca_bool = lca != 0  # Remove edges which survived but have predicted score of 0
+    reco_edges = graph[("tracks", "tracks")].edge_index[:, lca_bool]
+    reco_lca = lca[lca_bool]
+    reco_components = add_lca(find_components_bfs(reco_edges), reco_lca)
     # just reco it
     print('ok')
 
