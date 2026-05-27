@@ -10,16 +10,21 @@ import mplhep as hep
 hep.style.use(hep.style.LHCb2)
 
 
-def plot_weights(pos_weight, neg_weights, labels, version, model="DFEI", channel="inclusive", log_dir='lightning_logs',
+def plot_nn_response(sig, bkg, labels, version, model='DFEI', channel='inclusive', log_dir='lightning_logs'):
+    plot_weights(sig, bkg, labels, version, model=model, channel=channel, log_dir=log_dir)
+    plot_roc_curve(sig, bkg, labels, version, model=model, channel=channel, log_dir=log_dir)
+
+
+def plot_weights(pos_weight, neg_weight, labels, version, model="DFEI", channel="inclusive", log_dir='lightning_logs',
                  suffix=None):
     true_weights = np.ones(pos_weight.shape[0]) / len(pos_weight)
-    fake_weights = np.ones(neg_weights.shape[0]) / len(neg_weights)
+    fake_weights = np.ones(neg_weight.shape[0]) / len(neg_weight)
 
     f, ax = plt.subplots(figsize=(9, 6))
     ax.hist(pos_weight, bins=100, range=[0, 1], alpha=.7, label=labels[1], color='#B22222',
             weights=true_weights
             )
-    ax.hist(neg_weights, bins=100, range=[0, 1], alpha=.8, label=labels[2], color='#4169E1',
+    ax.hist(neg_weight, bins=100, range=[0, 1], alpha=.8, label=labels[2], color='#4169E1',
             weights=fake_weights
             )
 
@@ -136,53 +141,3 @@ def plot_loss(df, version, loss, mode="DFEI", log_dir='lightning_logs'):
     plt.savefig(f"{outdir}/{loss}_loss.pdf")
     plt.savefig(f"{outdir}/{loss}_loss.png")
     plt.close()
-
-
-def plot_pv_missasso(pv_asso_ml, pv_asso_ip, pv_asso_ntracks, log_npvs,
-                     version, channel, selbool=None, log_dir='lightning_logs'):
-    npvs = np.array([])
-    nPV_bins = []
-    ml_mean, ml_err = [], []
-    ip_mean, ip_err = [], []
-
-    for key in pv_asso_ml.keys():
-        nPV_bins.append(key)
-        ml_mean.append(100 - pv_asso_ml[key] / pv_asso_ntracks[key] * 100)
-        ml_err.append(
-            pv_asso_ml[key] / pv_asso_ntracks[key] * np.sqrt(1 / pv_asso_ml[key] + 1 / pv_asso_ntracks[key]) * 100)
-        if pv_asso_ip is not None:
-            ip_mean.append(100 - pv_asso_ip[key] / pv_asso_ntracks[key] * 100)
-            ip_err.append(
-                pv_asso_ip[key] / pv_asso_ntracks[key] * np.sqrt(1 / pv_asso_ip[key] + 1 / pv_asso_ntracks[key]) * 100)
-
-        npvs = np.concatenate([npvs, np.ones(log_npvs[key]) * key])
-
-    f, ax = plt.subplots(figsize=(9, 6))
-    ax.errorbar(nPV_bins, np.array(ml_mean), yerr=ml_err, fmt='.', color='red', label="DFEI")
-    if pv_asso_ip is not None:
-        ax.errorbar(nPV_bins, np.array(ip_mean), yerr=ip_err, fmt='.', color='black', label="minIP")
-    ax.hist(npvs, bins=15, range=(0.5, 15.5), alpha=.3, color='grey', weights=np.ones_like(npvs) / len(npvs) * 50)
-    ax.set_ylabel("PV miss-association rate [%]", fontsize=28)
-    ax.set_xlabel("# PVs [a.u.]", fontsize=28)
-    ax.set_ylim([0, 30])
-    ax.set_xlim([0, 16])
-    ax.legend()
-
-    outdir = f"{log_dir}/DFEI/version_{version}/plots_{channel}/pv"
-    os.makedirs(outdir, exist_ok=True)
-
-    if selbool is None:
-        info_string = "all_tracks"
-    else:
-        info_string = selbool
-    plt.savefig(f"{outdir}/{info_string}_pv_asso.pdf")
-    plt.savefig(f"{outdir}/{info_string}_pv_asso.png")
-    plt.close()
-
-    # Getting the absolute numbers
-    total_tracks = sum(pv_asso_ntracks.values())
-    total_pred = sum(pv_asso_ml.values())
-    total_ip = None
-    if pv_asso_ip is not None:
-        total_ip = sum(pv_asso_ip.values())
-    return total_tracks, total_pred, total_ip
