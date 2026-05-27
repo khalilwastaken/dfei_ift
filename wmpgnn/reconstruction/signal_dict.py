@@ -95,3 +95,13 @@ def particle_name(id_):
             print(id_)
             name = str(id_)
         return name
+
+
+pid_dict = {
+    "Prob_k": 321,
+    "Prob_e": 11,
+    "Prob_mu": 13,
+    "Prob_p": 2212,
+    "Prob_pi": 211,
+    "Prob_ghost": -1
+}
