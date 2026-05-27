@@ -126,8 +126,14 @@ class DFEILightningModule(L.LightningModule):
         if self.configs["pv_asso"]:
             minip = batch[("tracks", "to", "pvs")].edges.flatten()
 
+        # Clone the original node feature, as they are changed in place
+        org_x = batch["tracks"].x.clone()
+        org_pid = batch["tracks"].pid.clone()
         # Forward pass
         outputs = self.forward(batch)
+        # Reattach the original node feature, for reconstruction purpose
+        outputs['tracks'].org_x = org_x
+        outputs['tracks'].org_pid = org_pid
 
         # Get score plots on MC
         y_pv_asso, pv_filter = None, None
@@ -161,12 +167,17 @@ class DFEILightningModule(L.LightningModule):
             outputs["edge_weights"] = self.model._blocks[-1].edge_weights[('tracks', 'tracks')].squeeze()
         pv_asso_des = None
         if self.configs["pv_asso"]:
-            pv_asso_des = {"pred": self.model._blocks[-1].edge_weights[('tracks', 'pvs')].squeeze(), "minIP": minip,
-                           "true": y_pv_asso.squeeze(), "pv_filter": pv_filter}
+            pv_asso_des = {"pred": self.model._blocks[-1].edge_weights[('tracks', 'pvs')].squeeze(), "minIP": minip}
+            if self.tst_mode == 'MC':
+                pv_asso_des["true"] = y_pv_asso.squeeze()
+                pv_asso_des["pv_filter"] =  pv_filter
 
         # Perform the reconstruction
-        self.evt_reco.reconstruct_heavyhadrons(outputs, pv_des=pv_asso_des)
+        self.evt_reco.reconstruct_heavyhadrons(outputs, mode=self.tst_mode, pv_des=pv_asso_des)
         return {}
+
+    def on_test_epoch_start(self):
+        self.evt_reco.mode = self.tst_mode
 
     def on_train_epoch_end(self):
         avg_losses = epoch_end_loggable(self.trn_log)
