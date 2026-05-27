@@ -7,7 +7,7 @@ from wmpgnn.analysis.config_adjusting import *
 from wmpgnn.analysis.load_module import *
 from wmpgnn.data_loader.get_data_loader import load_tst_loader
 from wmpgnn.data_loader.weights_calculator import transform_pos_weight
-from wmpgnn.lightning_module.exec_lightning import training, evaluate
+from wmpgnn.lightning_module.exec_lightning import evaluate
 from wmpgnn.performance.plot_results import metrics_eval
 
 if __name__ == "__main__":
@@ -32,12 +32,12 @@ if __name__ == "__main__":
     # Obtaining the lightning module for evaluation
     if configs["model"] == "DFEI":
         # Obtain the DFEI module
-        module, ckpt = load_module(configs, pos_weights, mode='eval')
+        module, ckpt = load_module(configs, pos_weights)
     elif configs["model"] == "IFT":
         # Loading the DFEI model by loading the hparams of the used model
         # load dfei module
         configs, dfei_model = load_dfei_for_ift(configs)
-        module, ckpt = load_module(configs, pos_weights, dfei_model=dfei_model, mode='eval')
+        module, ckpt = load_module(configs, pos_weights, dfei_model=dfei_model)
     else:
         raise RuntimeError("No configuration file specified")
 
