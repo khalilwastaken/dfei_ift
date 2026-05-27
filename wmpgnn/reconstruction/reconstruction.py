@@ -6,10 +6,8 @@ import torch
 from multiprocessing.pool import ThreadPool
 
 from wmpgnn.util.pruners import edge_pruning, true_node_pruning
-from wmpgnn.reconstruction.signal_dict import get_ref_signal
+from wmpgnn.reconstruction.signal_dict import get_ref_signal, sig_matching
 from wmpgnn.reconstruction.reconstruction_helper import *
-
-from wmpgnn.reconstruction.reco_helper import * # old will be removed
 from wmpgnn.reconstruction.quantity_adder import *
 
 
@@ -22,15 +20,13 @@ class EventReconstruction:
 
         # boolean whether to use true reconstruction or predicted reconstruction
         self.configs = configs["inference"]
-        self.use_lca = True
-        if "LCA" in self.configs:
-            self.use_lca = self.configs["LCA"]
+
 
         self.signal = get_ref_signal(configs["evaluate"]["sample"][0])
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.evt_counter = 0
-        self.sig_df, self.evt_df = [], []
+        self.sig_df = []
 
         # we look at independent tracks so we can directly sum it which shouldn't be a problem
         self.log = {"pv_corr_ml": {}, "pv_corr_ip": {}, "pv_total": {}, "npvs": {}}
@@ -124,17 +120,12 @@ class EventReconstruction:
             else:
                 precomputed_ft_desc.append(None)
 
-        args = (graphs[0].cpu(), precomputed_pv_desc[0], precomputed_ft_desc[0])
-        self.reconstruct_single_evt(args)
-
-
         # now multiprocess the reco
         args_list = [(graph.cpu(), pv_desc, ft_desc) for graph, pv_desc, ft_desc in
                      zip(graphs, precomputed_pv_desc, precomputed_ft_desc)]
-        with ThreadPool(processes=4) as pool:
+        with ThreadPool(processes=1) as pool:
             res = list(tqdm(pool.imap(self.reconstruct_single_evt, args_list), total=len(args_list),
                             desc="Reconstructing events", leave=False))
-
         for r in res:
             try:
                 self.sig_df.append(pd.DataFrame(r))
@@ -149,3 +140,84 @@ class EventReconstruction:
         res = true_reco(graph, pv_des, ft_des, self.signal)
         return res
 
+
+
+def true_reco(graph, pv_des, ft_des, signal):
+    # Reconstructed components
+    lca = torch.argmax(graph[("tracks", "tracks")].lca, dim=1)
+    lca_bool = lca != 0  # Remove edges which survived but have predicted score of 0
+    reco_edges = graph[("tracks", "tracks")].edge_index[:, lca_bool]
+    reco_lca = lca[lca_bool]
+    reco_components = add_lca(find_components_bfs(reco_edges), reco_lca)
+    reco_components = apply_reco_mapping(graph, reco_components, reco_edges)
+
+    # Truth components
+    true_edges = torch.stack([graph[('tracks', 'tracks')].senders, graph[('tracks', 'tracks')].receivers])
+    true_lca = graph[('tracks', 'tracks')].sig_y
+    true_components = add_lca(find_components_bfs(true_edges), true_lca)
+    true_components = apply_true_mapping(graph, true_components, true_edges)
+
+    # Loop over tru components
+    sig_dict_holder = []
+    for true_component in true_components:
+        sig_dict = {"PerfectReco": 0, "AllParticles": 0, "NoneIso": 0, "PartReco": 0, "NotFound": 0, 'SigMatch': 0,
+                    "NumBkgParticles": -999}
+        # Identify if the true_component hold the signal decay mode
+        if signal:
+            if sig_matching(true_component, signal, "true"):
+                sig_dict['SigMatch'] = 1
+
+        # Find the matching reconstructed cluster
+        reco_component = None
+        for reco_component in reco_components:
+            sig_dict, flag = get_reco_type(true_component, reco_component, sig_dict)
+            if flag:
+                break
+            if sig_dict["AllParticles"] == 0 and sig_dict["NoneIso"] == 0 and sig_dict["PartReco"] == 0:
+                sig_dict["NotFound"] = 1
+                reco_component = None
+        if pv_des:
+            sig_dict = get_pv_asso(sig_dict, reco_component, pv_des)
+        if ft_des:
+            sig_dict = get_pred_ft(sig_dict, graph, reco_component, ft_des)
+
+        # Adding event level info, currently just slammed do it in a function
+        sig_dict["B_id"] = true_component['head_id']
+        sig_dict['EVENTNUMBER'] = graph['EVENTNUMBER'].item()
+        sig_dict['RUNNUMBER'] = graph['RUNNUMBER'].item()
+        if sig_dict['SigMatch']:  # Adding tupled signal B information
+            get_sig_lvl_info(sig_dict, graph)
+        sig_dict_holder.append(sig_dict)
+    return sig_dict_holder
+
+
+
+def reco(graph, pv_des, ft_des, signal):
+    # Reconstructed components
+    lca = torch.argmax(graph[("tracks", "tracks")].lca, dim=1)
+    lca_bool = lca != 0  # Remove edges which survived but have predicted score of 0
+    reco_edges = graph[("tracks", "tracks")].edge_index[:, lca_bool]
+    reco_lca = lca[lca_bool]
+    reco_components = add_lca(find_components_bfs(reco_edges), reco_lca)
+    reco_components = apply_reco_mapping(graph, reco_components, reco_edges)
+
+    # Loop over reconstructed components
+    sig_dict_holder = []
+    for reco_component in reco_components:
+        sig_dict = {'SigLike': 0}
+        if signal:
+            if sig_matching(true_component, signal, "true"):
+                sig_dict['SigLike'] = 1
+
+        if pv_des:
+            sig_dict = get_pv_asso(sig_dict, reco_component, pv_des)
+        if ft_des:
+            sig_dict = get_pred_ft(sig_dict, graph, reco_component, ft_des)
+
+        # Adding event level info, currently just slammed do it in a function
+        sig_dict['EVENTNUMBER'] = graph['EVENTNUMBER'].item()
+        sig_dict['RUNNUMBER'] = graph['RUNNUMBER'].item()
+        if sig_dict['SigLike']:  # Adding tupled signal B information
+            get_sig_lvl_info(sig_dict, graph)
+        sig_dict_holder.append(sig_dict)
+    return sig_dict_holder
