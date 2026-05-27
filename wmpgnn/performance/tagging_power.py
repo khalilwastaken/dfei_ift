@@ -196,6 +196,59 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
             write_correctness_ratio(f, ratio, frag_results)
 
 
+def process_ft(df, sig_df, version, signal, log_dir="lightning_logs"):
+    pattern = re.compile(r"bbar_ft_score_(\d+)")
+    ft_layers = [int(match.group(1)) for k in df for match in [pattern.match(k)] if match]
+
+    # Plot the node level output
+    for i in ft_layers:
+        bbar_score = 1 - df[f"bbar_ft_score_{i}"]  # optimal 0
+        b_score = df[f"b_ft_score_{i}"]  # optimal 1
+        plot_weights(b_score, bbar_score, [f"ft_decision_{i}", "b", "bbar"], version,
+                     model="IFT", channel=signal, log_dir=log_dir, suffix='tagging_weights')
+
+    # Plot the B particle decision
+    selbool = sig_df["AllParticles"] == 1
+    has_signal = np.sum(sig_df["SigMatch"]) != 0
+    if has_signal:
+        sig_selbool = sig_df["SigMatch"] == 1
+        sig_ch_df = sig_df[selbool * sig_selbool]
+        rem_B_df = sig_df[selbool * ~sig_selbool]
+        # Plotting signal B results
+        bbar_selbool = np.sign(sig_ch_df["B_id"]) == 1
+        b_selbool = np.sign(sig_ch_df["B_id"]) == -1
+        b_dec = sig_ch_df["ft_b_score"][b_selbool]
+        bbar_dec = 1 - sig_ch_df["ft_bbar_score"][bbar_selbool]
+        plot_weights(b_dec, bbar_dec, [f"signal_b_id_decision", "b", "bbar"], version,
+                     model="IFT", channel=signal, log_dir=log_dir, suffix='tagging_weights')
+
+        # Plot the weights of the final state particles
+        b_dec_final = np.array(
+            [float(x) for item in sig_ch_df["final_b_score"][b_selbool].values for x in item.split(',')])
+        bbar_dec_final = 1 - np.array(
+            [float(x) for item in sig_ch_df["final_bbar_score"][bbar_selbool].values for x in item.split(',')])
+        plot_weights(b_dec_final, bbar_dec_final, [f"signal_b_decision_final", "b", "bbar"], version,
+                     model="IFT", channel=signal, log_dir=log_dir, suffix='tagging_weights')
+    else:
+        rem_B_df = sig_df[selbool]
+
+    b_hadrons = [511, 521, 531]
+    for b in b_hadrons:
+        bbar_selbool = rem_B_df["B_id"] == b
+        b_selbool = rem_B_df["B_id"] == -b
+        b_dec = rem_B_df["ft_b_score"][b_selbool]
+        bbar_dec = 1 - rem_B_df["ft_bbar_score"][bbar_selbool]
+        plot_weights(b_dec, bbar_dec, [f"OS{b}_id_decision", "b", "bbar"], version,
+                     model="IFT", channel=signal, log_dir=log_dir, suffix='tagging_weights')
+
+        # Plot the weights of the final state particles
+        b_dec_final = np.array(
+            [float(x) for item in rem_B_df["final_b_score"][b_selbool].values for x in item.split(',')])
+        bbar_dec_final = 1 - np.array(
+            [float(x) for item in rem_B_df["final_bbar_score"][bbar_selbool].values for x in item.split(',')])
+        plot_weights(b_dec_final, bbar_dec_final, [f"OS{b}_id_decision_final", "b", "bbar"], version,
+                     model="IFT", channel=signal, log_dir=log_dir, suffix='tagging_weights')
+
 if __name__ == "__main__":
     df = pd.read_csv(
         "/eos/user/y/yukaiz/DFEI_IFT/IFT_training/wmpgnn/analysis/LHCb_logs/IFT/version_1/signal_df_00299103_Bs_Jpsiphi.csv")
