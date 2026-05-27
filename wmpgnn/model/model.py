@@ -29,7 +29,7 @@ class DFEI_HGNN(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         node_types = config["node_types"]
-        edge_types = [(edge.split('_')[0], 'to', edge.split('_')[1]) for edge in config["edge_types"]]
+        edge_types = [(edge.split('_')[0], edge.split('_')[1]) for edge in config["edge_types"]]
 
         # Start setting up the DFEI model
         self.encode = config["encoder"]["usage"]
@@ -50,7 +50,7 @@ class DFEI_HGNN(pl.LightningModule):
 
     def forward(self, data):
         # this init_graph_pid is not used anymore, was used during GNblock FT inference
-        init_graph_pid = data['tracks'].x[:, -6:]  # charge + 5 pid, hard coded be careful
+        init_graph_pid = data['tracks'].x
         # Latent graph
         if self.encode:
             data = self._encoder(data)
@@ -73,7 +73,7 @@ class FT_HGNN(nn.Module):
     def __init__(self, config):
         super().__init__()
         node_types = config["node_types"]
-        edge_types = [(edge.split('_')[0], 'to', edge.split('_')[1]) for edge in config["edge_types"]]
+        edge_types = [(edge.split('_')[0], edge.split('_')[1]) for edge in config["edge_types"]]
 
         # Start setting up the DFEI model
         self.encode = config["encoder"]["usage"]
@@ -94,7 +94,7 @@ class FT_HGNN(nn.Module):
 
     def forward(self, data):
         # this init_graph_pid is not used anymore, was used during GNblock FT inference
-        init_graph_pid = data['tracks'].x[:, -6:]  # charge + 5 pid, hard coded be careful
+        init_graph_pid = data['tracks'].x
 
         # Latent graph
         if self.encode:
