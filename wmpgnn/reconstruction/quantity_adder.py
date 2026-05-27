@@ -54,35 +54,50 @@ def get_pv_asso(sig_dict, cluster, pv_des):
 
     nodes = cluster['nodes']
 
-    # Individual track scores
-    true_pv = pv_des["true"][nodes]
+    # Storing the information
+    sig_dict["npvs"] = pv_des["npvs"]
+
+    if 'true' in pv_des:
+        true_pv = pv_des["true"][nodes]
+    else:
+        true_pv = torch.tensor([-1])
+    sig_dict["true_pv"] = '_'.join(str(x.item()) for x in true_pv)
+
     minIP_pv = pv_des["ip"][nodes]
+    sig_dict["minIP_pv"] = '_'.join(str(x.item()) for x in minIP_pv)
+
     pred_pv = pv_des["pred"][cluster['nodes']]
     pred_pv_track = torch.argmax(pred_pv, dim=1)
     pred_pv_system = torch.argmax(torch.sum(pred_pv, dim=0))
-
-    # Storing the information
-    sig_dict["npvs"] = pv_des["npvs"]
-    sig_dict["true_pv"] = '_'.join(str(x.item()) for x in true_pv)
     sig_dict["pred_pv"] = '_'.join(str(x.item()) for x in pred_pv_track)
     sig_dict["pred_pv_b_lvl"] = int(pred_pv_system.item())
-    sig_dict["minIP_pv"] = '_'.join(str(x.item()) for x in minIP_pv)
+
     return sig_dict
 
 
-def get_sig_lvl_info(sig_dict, graph):
-    keys = [
-        "minIP_pv_b_lvl", "true_pv_b_lvl",
-        "B_M", "B_PT", "B_ETA",
+def get_track_info(sig_dict, cluster):
+    keys = ['part_id', 'px', 'py', 'pz']
+    for key in keys:
+        if key in cluster:
+            sig_dict[key] = '_'.join(str(x.item()) for x in cluster[key])
+    return sig_dict
 
-        "B_v0_OSKaon", "B_v1_OSKaon",
-        "B_v0_OSMuon", "B_v1_OSMuon",
-        "B_v0_OSElectron", "B_v1_OSElectron",
-        "B_v0_SSKaon", "B_v1_SSKaon",
-        "B_v0_SSPion", "B_v1_SSPion",
-        "B_v0_SSProton", "B_v1_SSProton",
-        "B_v1_IFT_Bs", "B_v1_IFT_Bd",
-    ]
+
+def get_sig_lvl_info(sig_dict, graph, pv_des, ft_des):
+    keys = ["B_M", "B_PT", "B_ETA"]
+
+    if pv_des:
+        keys += ["minIP_pv_b_lvl", "true_pv_b_lvl"]
+
+    if ft_des:
+        keys += ["B_v0_OSKaon", "B_v1_OSKaon",
+                 "B_v0_OSMuon", "B_v1_OSMuon",
+                 "B_v0_OSElectron", "B_v1_OSElectron",
+                 "B_v0_SSKaon", "B_v1_SSKaon",
+                 "B_v0_SSPion", "B_v1_SSPion",
+                 "B_v0_SSProton", "B_v1_SSProton",
+                 "B_v1_IFT_Bs", "B_v1_IFT_Bd",
+                 ]
 
     for k in keys:
         if k in graph:
