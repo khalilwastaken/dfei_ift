@@ -8,14 +8,9 @@ from typing import Dict
 
 from wmpgnn.data_loader.weights_calculator import transform_pos_weight
 from wmpgnn.model.model import *
-# standard
 from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
 from wmpgnn.lightning_module.ift_lightning_module import IFTLightningModule
-"""# domain adapt
-from wmpgnn.lightning_module.dfei_domain_adapt_lightning_module import DFEIADLightningModule
-# data path
-from wmpgnn.lightning_module.dfei_data_lightning_module import DFEILightningModuleData
-from wmpgnn.lightning_module.ift_data_lightning_module import IFTLightningModuleData"""
+
 
 
 def load_dfei_for_ift(configs):
@@ -48,7 +43,7 @@ def load_dfei_for_ift(configs):
     return configs, model
 
 
-def get_bis_model(version: int, configs: Dict, mode: str) -> str:
+def get_bis_model(version: int, configs: Dict, mode: str=None) -> str:
     # find the model with the best performance in the checkpoints
     model = configs["model"]
     log_dir = configs["log_dir"]
@@ -69,13 +64,9 @@ def get_bis_model(version: int, configs: Dict, mode: str) -> str:
     return model
 
 
-def load_module(configs: Dict, pos_weights: Dict, dfei_model=None, mode="simulation"):
+def load_module(configs: Dict, pos_weights: Dict, dfei_model=None, mode='MC'):
     model_name = configs["model"]
     if model_name == "DFEI":
-        """if configs["settings"].get("domain_adapt"):
-            raise NotImplementedError
-            #model = DFEI_DA_HGNN(configs[model_name])
-        else:"""
         model = DFEI_HGNN(configs[model_name])
     elif model_name == "IFT":
         model = FT_HGNN(configs[model_name])
@@ -92,15 +83,6 @@ def load_module(configs: Dict, pos_weights: Dict, dfei_model=None, mode="simulat
     lr = float(configs["settings"]["lr"])
     weight_decay = float(configs["settings"]["weight_decay"])
     if model_name == "DFEI":
-        """if configs["settings"].get("domain_adapt") and mode != 'eval':
-            module = DFEIADLightningModule(
-                model=model,
-                optimizer_class=torch.optim.Adam,
-                optimizer_params={"lr": lr, "weight_decay": weight_decay},
-                configs=configs,
-                pos_weights=pos_weights,
-            )
-        else:"""
         module = DFEILightningModule(
             model=model,
             optimizer_class=torch.optim.Adam,
@@ -119,5 +101,7 @@ def load_module(configs: Dict, pos_weights: Dict, dfei_model=None, mode="simulat
         )
     else:
         raise NotImplementedError
-
+    # During evaluation this mode setting will disable accessing information not available in data
+    if mode == 'data':
+        module.tst_mode =  mode
     return module, bis_model
