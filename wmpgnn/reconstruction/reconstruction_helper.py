@@ -1,5 +1,6 @@
 import torch
 from wmpgnn.util.bfs import *
+from wmpgnn.reconstruction.signal_dict import pid_dict
 
 
 def add_lca(components, lca):
@@ -18,6 +19,21 @@ def apply_reco_mapping(graph, components, edges):
             [[idx_to_key.get(n.item(), -1) for n in row] for row in edges[:, component['edge_indices']]])
     return components
 
+
+def add_base_quant(graph,components, cacheing_configs):
+    for component in components:
+        nodes = component['nodes']
+        # Attach the selected pid, based on highest probability
+        pid_indx = torch.argmax(graph['tracks'].org_pid[nodes], dim=1)
+        pid = [pid_dict[cacheing_configs['graphs']['tracks_pid'][i]] for i in pid_indx]
+        charge_idx = [i for i, s in enumerate(cacheing_configs['graphs']['tracks_nodes']) if s == 'Charge'][0]
+        charge = graph['tracks'].org_x[nodes].T[charge_idx]
+        component['part_id'] = charge.to(int) * torch.tensor(pid)
+
+        for key in ['px', 'py', 'pz']:
+            idx = [i for i, s in enumerate(cacheing_configs['graphs']['tracks_nodes']) if s.startswith(key)][0]
+            component[key] = graph['tracks'].org_x[nodes].T[idx]
+    return components
 
 def apply_true_mapping(graph, components, edges):
     key_to_id = dict(zip(graph['tracks'].sig_keys.tolist(), graph['tracks'].sig_ids.tolist()))
