@@ -31,7 +31,7 @@ def adjust_config_training(_configs: Dict) -> Dict:
     # Obtaining the model_to be trained
     _configs = training_model_name(_configs)
     # Obtaining log_dir
-    _configs = _configs["log_dir"] = 'LHCb_logs'
+    _configs["log_dir"] = 'LHCb_logs'
 
     # Check if weights need to be calculated, to save a bit of performance later on
     _configs["inference"]["get_weights"] = any(
@@ -70,7 +70,7 @@ def adjust_config_evaluation(_configs: Dict) -> Dict:
     print("=" * 15)
 
     # Obtaining log_dir
-    _configs = obtain_log_dir(_configs)
+    _configs["log_dir"] = 'LHCb_logs'
 
     # Obtaining the model information of the model to be evaluated
     hparams_file = f"{_configs['log_dir']}/{_configs['model']}/version_{_configs['settings']['model']}/input_config.yaml"
