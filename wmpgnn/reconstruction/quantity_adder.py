@@ -43,25 +43,48 @@ def get_pred_ft(sig_dict, graph, cluster, ft_score):
     return res_dict
 
 
-def get_pv_asso(sig_dict, graph, cluster, pv_des):
-    res_dict = sig_dict
-    # Get the key information of the cluster which is looked at
-    cluster_keys = cluster['node_keys']
-    keys = graph['final_keys']
-    b_daugthers_mask = np.isin(keys, cluster_keys)
+def get_pv_asso(sig_dict, cluster, pv_des):
+    if cluster is None:
+        sig_dict["npvs"] = pv_des["npvs"]
+        sig_dict["true_pv"] = str(-1)
+        sig_dict["pred_pv"] = str(-1)
+        sig_dict["pred_pv_b_lvl"] = -1
+        sig_dict["minIP_pv"] = str(-1)
+        return sig_dict
 
-    # Get the individual scores stored as strings
-    true_pv = pv_des["true"][b_daugthers_mask]
-    minIP_pv = pv_des["ip"][b_daugthers_mask]
+    nodes = cluster['nodes']
 
-    # Either per track level or on the full B system
-    pred_pv = pv_des["pred"][b_daugthers_mask]
+    # Individual track scores
+    true_pv = pv_des["true"][nodes]
+    minIP_pv = pv_des["ip"][nodes]
+    pred_pv = pv_des["pred"][cluster['nodes']]
     pred_pv_track = torch.argmax(pred_pv, dim=1)
     pred_pv_system = torch.argmax(torch.sum(pred_pv, dim=0))
 
-    res_dict["npvs"] = pv_des["npvs"]
-    res_dict["true_pv"] = '_'.join(str(x.item()) for x in true_pv)
-    res_dict["pred_pv"] = '_'.join(str(x.item()) for x in pred_pv_track)
-    res_dict["pred_pv_b_lvl"] = int(pred_pv_system.item())
-    res_dict["minIP_pv"] = '_'.join(str(x.item()) for x in minIP_pv)
-    return res_dict
+    # Storing the information
+    sig_dict["npvs"] = pv_des["npvs"]
+    sig_dict["true_pv"] = '_'.join(str(x.item()) for x in true_pv)
+    sig_dict["pred_pv"] = '_'.join(str(x.item()) for x in pred_pv_track)
+    sig_dict["pred_pv_b_lvl"] = int(pred_pv_system.item())
+    sig_dict["minIP_pv"] = '_'.join(str(x.item()) for x in minIP_pv)
+    return sig_dict
+
+
+def get_sig_lvl_info(sig_dict, graph):
+    keys = [
+        "minIP_pv_b_lvl", "true_pv_b_lvl",
+        "B_M", "B_PT", "B_ETA",
+
+        "B_v0_OSKaon", "B_v1_OSKaon",
+        "B_v0_OSMuon", "B_v1_OSMuon",
+        "B_v0_OSElectron", "B_v1_OSElectron",
+        "B_v0_SSKaon", "B_v1_SSKaon",
+        "B_v0_SSPion", "B_v1_SSPion",
+        "B_v0_SSProton", "B_v1_SSProton",
+        "B_v1_IFT_Bs", "B_v1_IFT_Bd",
+    ]
+
+    for k in keys:
+        if k in graph:
+            sig_dict[k] = graph[k].item()
+    return sig_dict
