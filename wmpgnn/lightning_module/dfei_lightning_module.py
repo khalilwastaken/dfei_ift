@@ -6,9 +6,9 @@ import torch.nn as nn
 
 from wmpgnn.lightning_module.lightning_helper import *
 from wmpgnn.reconstruction.reconstruction import EventReconstruction
-from wmpgnn.performance.plotter import *
-from wmpgnn.performance.reco_accuracy import acc_four_class, obtain_reco_accuracy, acc_pv_asso
-from wmpgnn.performance.plot_results import plot_sig_pv_missasso, plot_sig_b_system_pv_missasso
+from wmpgnn.performance.plotter import plot_nn_response
+from wmpgnn.performance.reco_accuracy import acc_four_class, obtain_reco_accuracy
+from wmpgnn.performance.pv_association import *
 
 
 class DFEILightningModule(L.LightningModule):
@@ -49,7 +49,6 @@ class DFEILightningModule(L.LightningModule):
         (self.trn_log, self.val_log), self.tst_log = init_logs(configs), init_logs(configs, mode="test")
         self.evt_reco = EventReconstruction(configs)
         self.tst_mode = 'MC'
-
 
     def forward(self, batch):
         if self.use_pid:
@@ -94,7 +93,7 @@ class DFEILightningModule(L.LightningModule):
             y_edges = batch[('tracks', 'tracks')].y > 0
             y_edges = y_edges.to(torch.float32).unsqueeze(-1)
         if self.configs["pv_asso"]:
-            y_pv_asso = batch[("tracks", "pvs")].y.to(torch.float32)
+            y_pv_asso = batch[("tracks", "pvs")].y.to(torch.float32).unsqueeze(-1)
             pv_filter = batch[('tracks', 'pvs')].filter == 1
 
         # Get the loss of the remaining quantities
@@ -166,7 +165,7 @@ class DFEILightningModule(L.LightningModule):
                            "true": y_pv_asso.squeeze(), "pv_filter": pv_filter}
 
         # Perform the reconstruction
-        self.evt_reco.reconstruct_heavyhadrons(outputs, pv_des=pv_asso_des) # pass the mode on self.tst_mode
+        self.evt_reco.reconstruct_heavyhadrons(outputs, pv_des=pv_asso_des)
         return {}
 
     def on_train_epoch_end(self):
@@ -190,42 +189,39 @@ class DFEILightningModule(L.LightningModule):
             self.version = self.logger.version
         # Grab all the reconstructed events and save them to disk
         sig_df = self.evt_reco.collect_results()
-        sig_df.to_csv(f'{self.log_dir}/DFEI/version_{self.version}/signal_reco_df_{self.signal}.csv', index=False)
+        # Writing to disc
+        outdir = f'{self.log_dir}/DFEI/version_{self.version}'
+        if self.tst_mode == 'MC':
+            sig_df.to_csv(f'{outdir}/signal_reco_df_{self.signal}.csv', index=False)
+        else:
+            sig_df.to_csv(f'{outdir}/signal_reco_data_df_{self.signal}.csv', index=False)
+
         # If looking at MC add the additional performance scripts
         if self.tst_mode == 'MC':
             if self.configs["LCA"]:
                 obtain_reco_accuracy(sig_df, self.version, self.signal, self.log_dir, model="DFEI")
             if self.configs["plt_nodes"]:
                 for i in range(len(self.model._blocks)):
-                    plot_weights(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],
-                                 [f"NN_nodes_{i}_decision", "sig", "bkg"], self.version,
-                                 model="DFEI", channel=self.signal, log_dir=self.log_dir)
-                    plot_roc_curve(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],
-                                   [f"NN_nodes_{i}_roc", "sig", "bkg"], self.version,
-                                   model="DFEI", channel=self.signal, log_dir=self.log_dir)
+                    plot_nn_response(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],
+                                     [f"NN_nodes_{i}_decision", "sig", "bkg"], self.version,
+                                     model="DFEI", channel=self.signal, log_dir=self.log_dir)
             if self.configs["plt_edges"]:
                 for i in range(len(self.model._blocks)):
-                    plot_weights(self.tst_log[f"sig_edges_score_{i}"], self.tst_log[f"bkg_edges_score_{i}"],
-                                 [f"NN_edges_{i}_decision", "sig", "bkg"], self.version,
-                                 model="DFEI", channel=self.signal, log_dir=self.log_dir)
-                    plot_roc_curve(self.tst_log[f"sig_edges_score_{i}"], self.tst_log[f"bkg_edges_score_{i}"],
-                                   [f"NN_edges_{i}_roc", "sig", "bkg"], self.version,
-                                   model="DFEI", channel=self.signal, log_dir=self.log_dir)
+                    plot_nn_response(self.tst_log[f"sig_edges_score_{i}"], self.tst_log[f"bkg_edges_score_{i}"],
+                                     [f"NN_edges_{i}_decision", "sig", "bkg"], self.version,
+                                     model="DFEI", channel=self.signal, log_dir=self.log_dir)
             if self.configs["plt_pvs"]:
                 for i in range(len(self.model._blocks)):
-                    plot_weights(self.tst_log[f"sig_pv_asso_score_{i}"], self.tst_log[f"bkg_pv_asso_score_{i}"],
-                                 [f"NN_pv_asso_{i}_decision", "correct", "false"], self.version,
-                                 model="DFEI", channel=self.signal, log_dir=self.log_dir)
-                    plot_roc_curve(self.tst_log[f"sig_pv_asso_score_{i}"], self.tst_log[f"bkg_pv_asso_score_{i}"],
-                                   [f"NN_pv_asso_{i}_roc", "sig", "bkg"], self.version,
-                                   model="DFEI", channel=self.signal, log_dir=self.log_dir)
+                    plot_nn_response(self.tst_log[f"sig_pv_asso_score_{i}"], self.tst_log[f"bkg_pv_asso_score_{i}"],
+                                     [f"NN_pv_asso_{i}_decision", "correct", "false"], self.version,
+                                     model="DFEI", channel=self.signal, log_dir=self.log_dir)
                 # Get the PV association performance
                 log = self.evt_reco.log
                 pv_perf = {}
-                pv_perf["all_tracks"] = plot_pv_missasso(log["pv_corr_ml"], log["pv_corr_ip"], log["pv_total"], log["npvs"],
-                                                         self.version, self.signal, log_dir=self.log_dir)
-                pv_sig_tracks = plot_sig_pv_missasso(sig_df, self.version, self.signal, log_dir=self.log_dir)
+                pv_perf["all_tracks"] = plot_pv_missasso(log, self.version, self.signal,
+                                                         label='all_tracks',log_dir=self.log_dir)
+                pv_sig_tracks = plot_sig_tracks_pv_missasso(sig_df, self.version, self.signal, log_dir=self.log_dir)
                 pv_perf.update(pv_sig_tracks)
-                pv_perf["sig_b_system"] = plot_sig_b_system_pv_missasso(sig_df, self.version, self.signal,
-                                                                        log_dir=self.log_dir)
+                pv_perf["sig_b_system"] = plot_sig_b_pv_missasso(sig_df, self.version, self.signal,
+                                                                 log_dir=self.log_dir)
                 acc_pv_asso(pv_perf, self.version, self.signal, self.log_dir, model="DFEI")
