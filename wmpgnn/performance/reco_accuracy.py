@@ -114,34 +114,7 @@ def obtain_reco_accuracy(df, version, signal, log_dir, model):
     write_to_file(file, "a", performance, entries=len(usage_df), label=" positive id")
 
 
-def acc_pv_asso(pv_perf, version, signal, log_dir, model):
-    file = f"{log_dir}/{model}/version_{version}/info_{signal}_reco.txt"
-    cond = "a" if os.path.exists(file) else "w"
-    with open(file, cond) as f:
-        f.write("=" * 50 + "\n")
-        f.write("PV association performance \n")
 
-        for key, item in pv_perf.items():
-            f.write("=" * 30 + "\n")
-            f.write(key + ": \n")
-            ntracks, pred, ip = item
-
-            try:
-                pred_perf = 100 - pred / ntracks * 100
-                pred_perf_err = pred / ntracks * np.sqrt(1 / pred + 1 / ntracks) * 100
-            except ZeroDivisionError:
-                pred_perf = 0
-                pred_perf_err = 100
-            f.write(f"HGNN association  : {pred_perf:.2f} +/- {pred_perf_err:.2f} \n")
-
-            if ip is not None:
-                try:
-                    ip_perf = 100 - ip / ntracks * 100
-                    ip_perf_err = ip / ntracks * np.sqrt(1 / ip + 1 / ntracks) * 100
-                except ZeroDivisionError:
-                    ip_perf = 0
-                    ip_perf_err = 100
-                f.write(f"minIP association : {ip_perf:.2f} +/- {ip_perf_err:.2f} \n")
 
 
 if __name__ == "__main__":
