@@ -30,7 +30,7 @@ class HeteroEdgeBlock(pl.LightningModule):
             if self._use_edges:
                 edges_to_collect.append(edges.edges)
             if self._use_receiver_nodes:
-                edges_to_collect.append(graph[edge_type[2]].x[edges.edge_index[1], :])
+                edges_to_collect.append(graph[edge_type[1]].x[edges.edge_index[1], :])
             node_0 = graph[edge_type[0]]
             if self._use_sender_nodes:
                 edges_to_collect.append(node_0.x[edges.edge_index[0], :])

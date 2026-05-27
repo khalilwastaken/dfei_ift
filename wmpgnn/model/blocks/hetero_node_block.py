@@ -22,7 +22,7 @@ class HeteroNodeBlock(pl.LightningModule):
         for node_type in self._node_types:
             self._node_to_edge_types[node_type] = []
             for edge_type in self._edge_types:
-                if edge_type[0] == node_type or edge_type[2] == node_type:
+                if edge_type[0] == node_type or edge_type[1] == node_type:
                     self._node_to_edge_types[node_type].append(edge_type)
 
         self._node_models = {}
@@ -41,7 +41,7 @@ class HeteroNodeBlock(pl.LightningModule):
             nodes_to_collect = []
             for edge_type in self._node_to_edge_types[node_type]:
                 edge_weight = edge_weights[edge_type]
-                if edge_type[0] == node_type and edge_type[2] == node_type:
+                if edge_type[0] == node_type and edge_type[1] == node_type:
                     if self._use_sender_edges:
                         nodes_to_collect.append(self._sent_edges_aggregator(graph, edge_type, edge_weight))
 
@@ -49,7 +49,7 @@ class HeteroNodeBlock(pl.LightningModule):
                         nodes_to_collect.append(self._received_edges_aggregator(graph, edge_type, edge_weight))
                 elif edge_type[0] == node_type:
                     nodes_to_collect.append(self._sent_edges_aggregator(graph, edge_type, edge_weight))
-                elif edge_type[2] == node_type:
+                elif edge_type[1] == node_type:
                     nodes_to_collect.append(self._received_edges_aggregator(graph, edge_type, edge_weight))
 
             if self._use_nodes:
