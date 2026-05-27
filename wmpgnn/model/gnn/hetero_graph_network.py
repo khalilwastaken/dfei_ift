@@ -57,8 +57,6 @@ class HeteroGraphNetwork(pl.LightningModule):
         self.edge_prune = False
         self.node_prune = False
         self.prune_by_cut = False
-        self.k_edges = 20
-        self.k_nodes = 70
         self.edge_weight_cut = 0.001
         self.node_weight_cut = 0.001
 
@@ -81,7 +79,7 @@ class HeteroGraphNetwork(pl.LightningModule):
 
         if self.edge_prune:
             for edge_type in self.edge_types:
-                if edge_type == ('tracks', 'to', 'tracks'):
+                if edge_type == ('tracks', 'tracks'):
                     mask = self.edge_weights[edge_type] > self.edge_weight_cut
                     edge_indices = torch.nonzero(mask, as_tuple=True)[0]
                     self.edge_indices[edge_type] = edge_indices

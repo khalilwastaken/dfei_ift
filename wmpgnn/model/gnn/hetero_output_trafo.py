@@ -16,10 +16,10 @@ class HeteroGraphTrafo(pl.LightningModule):
 
         # edges
         if "tr_tr" in config and config["tr_tr"] != "None":
-            self._edge_models[('tracks', 'to', 'tracks')] = create_mlp(config["MLP"], outdim=config["tr_tr"])
+            self._edge_models[('tracks', 'tracks')] = create_mlp(config["MLP"], outdim=config["tr_tr"])
 
         if "tr_pv" in config and config["tr_pv"] != "None":
-            self._edge_models[('tracks', 'to', 'pvs')] = create_mlp(config["MLP"], outdim=config["tr_pv"])
+            self._edge_models[('tracks', 'pvs')] = create_mlp(config["MLP"], outdim=config["tr_pv"])
 
         if "tr" in config and config["tr"] != "None":
             self._node_models["tracks"] = create_mlp(config["MLP"], outdim=config["tr"])

@@ -24,7 +24,7 @@ class HeteroGraphCoder(pl.LightningModule):
                 self._node_models[node_type] = nn.Identity()
 
         for edge_type in self._edge_types:
-            edge_config_def = f"{edge_type[0]}_{edge_type[2]}"
+            edge_config_def = f"{edge_type[0]}_{edge_type[1]}"
             if edge_config_def in vars:
                 self._edge_models[edge_type] = create_mlp(config[edge_config_def])
             else:
