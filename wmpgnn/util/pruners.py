@@ -18,7 +18,7 @@ def node_pruning(valid_mask, graph, node_type, edge_types):
     # Removes the edges, but keep the nodes and features
     edge_node_indices = {}
     for edge_type in edge_types:
-        if edge_type[0] == node_type and edge_type[2] == node_type:
+        if edge_type[0] == node_type and edge_type[1] == node_type:
             mask = valid_mask[graph[edge_type].edge_index[0]] & valid_mask[graph[edge_type].edge_index[1]]
         elif edge_type[0] == node_type:
             mask = valid_mask[graph[edge_type].edge_index[0]]
@@ -35,7 +35,7 @@ def node_pruning(valid_mask, graph, node_type, edge_types):
 def test_node_pruning(valid_mask, graph, node_type, edge_types):
     # Removes edges and replace the nodes feature with a tensor of 0
     for edge_type in edge_types:
-        if edge_type[0] == node_type and edge_type[2] == node_type:
+        if edge_type[0] == node_type and edge_type[1] == node_type:
             mask = valid_mask[graph[edge_type].edge_index[0]] & valid_mask[graph[edge_type].edge_index[1]]
         elif edge_type[0] == node_type:
             mask = valid_mask[graph[edge_type].edge_index[0]]
@@ -69,7 +69,7 @@ def true_node_pruning(node_mask, graph, node_type, edge_types):
 
     # Removing the pruned edges
     for edge_type in edge_types:
-        if edge_type[0] == node_type and edge_type[2] == node_type:
+        if edge_type[0] == node_type and edge_type[1] == node_type:
             mask = node_mask[graph[edge_type].edge_index[0]] & node_mask[graph[edge_type].edge_index[1]]
             graph[edge_type].edge_index = lookup[graph[edge_type].edge_index[:, mask]]
         elif edge_type[0] == node_type:
