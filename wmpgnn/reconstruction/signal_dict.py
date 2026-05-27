@@ -4,36 +4,33 @@ from particle import Particle
 
 
 def get_ref_signal(ref_signal):  # Here we can define them all
-    splitted = ref_signal.split("_")
-    if splitted[0] == "inclusive":
+    if ref_signal == "inclusive":
         return {}
-    else:
-        ref_signal = f"{splitted[0]}_{splitted[1]}"
-    if 'Bs_JpsiPhi' == ref_signal:
+    if 'BsToJpsiPhi' in ref_signal:
         signal_decay = {'final': torch.tensor([-13, 13, -321, 321]), 'head': [531, -531],
                         'LCA': torch.tensor([1, 1, 1, 1, 1, 1])}
         return signal_decay
-    elif "Bd_JpsiKst" == ref_signal:
+    elif ref_signal in 'BdToJpsiKst':
         signal_decay = {'daughters': ['mu+', 'mu-', 'K+', 'pi-'], 'mothers': ['B0']}
         cc_signal_decay = {'daughters': ['mu+', 'mu-', 'pi+', 'K-'], 'mothers': ['B~0']}
         return signal_decay, cc_signal_decay
-    elif 'Bd_JpsiKs' == ref_signal:
+    elif ref_signal in 'BdToJpsiKs':
         signal_decay = {'daughters': ['mu+', 'mu-', 'pi+', 'pi-'], 'mothers': ['B0']}
         cc_signal_decay = {'daughters': ['mu+', 'mu-', 'pi+', 'pi-'], 'mothers': ['B~0']}
         return signal_decay, cc_signal_decay
-    elif "Bs_Dspi" == ref_signal:
+    elif ref_signal in 'BsToDspi':
         signal_decay = {'daughters': ['K+', 'K-', 'pi+', 'pi-'], 'mothers': ['B(s)0']}
         cc_signal_decay = {'daughters': ['K+', 'K-', 'pi+', 'pi-'], 'mothers': ['B(s)~0']}
         return signal_decay, cc_signal_decay
-    elif "Bs_Kmunu" == ref_signal:
+    elif ref_signal in 'BsToKmunu':
         signal_decay = {'daughters': ['K-', 'mu+'], 'mothers': ['B(s)0']}
         cc_signal_decay = {'daughters': ['K+', 'mu-'], 'mothers': ['B(s)~0']}
         return signal_decay, cc_signal_decay
-    elif "Bu_JpsiK" == ref_signal:
+    elif ref_signal in 'BuToJpsiK':
         signal_decay = {'daughters': ['mu+', 'mu-', 'K+'], 'mothers': ['B+']}
         cc_signal_decay = {'daughters': ['mu+', 'mu-', 'K-'], 'mothers': ['B-']}
         return signal_decay, cc_signal_decay
-    elif "Bc_Jpsitaunu" == ref_signal or "Bc_Jpsimunu" == ref_signal:
+    elif ref_signal in 'BcToJpsitaunu' or ref_signal in 'BcToJpsimunu':
         signal_decay = {'daughters': ['mu+', 'mu-', 'mu+'], 'mothers': ['B(c)+']}
         cc_signal_decay = {'daughters': ['mu+', 'mu-', 'mu-'], 'mothers': ['B(c)-']}
         return signal_decay, cc_signal_decay
