@@ -11,18 +11,16 @@ from wmpgnn.util.pruners import edge_pruning, true_node_pruning
 from wmpgnn.reconstruction.signal_dict import get_ref_signal, sig_matching
 from wmpgnn.reconstruction.reconstruction_helper import *
 from wmpgnn.reconstruction.quantity_adder import *
-
+from wmpgnn.util.bfs import find_components_bfs
 
 
 class EventReconstruction:
     def __init__(self, configs):
         self.configs = configs["inference"]
 
-
         cacheing_config = glob.glob(f"{configs['settings']['data_dir']}/{configs['evaluate']['sample'][0]}/*.yaml")[0]
         with open(cacheing_config, "r") as file:
             self.cacheing_config = yaml.safe_load(file)
-
 
         self.signal = get_ref_signal(configs["evaluate"]["sample"][0])
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -83,7 +81,6 @@ class EventReconstruction:
             ntracks = torch.unique(evt_tr_pv_edge_idx[0]).shape[0]
             npvs = torch.unique(evt_tr_pv_edge_idx[1]).shape[0]
 
-
             # log pv performance for all tracks
             if pv_des is not None:
                 min_ip_pv = torch.argmin(pv_des["minIP"][tr_pv_mask].view(ntracks, npvs), dim=1)
@@ -143,7 +140,6 @@ class EventReconstruction:
                 self.sig_df.append(pd.DataFrame(r))
             except:
                 continue
-            
 
     def reconstruct_single_evt(self, args):
         graph, pv_des, ft_des = args
@@ -154,8 +150,6 @@ class EventReconstruction:
             res = self.reco(graph, pv_des, ft_des)
 
         return res
-
-
 
     def true_reco(self, graph, pv_des, ft_des):
         # Reconstructed components
@@ -210,8 +204,6 @@ class EventReconstruction:
             sig_dict_holder.append(sig_dict)
         return sig_dict_holder
 
-
-
     def reco(self, graph, pv_des, ft_des):
         # Reconstructed components
         lca = torch.argmax(graph[("tracks", "tracks")].lca, dim=1)
@@ -238,7 +230,7 @@ class EventReconstruction:
             # Adding event level info, currently just slammed do it in a function
             sig_dict['EVENTNUMBER'] = graph['EVENTNUMBER'].item()
             sig_dict['RUNNUMBER'] = graph['RUNNUMBER'].item()
-            #Adding base quant info
+            # Adding base quant info
             sig_dict = get_track_info(sig_dict, reco_component)
             if sig_dict['SigLike']:  # Adding tupled signal B information
                 sig_dict = get_sig_lvl_info(sig_dict, graph, pv_des, ft_des)
