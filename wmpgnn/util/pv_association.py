@@ -4,42 +4,7 @@ import torch
 from multiprocessing.pool import ThreadPool
 
 from wmpgnn.util.pruners import *
-
-
-def find_components_bfs(edge_index):
-    # breadth first search
-    edge_index = edge_index.numpy()
-    all_nodes = set(edge_index[0]).union(set(edge_index[1]))
-
-    adj_list = {node: set() for node in all_nodes}
-    for i in range(edge_index.shape[1]):
-        src, dst = edge_index[0, i], edge_index[1, i]
-        adj_list[src].add(dst)
-        adj_list[dst].add(src)
-
-    visited = set()
-    components = []
-    for start_node in all_nodes:
-        if start_node in visited:
-            continue
-
-        component = set()
-        queue = [start_node]
-
-        while queue:
-            node = queue.pop(0)
-            if node in visited:
-                continue
-
-            visited.add(node)
-            component.add(node)
-
-            for neighbor in adj_list[node]:
-                if neighbor not in visited:
-                    queue.append(neighbor)
-        components.append([int(node) for node in component])
-
-    return components
+from wmpgnn.util.bfs import find_components_bfs
 
 
 def pv_association(edge_index, pv_desc):
@@ -103,7 +68,7 @@ def pv_associate_data(data, metrics, node_thr=None, n_cores=4):
     args_list = [(graph, metric, node_thr) for graph, metric in zip(graphs, metrics)]
 
     # Parallel processing of graphs
-    with ThreadPool(processes=2) as pool: # adjust to 1 during develop
+    with ThreadPool(processes=2) as pool:  # adjust to 1 during develop
         results_nested = pool.map(pv_associate_graph, args_list)
 
     # Flatten results
