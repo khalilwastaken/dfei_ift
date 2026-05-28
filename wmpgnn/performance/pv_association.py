@@ -85,8 +85,15 @@ def plot_pv_missasso(log, version, channel, label=None, log_dir='lightning_logs'
     log_npvs = log["npvs"]
 
     nPV_bins = list(pv_asso_ml.keys())
-    ml_mean, ml_err = zip(*[_missasso_stats(pv_asso_ml[k], pv_asso_ntracks[k]) for k in nPV_bins])
-    ip_mean, ip_err = zip(*[_missasso_stats(pv_asso_ip[k], pv_asso_ntracks[k]) for k in nPV_bins])
+    try:
+        ml_mean, ml_err = zip(*[_missasso_stats(pv_asso_ml[k], pv_asso_ntracks[k]) for k in nPV_bins])
+        ip_mean, ip_err = zip(*[_missasso_stats(pv_asso_ip[k], pv_asso_ntracks[k]) for k in nPV_bins])
+    except ValueError:
+        return (
+            sum(pv_asso_ntracks.values()),
+            sum(pv_asso_ml.values()),
+            sum(pv_asso_ip.values())
+        )
     npvs = np.array([v for k in nPV_bins for v in [k] * log_npvs[k]])
 
     f, ax = plt.subplots(figsize=(9, 6))
