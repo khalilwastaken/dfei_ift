@@ -8,8 +8,8 @@ from typing import Dict
 
 from wmpgnn.data_loader.weights_calculator import transform_pos_weight
 from wmpgnn.model.model import *
-from wmpgnn.lightning_module.dfei_lightning_module import DFEILightningModule
-from wmpgnn.lightning_module.ift_lightning_module import IFTLightningModule
+from wmpgnn.lightning_module.dfei_lm import DFEILightningModule
+from wmpgnn.lightning_module.ift_lm import IFTLightningModule
 
 
 
