@@ -11,7 +11,6 @@ from torch_geometric.loader import DataLoader
 
 from wmpgnn.data_loader.data_loader_class import DataSetLoader
 from wmpgnn.data_loader.helper import load_file, get_nfiles
-from wmpgnn.util.hetero_data_matching import unify_heterodata
 
 
 def get_trn_val_loaders(configs):
@@ -21,18 +20,8 @@ def get_trn_val_loaders(configs):
 
     nevts = {"training": {}, "validation": {}}
 
-    # For domain adaptation matching
-    ex_graph = None
-    if configs["settings"].get("domain_adapt"):
-        conf = configs["settings"]
-        trn_paths = sorted(glob.glob(f'{conf["data_dir"]}/{conf["sample"][0]}/trn_data_*'))[0]
-        ex_mc = load_file(trn_paths)[0]
-        trn_paths = sorted(glob.glob(f'{conf["da_data_dir"]}/{conf["da_sample"][0]}/trn_data_*'))[0]
-        ex_data = load_file(trn_paths)[0]
-        ex_graph = unify_heterodata(ex_data, ex_mc)
-
     # Initiate a data set loader
-    data_set_loader = DataSetLoader(configs, ex_graph=ex_graph)
+    data_set_loader = DataSetLoader(configs)
 
     """Train and validation data"""
     load_train_dataset = partial(data_set_loader.load_data, mode="train_weights")
@@ -62,7 +51,7 @@ def get_trn_val_loaders(configs):
             for r in results:
                 val_dataset.extend(r)
                 nevts["validation"][sample] += len(r)
-
+        """
         # Adding domain adapt data
         if configs["settings"].get("domain_adapt"):
             da_datadir = configs["settings"]["da_data_dir"]
@@ -82,7 +71,7 @@ def get_trn_val_loaders(configs):
                 for r in results:
                     val_dataset.extend(r)
                     nevts["validation"][sample] += len(r)
-
+        """
     print(f"Train dataset       : {len(trn_dataset)}")
     print(f"Validation dataset  : {len(val_dataset)}")
     print("=" * 30)

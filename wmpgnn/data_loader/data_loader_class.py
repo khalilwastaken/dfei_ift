@@ -14,9 +14,8 @@ from wmpgnn.util.pruners import *
 
 
 class DataSetLoader():
-    def __init__(self, configs, pv_model=None, ex_graph=None):
+    def __init__(self, configs, pv_model=None):
         self.configs = configs
-        self.ex_graph = ex_graph
         self.pv_model = pv_model
         # here we add stuff for cuts
 
@@ -49,8 +48,7 @@ class DataSetLoader():
 
         """Making the graph bidirectional"""
         for evt in data:
-            edge_type = ('tracks', 'to', 'tracks')
-            store = evt[edge_type]
+            store = evt[('tracks', 'tracks')]
 
             store.edge_index = torch.cat([store.edge_index, store.edge_index.flip(0)], dim=1)
             store.edges = store.edges.repeat(2, 1)  # More efficient than cat([x]*2)
@@ -92,8 +90,7 @@ class DataSetLoader():
                 label = torch.tensor([0.], dtype=torch.float32)  # MC label
             for evt in data:
                 evt["da_label"] = label
-                if ex_graph is not None:
-                    unify_heterodata(evt, self.ex_graph)  # storage within graph which do not exist are padded with 0
+
 
         if mode == "weights_only":
             weights = get_hetero_weight(data, self.configs["inference"])

@@ -15,7 +15,6 @@ from torch_geometric.loader import DataLoader
 from wmpgnn.data_loader.weights_calculator import transform_pos_weight
 from wmpgnn.data_loader.data_loader_class import DataSetLoader
 from wmpgnn.data_loader.helper import load_file, get_nfiles
-from wmpgnn.util.hetero_data_matching import unify_heterodata
 from wmpgnn.analysis.load_module import load_module
 
 
@@ -36,17 +35,15 @@ class DFEIPVAssoModule(L.LightningModule):
     @torch.no_grad()
     def forward(self, batch):
         with self.lock:  # trad looking
-            if self.use_pid == "realistic":
-                batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].real_pid], dim=1)
-            elif self.use_pid == "true":
+            if self.use_pid:
                 batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pid], dim=1)
             # Obtain the predicted quantity from the DFEI model
             outputs = self.model(batch.to(self.custom_device))
 
             lca_score = outputs[('tracks', 'to', 'tracks')].edges
             tracks_pred_y = self.model._blocks[-1].node_weights["tracks"].squeeze()
-            tr_tr_pred_y = self.model._blocks[-1].edge_weights[('tracks', 'to', 'tracks')].squeeze()
-            tr_pv_pred_y = self.model._blocks[-1].edge_weights[('tracks', 'to', 'pvs')]
+            tr_tr_pred_y = self.model._blocks[-1].edge_weights[('tracks', 'tracks')].squeeze()
+            tr_pv_pred_y = self.model._blocks[-1].edge_weights[('tracks', 'pvs')]
 
             track_batch = batch["tracks"].batch
             pv_batch = batch['pvs'].batch
@@ -158,18 +155,8 @@ def get_trn_val_loaders(configs):
 
     nevts = {"training": {}, "validation": {}}
 
-    # For domain adaptation matching
-    ex_graph = None
-    if configs["settings"].get("domain_adapt"):
-        conf = configs["settings"]
-        trn_paths = sorted(glob.glob(f'{conf["data_dir"]}/{conf["sample"][0]}/trn_data_*'))[0]
-        ex_mc = load_file(trn_paths)[0]
-        trn_paths = sorted(glob.glob(f'{conf["da_data_dir"]}/{conf["da_sample"][0]}/trn_data_*'))[0]
-        ex_data = load_file(trn_paths)[0]
-        ex_graph = unify_heterodata(ex_data, ex_mc)
-
     # Initiate a data set loader
-    data_set_loader = DataSetLoader(configs, pv_model=pv_model, ex_graph=ex_graph)
+    data_set_loader = DataSetLoader(configs, pv_model=pv_model)
 
     """Train and validation data"""
     load_train_dataset = partial(data_set_loader.load_data, mode="train_weights")
@@ -198,25 +185,6 @@ def get_trn_val_loaders(configs):
             for r in results:
                 val_dataset.extend(r)
                 nevts["validation"][sample] += len(r)
-
-        if configs["settings"].get("domain_adapt"):
-            da_datadir = configs["settings"]["da_data_dir"]
-            da_nfiles = get_nfiles(configs["settings"], prefix="da_")
-            for sample, files in da_nfiles.items():
-                # Training, dont calculate weights -> load_val_dataset
-                trn_paths = sorted(glob.glob(f'{da_datadir}/{sample}/trn_data_*'))[:files]
-                results = list(tqdm(pool.imap(load_val_dataset, trn_paths), total=len(trn_paths),
-                                    desc=f"Loading {sample} training dataset (da)"))
-                for r in results:
-                    trn_dataset.extend(r)
-                    nevts["training"][sample] += len(r)
-                # Validation
-                val_paths = sorted(glob.glob(f'{da_datadir}/{sample}/val_data_*'))[:files]
-                results = list(tqdm(pool.imap(load_val_dataset, val_paths), total=len(val_paths),
-                                    desc=f"Loading {sample} validation dataset (da)"))
-                for r in results:
-                    val_dataset.extend(r)
-                    nevts["validation"][sample] += len(r)
 
     print(f"Train dataset       : {len(trn_dataset)}")
     print(f"Validation dataset  : {len(val_dataset)}")

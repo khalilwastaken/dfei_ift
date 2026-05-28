@@ -14,7 +14,6 @@ from torch_geometric.loader import DataLoader
 
 from wmpgnn.data_loader.data_loader_class import DataSetLoader
 from wmpgnn.data_loader.helper import get_nfiles, load_file
-from wmpgnn.util.hetero_data_matching import unify_heterodata
 
 
 class ChunkDataset(IterableDataset):
@@ -201,21 +200,8 @@ def get_trn_val_loaders(_configs) -> ChunkLoader:
         trn_path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/trn_data_*'))[:files]
         val_path_dict[sample] = sorted(glob.glob(f'{data_dir}/{sample}/val_data_*'))[:files]
 
-    # Adding domain adapt data files
-    ex_graph = None
-    if _configs["settings"].get("domain_adapt"):
-        print("Using domain adaptation")
-        ex_mc = load_file(trn_path_dict[sample][0])[0]
-        da_datadir = _configs["settings"]["da_data_dir"]
-        da_nfiles = get_nfiles(_configs["settings"], prefix="da_")
-        for sample, files in da_nfiles.items():
-            trn_path_dict[sample] = sorted(glob.glob(f'{da_datadir}/{sample}/trn_data_*'))[:files]
-            val_path_dict[sample] = sorted(glob.glob(f'{da_datadir}/{sample}/val_data_*'))[:files]
-        ex_data = load_file(trn_path_dict[sample][0])[0]
-        ex_graph = unify_heterodata(ex_data, ex_mc)
-
     # Initiate a data set loader
-    data_set_loader = DataSetLoader(_configs, ex_graph=ex_graph)
+    data_set_loader = DataSetLoader(_configs)
 
     # Number of chunks definition and safeguard for the files per chunk to be less than 8
     min_files = min(len(v) for v in trn_path_dict.values() if len(v) > 0)
