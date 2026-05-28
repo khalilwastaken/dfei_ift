@@ -4,12 +4,10 @@ from itertools import chain
 from torch_geometric.loader import DataLoader
 
 from wmpgnn.util.pv_association import pv_associate_data
-from wmpgnn.util.hetero_data_matching import unify_heterodata
 from wmpgnn.calibration.calibration_mask import *
 from wmpgnn.data_loader.weights_calculator import get_hetero_weight
 from wmpgnn.data_loader.helper import *
 from wmpgnn.calibration.calibration_mask import *
-
 from wmpgnn.util.pruners import *
 
 
