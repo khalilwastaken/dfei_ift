@@ -10,8 +10,7 @@ from wmpgnn.util.pruners import edge_pruning, true_node_pruning
 from wmpgnn.reconstruction.reconstruction import EventReconstruction
 from wmpgnn.performance.reco_accuracy import obtain_reco_accuracy
 from wmpgnn.performance.plotter import *
-from wmpgnn.performance.tagging_power import analyze_tagging_power
-from wmpgnn.performance.plot_results import process_ft
+from wmpgnn.performance.tagging_power import analyze_tagging_power, process_ft
 from wmpgnn.calibration.calibration import *
 
 
@@ -58,7 +57,7 @@ class IFTLightningModule(L.LightningModule):
 
 
     def forward(self, batch):
-        # Adding lca information to edges
+        # Obtaining LCA information
         if self.dfei_model[0] is not None:  # lca from dfei model, overwrites from pv asso
             dfei_input = copy.deepcopy(batch)
             if self.dfei_use_pid:
@@ -71,8 +70,9 @@ class IFTLightningModule(L.LightningModule):
         else:  # using truth information
             labels = batch[("tracks", "tracks")].y.to(torch.long)
             lca = torch.nn.functional.one_hot(labels, num_classes=4).float()
-
         lca_score = torch.argmax(lca, dim=1).unsqueeze(1)
+
+        # Attach DFEI information to graph
         batch[("tracks", "tracks")].edges = torch.cat([batch[("tracks", "tracks")].edges, lca_score], dim=1)
         batch["tracks"].x = torch.cat([batch["tracks"].x, batch["tracks"].pred_y.unsqueeze(dim=1)], dim=1)
 
