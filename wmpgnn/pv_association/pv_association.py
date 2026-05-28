@@ -50,14 +50,13 @@ def pv_associate_graph(args):
 
         # removes all the nodes associated to a different pv
         nodes_asso_pv_selbool = pred_pv == pv
-        true_node_pruning(nodes_asso_pv_selbool, pv_oi_data, "tracks",
-                          [('tracks', 'to', 'tracks'), ('tracks', 'to', 'pvs')])
+        true_node_pruning(nodes_asso_pv_selbool, pv_oi_data, "tracks", [('tracks', 'tracks'), ('tracks', 'pvs')])
 
         # Lastly remove the pv which are not used anymore
         pv_selbool = torch.zeros(pv_oi_data["pvs"].x.shape[0], dtype=torch.bool)
         pv_selbool[pv] = True
 
-        true_node_pruning(pv_selbool, pv_oi_data, "pvs", [('tracks', 'to', 'pvs')])
+        true_node_pruning(pv_selbool, pv_oi_data, "pvs", [('tracks', 'pvs')])
         graph_results.append(pv_oi_data)  # check data dont need
     return graph_results
 
