@@ -1,6 +1,7 @@
 import yaml
-
 from typing import Dict
+
+import numpy as np
 
 
 def training_model_name(_configs: Dict) -> Dict:
@@ -32,6 +33,9 @@ def adjust_config_training(_configs: Dict) -> Dict:
     _configs = training_model_name(_configs)
     # Obtaining log_dir
     _configs["log_dir"] = 'LHCb_logs'
+
+    # adjust ncpus for different operations
+    _configs = determine_ncpus(_configs)
 
     # Check if weights need to be calculated, to save a bit of performance later on
     _configs["inference"]["get_weights"] = any(
@@ -72,6 +76,9 @@ def adjust_config_evaluation(_configs: Dict) -> Dict:
     # Obtaining log_dir
     _configs["log_dir"] = 'LHCb_logs'
 
+    # adjust ncpus for different operations
+    _configs = determine_ncpus(_configs)
+
     # Obtaining the model information of the model to be evaluated
     hparams_file = f"{_configs['log_dir']}/{_configs['model']}/version_{_configs['settings']['model']}/input_config.yaml"
     with open(hparams_file, "r") as file:
@@ -86,3 +93,18 @@ def adjust_config_evaluation(_configs: Dict) -> Dict:
         hparams = adjust_ift_configs(hparams)
 
     return hparams
+
+
+def determine_ncpus(_configs: Dict) -> Dict:
+    ncpus = _configs['settings']['ncpu']
+
+    _configs['ncpus'] = {
+        'trn_worker': ncpus * 2,
+        'tst_worker': 2 * 2,
+        'reconstruction': int(ncpus / 2),
+        'loading': int(np.sqrt(ncpus)) if _configs['settings']['calibration'] or _configs['settings'][
+            'pv_model'] is not None else ncpus,
+        'whiten': int(np.sqrt(ncpus)) if _configs['settings']['calibration'] else 1,
+        'pv_asso': int(np.sqrt(ncpus)) if _configs['settings']['pv_model'] is not None else 1,
+    }
+    return _configs
