@@ -11,18 +11,19 @@ from wmpgnn.calibration.calibration_mask import *
 from wmpgnn.util.pruners import *
 
 
-class DataSetLoader():
+class DataSetLoader:
     def __init__(self, configs, pv_model=None):
         self.configs = configs
+
+        # PV model
         self.pv_model = pv_model
-        # here we add stuff for cuts
+        # Whitening module for calibration
+        self.calibration_class = None
+        if configs['settings']['calibration']:
+            # The data passed to calibration needs to hold pred_y on track nodes and tr-tr edges with lca information
+            self.calibration_class = CalibrationClass(configs)
 
-        # if cuts exit load normalization
-        self.norm = None
-        if configs["settings"].get("cuts", False):  # TODO: right now it is just done manually
-            self.norm = obtain_normalization(configs)
-
-        self.edge_types = [("tracks", "to", "tracks"), ("tracks", "to", "pvs")]
+        self.edge_types = [("tracks", "tracks"), ("tracks", "pvs")]
 
     def load_data(self, path, mode="train"):
         data = load_file(path)
@@ -73,10 +74,11 @@ class DataSetLoader():
 
         """Whitening for calibration"""
         if self.configs["settings"]["calibration"]:
-            data = adjust_for_calibration(self.configs, path, data, n_cores=self.configs['ncpus']['whiten'])
+            data = self.calibration_class.remove_sig(path, data)
+
 
         """Domain adaptation labeling"""
-        if self.configs["settings"]["domain_adapt"]:
+        if self.configs["settings"].get('domain_adapt', False):
             if self.configs["settings"]["da_data_dir"] in path:
                 if 'tst' not in path:
                     label = torch.tensor([1.], dtype=torch.float32)  # data label
@@ -86,7 +88,6 @@ class DataSetLoader():
                 label = torch.tensor([0.], dtype=torch.float32)  # MC label
             for evt in data:
                 evt["da_label"] = label
-
 
         if mode == "weights_only":
             weights = get_hetero_weight(data, self.configs["inference"])
