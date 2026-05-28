@@ -2,6 +2,7 @@ import os
 
 import pandas as pd
 
+from wmpgnn.performance.plotter import plot_weights
 try:
     from wmpgnn.performance.tagging_power_classes import *
 except ImportError:
@@ -59,7 +60,7 @@ def analyze_tagging_power(df: pd.DataFrame, version: str, signal: str, log_dir: 
         full_df = df[df["SigMatch"] == 1]
         metrics_full = analyzer.compute_tagging_power_per_eta(full_df)
         analyzer.plot_tagging_power(metrics_full, full_df["eta"], "eta", "tagging_power")
-        analyzer.plot_tagging_power(metrics_full, full_df["num_pvs"], "npvs", "npvs_tagging_power")
+        analyzer.plot_tagging_power(metrics_full, full_df["npvs"], "npvs", "npvs_tagging_power")
         per_event_tagging_power = analyzer.compute_tagging_power_per_event(full_df)
         label = f"Tagging performance for {signal} ({len(full_df)}):"
         write_tagging_power(f, metrics_full, label, per_event=per_event_tagging_power)

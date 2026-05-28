@@ -128,7 +128,7 @@ class TaggingPowerAnalyzer:
             var = df["eta"]
         elif mode == "npvs":
             configs = NPVConfig()
-            var = df["num_pvs"]
+            var = df["npvs"]
         else:
             raise ValueError(f"Unknown mode: {mode}")
 
