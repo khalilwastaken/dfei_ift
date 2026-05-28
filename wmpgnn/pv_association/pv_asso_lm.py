@@ -16,7 +16,7 @@ def obtain_pv_model(configs):
         pv_model = TruePVAssoModule(configs)
     elif isinstance(pv_model, int):
         print("Using DFEI model version:", configs["settings"]["pv_model"], "for PV association")
-        hparams_file = f"{configs["log_dir"]}/DFEI/version_{configs['settings']['pv_model']}/hparams.yaml"
+        hparams_file = f"{configs['log_dir']}/DFEI/version_{configs['settings']['pv_model']}/hparams.yaml"
         with open(hparams_file, "r") as file:
             hparams = yaml.safe_load(file)
         hparams['DFEI']['cpt'] = configs["settings"]["pv_model"]
