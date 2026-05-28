@@ -3,7 +3,10 @@ import torch
 from particle import Particle
 
 
-def get_ref_signal(ref_signal):  # Here we can define them all
+def get_ref_signal(ref_signal):
+    # FT: (BdToJpsiKs, BdToJpsipipi)
+    # SL: BsToKmunu, BcToJpsitaunu BcToJpsimunu
+
     signal_decay = None
     if "inclusive" in ref_signal:
         signal_decay = {}
@@ -22,15 +25,9 @@ def get_ref_signal(ref_signal):  # Here we can define them all
     elif "BsToDsPi" in ref_signal:
         signal_decay = {'final': torch.tensor([211, 321, -321, -211]), 'head': [531, -531],
                         'LCA': torch.tensor([2, 2, 2, 1, 1, 1])}
-
-    # Something to consider is that the topoLCA can differ, as they are dependent on gammactau
-    # So intermediate states which could be part of both might cause struggles
-    # This needs to be investigated
     if signal_decay is None:
         raise NotImplementedError("Topology of signal decay mode not defined yet, please add")
     return signal_decay
-    # FT: Bs->DsPi, Bd->Dpi (BdToJpsiKs, BdToJpsipipi)
-    # SL: BsToKmunu, BcToJpsitaunu BcToJpsimunu
 
 
 def sig_matching(component, signal, mode='reco'):
