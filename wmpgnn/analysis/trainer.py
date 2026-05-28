@@ -1,4 +1,4 @@
-from optparse import OptionParser
+import argparse
 import sys, os
 import copy
 import yaml
@@ -13,18 +13,15 @@ from wmpgnn.performance.plot_results import metrics_eval
 
 if __name__ == "__main__":
     # python trainer.py  --config  ../../config_files/lightning.yaml
-    usage = "usage: %prog [options]"
-    parser = OptionParser(usage)
-    parser.add_option("", "--config", type=str, default=None,
-                      dest="CONFIG", help="Config file path")
-    (option, args) = parser.parse_args()
-    if len(args) != 0:
-        raise RuntimeError("Got undefined arguments", " ".join(args))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, default=None,
+                        help="Config file path")
+    args = parser.parse_args()
     print("=" * 45)
     print("Starting the training script")
 
     # Load config file
-    with open(option.CONFIG, "r") as file:
+    with open(args.config, "r") as file:
         configs = yaml.safe_load(file)
         save_config = copy.deepcopy(configs)  # creating the raw input configs to be saved later in the version dir
     configs = adjust_config_training(configs)

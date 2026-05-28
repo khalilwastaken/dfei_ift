@@ -1,4 +1,4 @@
-from optparse import OptionParser
+import argparse
 import sys, os
 import yaml
 
@@ -11,18 +11,15 @@ from wmpgnn.lightning_module.exec_lightning import evaluate
 
 if __name__ == "__main__":
     # python trainer.py  --config  to hparams.yaml
-    usage = "usage: %prog [options]"
-    parser = OptionParser(usage)
-    parser.add_option("", "--config", type=str, default=None,
-                      dest="CONFIG", help="Config file path")
-    (option, args) = parser.parse_args()
-    if len(args) != 0:
-        raise RuntimeError("Got undefined arguments", " ".join(args))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, default=None,
+                        help="Config file path")
+    args = parser.parse_args()
     print("=" * 45)
     print("Starting the evaluation script")
 
     # Load config file
-    with open(option.CONFIG, "r") as file:
+    with open(args.config, "r") as file:
         configs = yaml.safe_load(file)
     configs = adjust_config_evaluation(configs)
 
