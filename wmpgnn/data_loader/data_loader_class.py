@@ -3,7 +3,7 @@ from itertools import chain
 
 from torch_geometric.loader import DataLoader
 
-from wmpgnn.util.pv_association import pv_associate_data
+from wmpgnn.pv_association.pv_association import pv_associate_data
 from wmpgnn.calibration.calibration_mask import *
 from wmpgnn.data_loader.weights_calculator import get_hetero_weight
 from wmpgnn.data_loader.helper import *
@@ -21,8 +21,6 @@ class DataSetLoader():
         self.norm = None
         if configs["settings"].get("cuts", False):  # TODO: right now it is just done manually
             self.norm = obtain_normalization(configs)
-
-        self.ncpus = int(configs["settings"]["ncpu"] / 2)
 
         self.edge_types = [("tracks", "to", "tracks"), ("tracks", "to", "pvs")]
 
@@ -66,16 +64,16 @@ class DataSetLoader():
                     original_data = copy.deepcopy(evt)
                     metrics = self.pv_model.forward(evt)
                     res = pv_associate_data(original_data, metrics, node_thr=self.pv_model.node_thrs,
-                                            n_cores=self.ncpus)
+                                            n_cores=self.configs['ncpus']['pv_asso'])
                 else:
                     metrics = self.pv_model.forward(evt)
-                    res = pv_associate_data(evt, metrics, n_cores=self.ncpus)
+                    res = pv_associate_data(evt, metrics, n_cores=self.configs['ncpus']['pv_asso'])
                 data.append(res)
             data = list(chain.from_iterable(data))
 
         """Whitening for calibration"""
         if self.configs["settings"]["calibration"]:
-            data = adjust_for_calibration(self.configs, path, data, n_cores=self.ncpus)
+            data = adjust_for_calibration(self.configs, path, data, n_cores=self.configs['ncpus']['whiten'])
 
         """Domain adaptation labeling"""
         if self.configs["settings"]["domain_adapt"]:

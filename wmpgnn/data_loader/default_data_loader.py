@@ -15,7 +15,6 @@ from wmpgnn.data_loader.helper import load_file, get_nfiles
 
 def get_trn_val_loaders(configs):
     data_dir = configs["settings"]["data_dir"]
-    ncpus = configs["settings"]["ncpu"]
     nfiles = get_nfiles(configs["settings"])
 
     nevts = {"training": {}, "validation": {}}
@@ -30,7 +29,7 @@ def get_trn_val_loaders(configs):
     val_dataset = []
     weights = {}
 
-    with ThreadPool(processes=ncpus) as pool:
+    with ThreadPool(processes=configs["ncpus"]["loading"]) as pool:
         for sample, files in nfiles.items():
             # Training
             nevts["training"][sample] = 0
@@ -78,19 +77,20 @@ def get_trn_val_loaders(configs):
 
     # Creating the dataloaders
     batch_size = configs["settings"]["batch_size"]
-    trn_loader = DataLoader(trn_dataset, batch_size=batch_size, num_workers=ncpus * 2, drop_last=True, shuffle=True)
+    trn_loader = DataLoader(trn_dataset, batch_size=batch_size, num_workers=configs['ncpus']['trn_worker'],
+                            drop_last=True, shuffle=True)
     # Shuffle the initial dataset of validation as it is currently sorted by the samples
     generator = torch.Generator()
     shuffled_indices = torch.randperm(len(val_dataset), generator=generator).tolist()
     val_dataset_shuffled = Subset(val_dataset, shuffled_indices)
-    val_loader = DataLoader(val_dataset_shuffled, batch_size=batch_size, num_workers=ncpus * 2, drop_last=True)
+    val_loader = DataLoader(val_dataset_shuffled, batch_size=batch_size, num_workers=configs['ncpus']['trn_worker'],
+                            drop_last=True)
 
     return trn_loader, val_loader, weights, nevts
 
 
 def get_tst_loader(configs):
     data_dir = configs["settings"]["data_dir"]
-    ncpus = configs["settings"]["ncpu"]
     nfiles = get_nfiles(configs["evaluate"])
 
     nevts = {"testing": {}}
@@ -104,7 +104,7 @@ def get_tst_loader(configs):
     for sample, files in nfiles.items():
         nevts["testing"][sample] = 0
         tst_paths = sorted(glob.glob(f'{data_dir}/{sample}/tst_data_*'))[:files]
-        with ThreadPool(processes=ncpus) as pool:
+        with ThreadPool(processes=configs["ncpus"]["loading"]) as pool:
             results = list(tqdm(pool.imap(load_tst_dataset, tst_paths), total=len(tst_paths),
                                 desc=f"Loading {sample} test dataset"))
         for r in results:
@@ -115,5 +115,5 @@ def get_tst_loader(configs):
     generator = torch.Generator()
     shuffled_indices = torch.randperm(len(tst_dataset), generator=generator).tolist()
     tst_dataset_shuffled = Subset(tst_dataset, shuffled_indices)
-    tst_loader = DataLoader(tst_dataset_shuffled, batch_size=512, num_workers=2)
+    tst_loader = DataLoader(tst_dataset_shuffled, batch_size=512, num_workers=configs["ncpus"]["tst_worker"])
     return tst_loader, nevts

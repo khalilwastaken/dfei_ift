@@ -80,14 +80,14 @@ class ChunkDataset(IterableDataset):
         if mode == "loading":
             dataset = []
             load_dataset_part = partial(self.data_set_loader.load_data, mode=mode)
-            with ThreadPool(processes=self.configs["settings"]["ncpu"]) as pool:
+            with ThreadPool(processes=self.configs["ncpus"]["loading"]) as pool:
                 for r in tqdm(pool.imap(load_dataset_part, files), total=len(files), desc=desc, leave=False):
                     dataset.extend(r)
             return dataset
         elif mode == "weights":
             weights = {}
             load_dataset_part = partial(self.data_set_loader.load_data, mode="weights_only")
-            with ThreadPool(processes=1) as pool: #self.configs["settings"]["ncpu"]) as pool:
+            with ThreadPool(processes=self.configs["ncpus"]["loading"]) as pool:
                 for r in tqdm(pool.imap(load_dataset_part, files), total=len(files), desc=desc, leave=False):
                     for key, value in r.items():
                         weights[key] = weights.get(key, 0) + value
@@ -143,8 +143,7 @@ class ChunkDataset(IterableDataset):
 
 class ChunkLoader(pl.LightningDataModule):
     # Data container for pytorch lightning module
-    def __init__(self, configs, trn_dataset=None, val_dataset=None, tst_dataset=None, batch_size=None,
-                 num_workers=None):
+    def __init__(self, configs, trn_dataset=None, val_dataset=None, tst_dataset=None, batch_size=None):
         super().__init__()
         self.trn_dataset = trn_dataset
         self.val_dataset = val_dataset
@@ -155,34 +154,30 @@ class ChunkLoader(pl.LightningDataModule):
             self.batch_size = batch_size
         else:
             self.batch_size = self.configs["settings"]["batch_size"]
-        if isinstance(num_workers, int):  # we need to be cautious to not load too much to cpu mem
-            self.num_workers = num_workers
-        else:
-            self.num_workers = self.configs["settings"]["ncpu"] * 2
 
     def train_dataloader(self):
         if not isinstance(self.trn_dataset, type(None)):
-            trn_loader = DataLoader(self.trn_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
-                                    drop_last=True, persistent_workers=False,
-                                    pin_memory=False)
+            trn_loader = DataLoader(self.trn_dataset, batch_size=self.batch_size,
+                                    num_workers=self.configs["ncpus"]["trn_worker"],
+                                    drop_last=True, persistent_workers=False, pin_memory=False)
         else:
             raise ValueError("trn_dataset must not be None")
         return trn_loader
 
     def val_dataloader(self):
         if not isinstance(self.val_dataset, type(None)):
-            val_loader = DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
-                                    drop_last=True, persistent_workers=False,
-                                    pin_memory=False)
+            val_loader = DataLoader(self.val_dataset, batch_size=self.batch_size,
+                                    num_workers=self.configs["ncpus"]["trn_worker"],
+                                    drop_last=True, persistent_workers=False, pin_memory=False)
         else:
             raise ValueError("val_dataset must not be None")
         return val_loader
 
     def test_dataloader(self):
         if not isinstance(self.tst_dataset, type(None)):
-            tst_loader = DataLoader(self.tst_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
-                                    drop_last=False, persistent_workers=False,
-                                    pin_memory=False)
+            tst_loader = DataLoader(self.tst_dataset, batch_size=self.batch_size,
+                                    num_workers=self.configs["ncpus"]["tst_worker"],
+                                    drop_last=False, persistent_workers=False, pin_memory=False)
         else:
             raise ValueError("tst_dataset not must be None")
         return tst_loader
@@ -190,7 +185,7 @@ class ChunkLoader(pl.LightningDataModule):
 
 def get_trn_val_loaders(_configs) -> ChunkLoader:
     data_dir = _configs["settings"]["data_dir"]
-    num_workers = _configs["settings"]["ncpu"] * 2
+    num_workers = _configs["ncpus"]["trn_worker"]
     nfiles = get_nfiles(_configs["settings"])
 
     """Paths of the train and validation files"""
