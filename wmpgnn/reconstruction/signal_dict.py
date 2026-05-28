@@ -4,39 +4,33 @@ from particle import Particle
 
 
 def get_ref_signal(ref_signal):  # Here we can define them all
-    if ref_signal == "inclusive":
-        return {}
-    if 'BsToJpsiPhi' in ref_signal:
+    signal_decay = None
+    if "inclusive" in ref_signal:
+        signal_decay = {}
+    elif 'BsToJpsiPhi' in ref_signal:
         signal_decay = {'final': torch.tensor([-13, 13, -321, 321]), 'head': [531, -531],
                         'LCA': torch.tensor([1, 1, 1, 1, 1, 1])}
-        return signal_decay
-    elif ref_signal in 'BdToJpsiKst':
-        signal_decay = {'daughters': ['mu+', 'mu-', 'K+', 'pi-'], 'mothers': ['B0']}
-        cc_signal_decay = {'daughters': ['mu+', 'mu-', 'pi+', 'K-'], 'mothers': ['B~0']}
-        return signal_decay, cc_signal_decay
-    elif ref_signal in 'BdToJpsiKs':
-        signal_decay = {'daughters': ['mu+', 'mu-', 'pi+', 'pi-'], 'mothers': ['B0']}
-        cc_signal_decay = {'daughters': ['mu+', 'mu-', 'pi+', 'pi-'], 'mothers': ['B~0']}
-        return signal_decay, cc_signal_decay
-    elif ref_signal in 'BsToDspi':
-        signal_decay = {'daughters': ['K+', 'K-', 'pi+', 'pi-'], 'mothers': ['B(s)0']}
-        cc_signal_decay = {'daughters': ['K+', 'K-', 'pi+', 'pi-'], 'mothers': ['B(s)~0']}
-        return signal_decay, cc_signal_decay
-    elif ref_signal in 'BsToKmunu':
-        signal_decay = {'daughters': ['K-', 'mu+'], 'mothers': ['B(s)0']}
-        cc_signal_decay = {'daughters': ['K+', 'mu-'], 'mothers': ['B(s)~0']}
-        return signal_decay, cc_signal_decay
-    elif ref_signal in 'BuToJpsiK':
-        signal_decay = {'daughters': ['mu+', 'mu-', 'K+'], 'mothers': ['B+']}
-        cc_signal_decay = {'daughters': ['mu+', 'mu-', 'K-'], 'mothers': ['B-']}
-        return signal_decay, cc_signal_decay
-    elif ref_signal in 'BcToJpsitaunu' or ref_signal in 'BcToJpsimunu':
-        signal_decay = {'daughters': ['mu+', 'mu-', 'mu+'], 'mothers': ['B(c)+']}
-        cc_signal_decay = {'daughters': ['mu+', 'mu-', 'mu-'], 'mothers': ['B(c)-']}
-        return signal_decay, cc_signal_decay
-    import pdb; pdb.set_trace()
+    elif "BdToJpsiKst" in ref_signal:
+        signal_decay = {'final': torch.tensor([-13, 13, -211, 321]), 'head': [511, -511],
+                        'LCA': torch.tensor([1, 1, 1, 1, 1, 1])}
+    elif "BuToJpsiK" in ref_signal:
+        signal_decay = {'final': torch.tensor([-13, 13, 321]), 'head': [521, -521],
+                        'LCA': torch.tensor([1, 1, 1])}
+    elif "BdToDPi" in ref_signal: # cheated to dev one could put lca score to 1
+        signal_decay = {'final': torch.tensor([211, 211, -321, -211]), 'head': [511, -511],
+                        'LCA': torch.tensor([2, 2, 2, 1, 1, 1])}
+    elif "BsToDsPi" in ref_signal:
+        signal_decay = {'final': torch.tensor([211, 321, -321, -211]), 'head': [531, -531],
+                        'LCA': torch.tensor([2, 2, 2, 1, 1, 1])}
 
-    raise NotImplementedError
+    # Something to consider is that the topoLCA can differ, as they are dependent on gammactau
+    # So intermediate states which could be part of both might cause struggles
+    # This needs to be investigated
+    if signal_decay is None:
+        raise NotImplementedError("Topology of signal decay mode not defined yet, please add")
+    return signal_decay
+    # FT: Bs->DsPi, Bd->Dpi (BdToJpsiKs, BdToJpsipipi)
+    # SL: BsToKmunu, BcToJpsitaunu BcToJpsimunu
 
 
 def sig_matching(component, signal, mode='reco'):
@@ -52,9 +46,9 @@ def sig_matching(component, signal, mode='reco'):
 
     # Matching LCA information on the edges
     if mode == 'reco':
-        target_lca =  torch.sort(torch.cat([signal['LCA'], signal['LCA']])).values
+        target_lca = torch.sort(torch.cat([signal['LCA'], signal['LCA']])).values
     elif mode == 'true':
-        target_lca =  torch.sort(signal['LCA']).values
+        target_lca = torch.sort(signal['LCA']).values
     else:
         raise ValueError('mode must be reco or true')
     sel_lca = torch.sort(component['lca']).values
