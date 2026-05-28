@@ -12,7 +12,6 @@ from wmpgnn.lightning_module.dfei_lm import DFEILightningModule
 from wmpgnn.lightning_module.ift_lm import IFTLightningModule
 
 
-
 def load_dfei_for_ift(configs):
     version = configs['IFT']['dfei_model']
     log_dir = configs['log_dir']
@@ -43,7 +42,7 @@ def load_dfei_for_ift(configs):
     return configs, model
 
 
-def get_bis_model(version: int, configs: Dict, mode: str=None) -> str:
+def get_bis_model(version: int, configs: Dict, mode: str = None) -> str:
     # find the model with the best performance in the checkpoints
     model = configs["model"]
     log_dir = configs["log_dir"]
@@ -103,5 +102,5 @@ def load_module(configs: Dict, pos_weights: Dict, dfei_model=None, mode='MC'):
         raise NotImplementedError
     # During evaluation this mode setting will disable accessing information not available in data
     if mode == 'data':
-        module.tst_mode =  mode
+        module.tst_mode = mode
     return module, bis_model
