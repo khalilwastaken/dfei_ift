@@ -186,16 +186,19 @@ class EventReconstruction:
                 if sig_dict["AllParticles"] == 0 and sig_dict["NoneIso"] == 0 and sig_dict["PartReco"] == 0:
                     sig_dict["NotFound"] = 1
                     reco_component = None
-            if pv_des:
+            if pv_des is not None:
                 sig_dict = get_pv_asso(sig_dict, reco_component, pv_des)
-            if ft_des:
-                sig_dict = get_pred_ft(sig_dict, graph, reco_component, ft_des)
+            if ft_des is not None:
+                sig_dict = get_pred_ft(sig_dict, reco_component, ft_des)
+                sig_dict["part_ids"] = '_'.join(str(x.item()) for x in true_component['part_id']) # true
 
             # Adding event level info, currently just slammed do it in a function
             sig_dict['true_part_ids'] = '_'.join(str(x.item()) for x in true_component['part_id'])
             sig_dict["B_id"] = true_component['head_id']
             sig_dict['EVENTNUMBER'] = graph['EVENTNUMBER'].item()
             sig_dict['RUNNUMBER'] = graph['RUNNUMBER'].item()
+            if 'num_pvs' in graph and 'npvs' not in sig_dict:
+                sig_dict['npvs'] = graph['num_pvs'].item()
             # Adding base quant info
             if reco_component:
                 sig_dict = get_track_info(sig_dict, reco_component)
