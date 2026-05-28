@@ -2,10 +2,10 @@
 settings:
   # Input file information
   data_dir: "/eos/user/y/yukaiz/DFEI_IFT_Run3/test_data/MC_normed/" # DFEI_pythia_nu7p6_normed_pt_data, DFEI_LHCb_LHCbcollision_normed_pt_data
-  sample: [ "BdToDPi_00338410", 'BdToJpsiKst_00338627', 'BsToDsPi_00338392', 'BsToJpsiPhi_00342629', 'BuToJpsiK_00338624' ]
-  nfiles: [ 200, 200, 200, 200, 200, ]
+  sample: [ "BdToDPi_00338410", 'BdToJpsiKst_00338627', 'BsToDsPi_00338392', 'BsToJpsiPhi_00342629', 'BuToJpsiK_00338624']
+  nfiles: [200, 200, 200, 200, 200,]
   # Training settings
-  batch_size: 64 # 256
+  batch_size: 256
   lr: 1e-3
   weight_decay: 1e-5
   epochs: 100
@@ -19,13 +19,13 @@ settings:
   pv_model_name: "None" #  name to specify the model, "None" (best model auto selected)
   calibration: true
   calibrate_mode: [ "BdToDPi", "BdToJpsiKst", "BsToDsPi", 'BsToJpsiPhi', 'BuToJpsiK']
-  to_whiten: [ "charge" ,'Prob_k', 'Prob_e', 'Prob_mu', 'Prob_p', 'Prob_pi' ] # list or -1
+  to_whiten: [ "Charge" ,'Prob_k', 'Prob_e', 'Prob_mu', 'Prob_p', 'Prob_pi' ] # list or -1
 
 inference:
-  FT: True
-  FT_weights: False
-  frag: False
-  frag_weights: False
+  FT: true
+  FT_weights: false
+  frag: false
+  frag_weights: false
   # fragmentation inference is decapitated and was pythia simulation exclusive
   # Defining thresholds to remove bkg edges and nodes before reconstruction
   edge_prune_thr: 0.1  # Edge prune threshold during reco
