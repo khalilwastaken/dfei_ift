@@ -1,8 +1,8 @@
 settings:
   model_arch: "DFEI" # architecture of the model to evaluate
-  model: 7 # Only version number, auto select the bis model
+  model: 6 # Only version number, auto select the bis model
   model_name: "None" # "best-epoch" path, "None" for auto select bis
-  data_dir: "/eos/user/y/yukaiz/DFEI_IFT/data/DFEI_LHCb_LHCbcollision_normed_pt_data/"
+  data_dir: "/eos/user/y/yukaiz/DFEI_IFT_Run3/test_data/MC_normed/"
   ncpu: 16  # NCPUs for data loader, full dataset limited to 8 for workers due to cpu mem constraints
   calibration: false
 
@@ -16,7 +16,7 @@ inference:
   plt_pvs: true
 
 evaluate:
-  sample: [ "00342629_Bs_Jpsiphi" ]
+  sample: [ "BsToDsPi_00338392" ]
   nfiles: [ 10 ]
   over_write: "" # argument to overwrite the output names to rerun safely the same sample: "" for no overwrite
 
