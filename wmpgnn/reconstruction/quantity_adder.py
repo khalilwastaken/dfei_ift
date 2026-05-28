@@ -23,24 +23,22 @@ def get_asso_frag(sig_dict, graph, cluster):
     return res_dict
 
 
-def get_pred_ft(sig_dict, graph, cluster, ft_score):
-    res_dict = sig_dict
-    # Save combined b bbar score, save individual scores, save pid of final
-    cluster_keys = cluster['node_keys']
-    keys = graph['final_keys']
-    b_daugthers_mask = np.isin(keys, cluster_keys)
+def get_pred_ft(sig_dict, cluster, ft_score):
+    if cluster is None:
+        sig_dict["final_pid"] = str(-1)
+        sig_dict["final_b_score"] = str(-1)
+        sig_dict["final_bbar_score"] = str(-1)
+        sig_dict["ft_b_score"] = -1
+        sig_dict["ft_bbar_score"] = -1
+        return sig_dict
 
-    # Get the pid of the particles
-    res_dict["final_pid"] = ','.join(str(x.item()) for x in graph["part_ids"][b_daugthers_mask])
+    nodes = cluster['nodes']
+    sig_dict["final_pid"] = ','.join(str(x.item()) for x in cluster['part_id']) # reconstructed
+    sig_dict["final_b_score"] = ','.join(str(x.item()) for x in ft_score[nodes][:, :1].squeeze())
+    sig_dict["final_bbar_score"] = ','.join(str(x.item()) for x in ft_score[nodes][:, 2:].squeeze())
 
-    # Get the individual scores stored as strings
-    ft_score = ft_score[b_daugthers_mask].cpu()
-    res_dict["final_b_score"] = ','.join(str(x.item()) for x in ft_score[:, :1].squeeze())
-    res_dict["final_bbar_score"] = ','.join(str(x.item()) for x in ft_score[:, 2:].squeeze())
-
-    res_dict["ft_b_score"], _, res_dict["ft_bbar_score"] = ft_score.mean(dim=0).tolist()
-    res_dict["part_ids"] = '_'.join(str(x.item()) for x in graph["pid_holder"])
-    return res_dict
+    sig_dict["ft_b_score"], _, sig_dict["ft_bbar_score"] = ft_score[nodes].mean(dim=0).tolist()
+    return sig_dict
 
 
 def get_pv_asso(sig_dict, cluster, pv_des):
@@ -86,10 +84,10 @@ def get_track_info(sig_dict, cluster):
 def get_sig_lvl_info(sig_dict, graph, pv_des, ft_des):
     keys = ["B_M", "B_PT", "B_ETA"]
 
-    if pv_des:
+    if pv_des is not None:
         keys += ["minIP_pv_b_lvl", "true_pv_b_lvl"]
 
-    if ft_des:
+    if ft_des is not None:
         keys += ["B_v0_OSKaon", "B_v1_OSKaon",
                  "B_v0_OSMuon", "B_v1_OSMuon",
                  "B_v0_OSElectron", "B_v1_OSElectron",
