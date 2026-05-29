@@ -21,6 +21,12 @@ def load_file(path):
             data = torch.load(io.BytesIO(decompressed), weights_only=False)
     return data
 
+def save_compressed(data, filepath, level=3):
+    cctx = zstd.ZstdCompressor(level=level)
+    with open(filepath, 'wb') as f:
+        with cctx.stream_writer(f) as compressor:
+            torch.save(data, compressor)
+
 
 def initial_pruning(data, configs):
     data_selbool = torch.ones(len(data))
