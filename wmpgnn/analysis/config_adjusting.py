@@ -102,9 +102,8 @@ def determine_ncpus(_configs: Dict) -> Dict:
         'trn_worker': ncpus * 2,
         'tst_worker': 2 * 2,
         'reconstruction': int(ncpus / 2),
-        'loading': int(np.sqrt(ncpus)) if _configs['settings']['calibration'] or _configs['settings'][
-            'pv_model'] is not None else ncpus,
-        'whiten': int(np.sqrt(ncpus)) if _configs['settings']['calibration'] else 1,
-        'pv_asso': int(np.sqrt(ncpus)) if _configs['settings']['pv_model'] is not None else 1,
+        'loading': int(np.sqrt(ncpus)) if _configs['settings'].get('calibration', False) or _configs['settings'].get('pv_model', False) is not None else ncpus,
+        'whiten': int(np.sqrt(ncpus)) if  _configs['settings'].get('calibration', False) else 1,
+        'pv_asso': int(np.sqrt(ncpus)) if _configs['settings'].get('pv_model', False) is not None else 1,
     }
     return _configs
