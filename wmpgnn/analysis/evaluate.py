@@ -3,7 +3,7 @@ import sys, os
 import yaml
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-from wmpgnn.analysis.config_adjusting import *
+from wmpgnn.analysis.config_adjusting import adjust_config_evaluation
 from wmpgnn.lightning_module.load_module import *
 from wmpgnn.data_loader.get_data_loader import load_tst_loader
 from wmpgnn.data_loader.weights_calculator import transform_pos_weight
@@ -21,8 +21,7 @@ if __name__ == "__main__":
 
     # Load config file
     with open(args.config, "r") as file:
-        configs = yaml.safe_load(file)
-    configs = adjust_config_evaluation(configs)
+        configs = adjust_config_evaluation(yaml.safe_load(file))
     configs, tst_loader, chunkloader = load_tst_loader(configs)
     pos_weights = transform_pos_weight(None, None, mode="eval")
 

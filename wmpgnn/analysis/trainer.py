@@ -4,7 +4,7 @@ import copy
 import yaml
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-from wmpgnn.analysis.config_adjusting import *
+from wmpgnn.analysis.config_adjusting import adjust_config_training
 from wmpgnn.lightning_module.load_module import *
 from wmpgnn.data_loader.get_data_loader import load_trn_val_loader, load_tst_loader
 from wmpgnn.data_loader.weights_calculator import transform_pos_weight
