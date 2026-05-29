@@ -16,7 +16,7 @@ def create_calib_root(df: pd.DataFrame, version: str, signal: str, log_dir: str 
     sig_df["B_IFT_TAGETA"] = 1 - np.max(tag_decision, axis=1) / np.sum(tag_decision, axis=1)
     sig_df["B_IFT_TAGDEC"] = np.argmax(tag_decision, axis=1) * 2 - 1
     sig_df["B_PARTICLE_ID"] = sig_df["B_id"]
-    save_df = sig_df[["EVENTNUMBER", "RUNNUMBER", "num_pvs", "B_IFT_TAGETA", "B_IFT_TAGDEC", "B_PARTICLE_ID"]]
+    save_df = sig_df[["EVENTNUMBER", "RUNNUMBER", "npvs", "B_IFT_TAGETA", "B_IFT_TAGDEC", "B_PARTICLE_ID"]]
 
     with uproot.recreate(outfile) as f:
         f["DecayTree"] = {col: sig_df[col].values for col in save_df.columns}
