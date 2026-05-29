@@ -31,7 +31,7 @@ def pv_associate_graph(args):
 
     # Adding num pvs to original graph
     edge_index = graph[("tracks", "pvs")]["edge_index"]
-    graph["num_pvs"] = edge_index[1].max().item() + 1
+    graph["num_pvs"] = torch.tensor([edge_index[1].max().item() + 1])
     pred_pv = pv_association(edge_index, metric["pv_desc"])
 
     # finding the pv which are interesting
