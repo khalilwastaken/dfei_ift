@@ -1,0 +1,7 @@
+settings:
+  model_arch: "DFEI" # architecture of the model to evaluate
+  pv_model: 6 # version number (auto select bis)
+  pv_model_name: 'None' # name to specify the model, "None" (best model auto selected)
+  data_dir: "/eos/user/y/yukaiz/DFEI_IFT_Run3/test_data/MC_normed/"
+  ncpu: 8
+  sample: [ "BdToDPi_00338410", 'BdToJpsiKst_00338627', 'BsToDsPi_00338392', 'BsToJpsiPhi_00342629', 'BuToJpsiK_00338624']
