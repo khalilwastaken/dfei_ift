@@ -19,15 +19,17 @@ class DataSetLoader:
             # The data passed to calibration needs to hold pred_y on track nodes and tr-tr edges with lca information
             self.calibration_class = CalibrationClass(configs)
         self.edge_types = [("tracks", "tracks"), ("tracks", "pvs")]
-
+        self.make_bidirectional = configs['settings'].get('make_bi', True)
+        
     def load_data(self, path, mode="train"):
         data = load_file(path)
 
         if "true" in self.configs["settings"].get("graph_mode", ""):
             data = initial_pruning(data, self.configs["settings"])
 
-        for evt in data:
-            self._make_bidirectional(evt)
+        if self.make_bidirectional:
+            for evt in data:
+                self._make_bidirectional(evt)
 
         if self.pv_model is not None:
             data = self._run_pv_association(data)
