@@ -199,6 +199,8 @@ class EventReconstruction:
             sig_dict['RUNNUMBER'] = graph['RUNNUMBER'].item()
             if 'num_pvs' in graph and 'npvs' not in sig_dict:
                 sig_dict['npvs'] = graph['num_pvs'].item()
+            if 'is_whiten' in graph:
+                sig_dict['is_whiten'] = graph['is_whiten'].item()
             # Adding base quant info
             if reco_component:
                 sig_dict = get_track_info(sig_dict, reco_component)
@@ -225,14 +227,18 @@ class EventReconstruction:
                 if sig_matching(reco_component, self.signal, "reco"):
                     sig_dict['SigLike'] = int(1)
 
-            if pv_des:
+            if pv_des is not None:
                 sig_dict = get_pv_asso(sig_dict, reco_component, pv_des)
-            if ft_des:
-                sig_dict = get_pred_ft(sig_dict, graph, reco_component, ft_des)
+            if ft_des is not None:
+                sig_dict = get_pred_ft(sig_dict, reco_component, ft_des)
 
             # Adding event level info, currently just slammed do it in a function
             sig_dict['EVENTNUMBER'] = graph['EVENTNUMBER'].item()
             sig_dict['RUNNUMBER'] = graph['RUNNUMBER'].item()
+            if 'num_pvs' in graph and 'npvs' not in sig_dict:
+                sig_dict['npvs'] = graph['num_pvs'].item()
+            if 'is_whiten' in graph:
+                sig_dict['is_whiten'] = graph['is_whiten'].item()
             # Adding base quant info
             sig_dict = get_track_info(sig_dict, reco_component)
             if sig_dict['SigLike']:  # Adding tupled signal B information
