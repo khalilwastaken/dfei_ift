@@ -5,7 +5,7 @@ settings:
   sample: [ "BdToDPi_00338410", 'BdToJpsiKst_00338627', 'BsToDsPi_00338392', 'BsToJpsiPhi_00342629', 'BuToJpsiK_00338624']
   nfiles: [200, 200, 200, 200, 200,]
   # Training settings
-  batch_size: 256
+  batch_size: 64
   lr: 1e-3
   weight_decay: 1e-5
   epochs: 100
@@ -17,6 +17,7 @@ settings:
   node_sel: "true"  # Pruner used to apply the graph mode above: "true", "zeros", "default"
   pv_model: 'None' # Initial PV association: DFEI_model_number (auto select bis), "true", "ip", "None"
   pv_model_name: "None" # name to specify the model, "None" (best model auto selected)
+  make_bi: false # From pv asso it is already bi directional
   calibration: true
   calibrate_mode: [ "BdToDPi", "BdToJpsiKst", "BsToDsPi", 'BsToJpsiPhi', 'BuToJpsiK']
   to_whiten: [ "Charge" ,'Prob_k', 'Prob_e', 'Prob_mu', 'Prob_p', 'Prob_pi' ] # list or -1
