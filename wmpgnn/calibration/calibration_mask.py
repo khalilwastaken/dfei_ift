@@ -10,7 +10,7 @@ from multiprocessing.pool import ThreadPool
 from wmpgnn.util.bfs import find_components_bfs
 from wmpgnn.reconstruction.signal_dict import get_ref_signal, sig_matching
 from wmpgnn.reconstruction.reconstruction_helper import *
-
+from wmpgnn.util.normalization import get_normalization, denorm_data
 
 class CalibrationClass:
     def __init__(self, configs):
@@ -18,18 +18,18 @@ class CalibrationClass:
 
         cacheing_config = glob.glob(f"{configs['settings']['data_dir']}/{configs['evaluate']['sample'][0]}/*.yaml")[0]
         with open(cacheing_config, "r") as file:
-            self.cacheing_config = yaml.safe_load(file)
+            self.cacheing_config = yaml.safe_load(file)['graphs']
 
         # Obtain the normalization dictionary
-        self.norm = False  # obtain_normalization(configs)
+        self.norm = get_normalization(configs)
 
         # Threshold for edge and node pruning
         self.node_thrs = configs["inference"]["node_prune_thr"]
         self.edge_thrs = configs["inference"]["edge_prune_thr"]
 
         to_whiten = configs["settings"]["to_whiten"]
-        track_x = self.cacheing_config['graphs']['tracks_nodes']
-        track_pid = self.cacheing_config['graphs']['tracks_pid']
+        track_x = self.cacheing_config['tracks_nodes']
+        track_pid = self.cacheing_config['tracks_pid']
         if isinstance(to_whiten, list):
             self.track_x_whiten = torch.tensor([f in to_whiten for f in track_x])
             self.track_pid_whiten = torch.tensor([f in to_whiten for f in track_pid])
@@ -58,8 +58,13 @@ class CalibrationClass:
     def whitening(self, args):
         graph, channel_prop, path = args
         # Denorm data
-        graph["tracks"].org_x = graph["tracks"].x.clone()
-        graph["tracks"].org_pid = graph["tracks"].pid.clone()
+        if self.norm is not None:
+            graph["tracks"].org_x = denorm_data(outputs["tracks"].x, self.norm, self.cacheing_config['tracks_nodes'])
+            graph["tracks"].org_pid = denorm_data(outputs["tracks"].pid, self.norm, self.cacheing_config['tracks_pid'])
+        else:
+            graph["tracks"].org_x = outputs["tracks"].x.clone()
+            graph["tracks"].org_pid = graph["tracks"].pid.clone()
+
         is_whiten = torch.tensor([0])  # flag to add if the event is whiten or not
 
         # Pruning needs to be applied manually, since it is done in place (alternatively deep copy it)

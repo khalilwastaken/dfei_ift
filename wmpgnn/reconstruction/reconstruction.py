@@ -12,6 +12,7 @@ from wmpgnn.reconstruction.signal_dict import get_ref_signal, sig_matching
 from wmpgnn.reconstruction.reconstruction_helper import *
 from wmpgnn.reconstruction.quantity_adder import *
 from wmpgnn.util.bfs import find_components_bfs
+from wmpgnn.util.normalization import get_normalization, denorm_data
 
 
 class EventReconstruction:
@@ -20,10 +21,13 @@ class EventReconstruction:
 
         cacheing_config = glob.glob(f"{configs['settings']['data_dir']}/{configs['evaluate']['sample'][0]}/*.yaml")[0]
         with open(cacheing_config, "r") as file:
-            self.cacheing_config = yaml.safe_load(file)
+            self.cacheing_config = yaml.safe_load(file)['graphs']
 
         self.signal = get_ref_signal(configs["evaluate"]["sample"][0])
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        # Get the normalization
+        self.norm = get_normalization(configs)
 
         self.evt_counter = 0
         self.sig_df = []
@@ -54,8 +58,13 @@ class EventReconstruction:
         lca = outputs[("tracks", "tracks")].lca
 
         # Unfold normalization here
-        track_org_x = outputs["tracks"].org_x
-        track_pid = outputs["tracks"].org_pid
+        if self.norm is not None:
+            track_org_x = denorm_data(outputs["tracks"].org_x, self.norm, self.cacheing_config['tracks_nodes'])
+            track_pid = denorm_data(outputs["tracks"].org_pid, self.norm, self.cacheing_config['tracks_pid'])
+        else:
+            track_org_x = outputs["tracks"].org_x
+            track_pid = outputs["tracks"].org_pid
+
 
         track_batch = outputs["tracks"].batch
         pv_batch = outputs['pvs'].batch
@@ -190,7 +199,7 @@ class EventReconstruction:
                 sig_dict = get_pv_asso(sig_dict, reco_component, pv_des)
             if ft_des is not None:
                 sig_dict = get_pred_ft(sig_dict, reco_component, ft_des)
-                sig_dict["part_ids"] = '_'.join(str(x.item()) for x in true_component['part_id']) # true
+                sig_dict["part_ids"] = '_'.join(str(x.item()) for x in true_component['part_id'])  # true
 
             # Adding event level info, currently just slammed do it in a function
             sig_dict['true_part_ids'] = '_'.join(str(x.item()) for x in true_component['part_id'])
