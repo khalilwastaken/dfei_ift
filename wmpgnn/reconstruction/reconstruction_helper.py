@@ -25,13 +25,13 @@ def add_base_quant(graph,components, cacheing_configs):
         nodes = component['nodes']
         # Attach the selected pid, based on highest probability
         pid_indx = torch.argmax(graph['tracks'].org_pid[nodes], dim=1)
-        pid = [pid_dict[cacheing_configs['graphs']['tracks_pid'][i]] for i in pid_indx]
-        charge_idx = [i for i, s in enumerate(cacheing_configs['graphs']['tracks_nodes']) if s == 'Charge'][0]
+        pid = [pid_dict[cacheing_configs['tracks_pid'][i]] for i in pid_indx]
+        charge_idx = [i for i, s in enumerate(cacheing_configs['tracks_nodes']) if s == 'Charge'][0]
         charge = graph['tracks'].org_x[nodes].T[charge_idx]
         component['part_id'] = charge.to(int) * torch.tensor(pid)
 
         for key in ['px', 'py', 'pz']:
-            idx = [i for i, s in enumerate(cacheing_configs['graphs']['tracks_nodes']) if s.startswith(key)][0]
+            idx = [i for i, s in enumerate(cacheing_configs['tracks_nodes']) if s.startswith(key)][0]
             component[key] = graph['tracks'].org_x[nodes].T[idx]
     return components
 
