@@ -11,6 +11,7 @@ settings:
   gacc: 1  # Accumulating number of mini batches before step
   ngpu: 1  # Number of GPUs used for training
   ncpu: 16  # Number CPUs used for multithreading/data loader,
+  norm: "None" # file path to normalization
   # Preselection filters
   graph_mode: "None"  # Apply pruning on initial graph: "true", "true_frag" "None"
   node_sel: "true"  # Pruner used to apply the graph mode above: "true", "zeros", "default"

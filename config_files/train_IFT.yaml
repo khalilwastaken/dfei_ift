@@ -12,11 +12,14 @@ settings:
   gacc: 1  # Accumulating number of mini batches before step
   ngpu: 1  # Number of GPUs used for training
   ncpu: 8  # Number CPUs used for multithreading/data loader,
+  norm: "None" # file path to normalization
   # Preselection filters
   graph_mode: "None"  # Apply pruning on initial graph: "true", "true_frag" "None"
   node_sel: "true"  # Pruner used to apply the graph mode above: "true", "zeros", "default"
+  # PV association
   pv_model: 6 # Initial PV association: DFEI_model_number (auto select bis), "true", "ip", "None"
   pv_model_name: "None" # name to specify the model, "None" (best model auto selected)
+  # Calibration
   calibration: true
   calibrate_mode: [ "BdToDPi", "BdToJpsiKst", "BsToDsPi", 'BsToJpsiPhi', 'BuToJpsiK']
   to_whiten: [ "Charge" ,'Prob_k', 'Prob_e', 'Prob_mu', 'Prob_p', 'Prob_pi' ] # list or -1

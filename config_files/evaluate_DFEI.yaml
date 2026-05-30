@@ -4,7 +4,7 @@ settings:
   model_name: "None" # "best-epoch" path, "None" for auto select bis
   data_dir: "/eos/user/y/yukaiz/DFEI_IFT_Run3/test_data/MC_normed/"
   ncpu: 16  # NCPUs for data loader, full dataset limited to 8 for workers due to cpu mem constraints
-  calibration: false
+  norm: "/eos/user/y/yukaiz/DFEI_IFT_Run3/dfei_repo/preprocessing/normalization_dict.pt" # file path to normalization
 
 inference:
   edge_prune_thr: 0.1  # Edge prune threshold during reco

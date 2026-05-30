@@ -7,6 +7,7 @@ settings:
   dfei_model_name: "None" # name to specify the model, "None" (best model auto selected)
   data_dir: "/eos/user/y/yukaiz/DFEI_IFT_Run3/test_data/MC_normed/"
   ncpu: 8  # NCPUs for data loader, full dataset limited to 8 for workers due to cpu mem constraints
+  norm: "None" # file path to normalization
   calibrate_mode: [ "BsToJpsiPhi" ] # if adding, the channel will be whitenend additional to the default of the trained one
 
 inference:
