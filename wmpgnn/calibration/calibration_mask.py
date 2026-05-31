@@ -59,10 +59,10 @@ class CalibrationClass:
         graph, channel_prop, path = args
         # Denorm data
         if self.norm is not None:
-            graph["tracks"].org_x = denorm_data(outputs["tracks"].x, self.norm, self.cacheing_config['tracks_nodes'])
-            graph["tracks"].org_pid = denorm_data(outputs["tracks"].pid, self.norm, self.cacheing_config['tracks_pid'])
+            graph["tracks"].org_x = denorm_data(graph["tracks"].x, self.norm, self.cacheing_config['tracks_nodes'])
+            graph["tracks"].org_pid = denorm_data(graph["tracks"].pid, self.norm, self.cacheing_config['tracks_pid'])
         else:
-            graph["tracks"].org_x = outputs["tracks"].x.clone()
+            graph["tracks"].org_x = graph["tracks"].x.clone()
             graph["tracks"].org_pid = graph["tracks"].pid.clone()
 
         is_whiten = torch.tensor([0])  # flag to add if the event is whiten or not
