@@ -214,17 +214,17 @@ class DFEILightningModule(L.LightningModule):
             if self.configs["plt_nodes"]:
                 for i in range(len(self.model._blocks)):
                     plot_nn_response(self.tst_log[f"sig_nodes_score_{i}"], self.tst_log[f"bkg_nodes_score_{i}"],
-                                     [f"NN_nodes_{i}_decision", "sig", "bkg"], self.version,
+                                     [f"NN_nodes_{i}", "sig", "bkg"], self.version,
                                      model="DFEI", channel=self.signal, log_dir=self.log_dir)
             if self.configs["plt_edges"]:
                 for i in range(len(self.model._blocks)):
                     plot_nn_response(self.tst_log[f"sig_edges_score_{i}"], self.tst_log[f"bkg_edges_score_{i}"],
-                                     [f"NN_edges_{i}_decision", "sig", "bkg"], self.version,
+                                     [f"NN_edges_{i}", "sig", "bkg"], self.version,
                                      model="DFEI", channel=self.signal, log_dir=self.log_dir)
             if self.configs["plt_pvs"]:
                 for i in range(len(self.model._blocks)):
                     plot_nn_response(self.tst_log[f"sig_pv_asso_score_{i}"], self.tst_log[f"bkg_pv_asso_score_{i}"],
-                                     [f"NN_pv_asso_{i}_decision", "correct", "false"], self.version,
+                                     [f"NN_pv_asso_{i}", "correct", "false"], self.version,
                                      model="DFEI", channel=self.signal, log_dir=self.log_dir)
                 # Get the PV association performance
                 log = self.evt_reco.log
