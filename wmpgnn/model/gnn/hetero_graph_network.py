@@ -114,7 +114,7 @@ class HeteroGraphNetwork(pl.LightningModule):
                     node_indices = torch.nonzero(mask, as_tuple=True)[0]
                     self.node_indices[node_type] = node_indices
                     edge_index = faster_node_pruning(mask, global_input, node_type,
-                                                     [('tracks', 'to', 'tracks')],
+                                                     [('tracks', 'tracks')],
                                                      device=self.device)
                     self.edge_node_pruning_indices[node_type] = edge_index
                     for key in edge_index.keys():
