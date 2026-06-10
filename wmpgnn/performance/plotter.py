@@ -11,8 +11,13 @@ hep.style.use(hep.style.LHCb2)
 
 
 def plot_nn_response(sig, bkg, labels, version, model='DFEI', channel='inclusive', log_dir='lightning_logs'):
-    plot_weights(sig, bkg, labels, version, model=model, channel=channel, log_dir=log_dir)
-    plot_roc_curve(sig, bkg, labels, version, model=model, channel=channel, log_dir=log_dir)
+    labels_nn = labels.copy()
+    labels_roc = labels.copy()  #
+
+    labels_nn[0] = f'{labels_nn[0]}_decision'
+    labels_roc[0] = f'{labels_roc[0]}_roc'
+    plot_weights(sig, bkg, labels_nn, version, model=model, channel=channel, log_dir=log_dir)
+    plot_roc_curve(sig, bkg, labels_roc, version, model=model, channel=channel, log_dir=log_dir)
 
 
 def plot_weights(pos_weight, neg_weight, labels, version, model="DFEI", channel="inclusive", log_dir='lightning_logs',
