@@ -1,3 +1,4 @@
+
 settings:
   data_dir: /eos/user/y/yukaiz/FT_Run3/data/DFEI_LHCb_LHCbcollision_normed_pt_data/
   sample: [00342629_Bs_Jpsiphi, 00342442_inclusive, 00338627_Bd_JpsiKst]

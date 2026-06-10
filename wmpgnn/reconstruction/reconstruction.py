@@ -65,6 +65,9 @@ class EventReconstruction:
             track_org_x = outputs["tracks"].org_x
             track_pid = outputs["tracks"].org_pid
 
+        # Extract origin_flag for evaluation diagnostics (not normalized)
+        track_origin_flag = getattr(outputs["tracks"], "origin_flag", None)
+
 
         track_batch = outputs["tracks"].batch
         pv_batch = outputs['pvs'].batch
@@ -121,6 +124,8 @@ class EventReconstruction:
 
             graphs[i]["tracks"].org_x = track_org_x[track_mask][node_selbool]
             graphs[i]["tracks"].org_pid = track_pid[track_mask][node_selbool]
+            if track_origin_flag is not None:
+                graphs[i]["tracks"].origin_flag = track_origin_flag[track_mask][node_selbool]
 
             # Apply pruning on pv prediction
             if pv_des is not None:
@@ -213,6 +218,8 @@ class EventReconstruction:
             # Adding base quant info
             if reco_component:
                 sig_dict = get_track_info(sig_dict, reco_component)
+                if "origin_flag" in reco_component:
+                    sig_dict["origin_flags"] = "_".join(str(x.item()) for x in reco_component["origin_flag"])
             if sig_dict['SigMatch']:  # Adding tupled signal B information
                 sig_dict = get_sig_lvl_info(sig_dict, graph, pv_des, ft_des)
             sig_dict_holder.append(sig_dict)

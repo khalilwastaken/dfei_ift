@@ -33,6 +33,8 @@ def add_base_quant(graph,components, cacheing_configs):
         for key in ['px', 'py', 'pz']:
             idx = [i for i, s in enumerate(cacheing_configs['tracks_nodes']) if s.startswith(key)][0]
             component[key] = graph['tracks'].org_x[nodes].T[idx]
+        if hasattr(graph["tracks"], "origin_flag"):
+            component["origin_flag"] = graph["tracks"].origin_flag[nodes]
     return components
 
 def apply_true_mapping(graph, components, edges):

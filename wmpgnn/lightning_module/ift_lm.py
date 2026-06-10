@@ -133,7 +133,8 @@ class IFTLightningModule(L.LightningModule):
         elif "pred_y" in outputs_ft[("tracks", "tracks")]:
             outputs_ft["edge_weights"] = outputs_ft[("tracks", "tracks")].pred_y
         else:
-            outputs_ft["edge_weights"] = (lca_score.squeeze() != 0).int()
+            lca_score = torch.argmax(outputs_ft[("tracks", "to", "tracks")].lca, dim=1)
+            outputs_ft["edge_weights"] = (lca_score != 0).int()
 
         """if "frag" in outputs_ft["tracks"]:
             frag_selbool = outputs_ft["tracks"].frag != -1  # this does not need to exist

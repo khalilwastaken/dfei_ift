@@ -1,0 +1,121 @@
+# Global settings
+settings:
+  # Input file information
+  data_dir: "/eos/user/k/khhamdao/dfei_preprocessing_output/MC_normed/" # DFEI_pythia_nu7p6_normed_pt_data, DFEI_LHCb_LHCbcollision_normed_pt_data
+  sample: ['BsToJpsiPhi_00342629']
+  nfiles: [1]
+  # Training settings
+  batch_size: 32
+  lr: 1e-3
+  weight_decay: 1e-5
+  epochs: 100
+  gacc: 1  # Accumulating number of mini batches before step
+  ngpu: 1  # Number of GPUs used for training
+  ncpu: 8  # Number CPUs used for multithreading/data loader,
+  norm: "None" # file path to normalization
+  # Preselection filters
+  graph_mode: "None"  # Apply pruning on initial graph: "true", "true_frag" "None"
+  node_sel: "true"  # Pruner used to apply the graph mode above: "true", "zeros", "default"
+  # PV association
+  pv_model: "true" # Initial PV association: DFEI_model_number (auto select bis), "true", "ip", "None"
+  pv_model_name: "None" # name to specify the model, "None" (best model auto selected)
+  # Calibration
+  calibration: false
+  calibrate_mode: [ "BdToDPi", "BdToJpsiKst", "BsToDsPi", 'BsToJpsiPhi', 'BuToJpsiK']
+  to_whiten: [ "Charge" ,'Prob_k', 'Prob_e', 'Prob_mu', 'Prob_p', 'Prob_pi' ] # list or -1
+
+inference:
+  FT: true
+  FT_weights: false
+  frag: false
+  frag_weights: false
+  # fragmentation inference is decapitated and was pythia simulation exclusive
+  # Defining thresholds to remove bkg edges and nodes before reconstruction
+  edge_prune_thr: 0.1  # Edge prune threshold during reco
+  node_prune_thr: 0.1  # Node prune threshold during reco
+
+
+evaluate:
+  sample: [ "BsToJpsiPhi_00342629" ]
+  nfiles: [1]
+  over_write: "" # argument to overwrite the output names to rerun safely the same sample: "" for no overwrite
+
+
+IFT:
+  dfei_model: "None" # DFEI model which is used within IFT: "None", "DFEI_version_number"
+  dfei_model_name: "None" # name to specify the model, "None" (best model auto selected)
+  use_pid: true # Adding pid information in forward pass: true, false
+  cpt: "None" # Loading checkpoint to continue training: "None", DFEI_version_number (select the last model and just continue)
+  cpt_name: "None" # "bis" (for selecting the best model), "best-epoch.ckpt", "None"
+  node_types: [ 'tracks', 'pvs' ]  # Graph node settings
+  edge_types: [ "tracks_tracks", "tracks_pvs" ]  # Graph edge settings
+  encoder:
+    usage: True
+    global:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "graph_norm", "graph_norm" ] # pass single string or [layers - 2 specific norms]
+      dropout: 0.01 # pass single float or [layers - 1 specific dropout values]
+    tracks:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "graph_norm", "graph_norm" ]
+      dropout: 0.01
+    pvs:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "graph_norm", "graph_norm" ]
+      dropout: 0.01
+    tracks_tracks:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "graph_norm", "graph_norm" ]
+      dropout: 0.01
+    tracks_pvs:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "graph_norm", "graph_norm" ]
+      dropout: 0.01
+  GNblocks:
+    nBlocks: 2
+    use_globals: True
+    use_node_weights: True # MLP to infer a node weight, also necessary for node pruning
+    use_edge_weights: True # MLP to infer an edge weight, also necessary for edge pruning
+    weighted_pass: True # Whether to pass the weights, requires above
+    MLP_forward:
+      layers: [ -1, 128, 128, 16 ]
+      norm: "graph_norm"
+      dropout: 0.01
+    MLP_infer:
+      layers: [ -1, 16, 16, 16, 1 ]
+      norm: "graph_norm"
+      dropout: 0.01
+  decoder:
+    usage: True
+    global:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "graph_norm", "graph_norm" ] # pass single string or [layers - 2 specific norms]
+      dropout: 0.01 # pass single float or [layers - 1 specific dropout values]
+    tracks:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "graph_norm", "graph_norm" ]
+      dropout: 0.01
+    pvs:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "graph_norm", "graph_norm" ]
+      dropout: 0.01
+    tracks_tracks:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "graph_norm", "graph_norm" ]
+      dropout: 0.01
+    tracks_pvs:
+      layers: [ -1, 128, 128, 16 ]
+      norm: [ "graph_norm", "graph_norm" ]
+      dropout: 0.01
+  op_trafo: # transforms output to desired dimension
+    usage: True
+    tr_tr: None
+    tr_pv: None
+    tr: 3  # FT output
+    pv: None
+    global: None
+    MLP:
+      layers: [ -1, -1 ]
+      norm: "graph_norm"
+      dropout: 0.01
+

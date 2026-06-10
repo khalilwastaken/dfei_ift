@@ -1,0 +1,21 @@
+settings:
+  model_arch: "IFT"
+  model: 0
+  model_name: "None"
+  data_dir: "/eos/user/k/khhamdao/dfei_preprocessing_output/MC_normed/"
+  ncpu: 8
+  calibration: false
+  pv_model: "true"
+
+inference:
+  FT: true
+  FT_weights: false
+  frag: false
+  frag_weights: false
+  edge_prune_thr: 0.1
+  node_prune_thr: 0.1
+
+evaluate:
+  sample: ["BsToJpsiPhi_00342629"]
+  nfiles: [1]
+  over_write: "with_origin_flag"
