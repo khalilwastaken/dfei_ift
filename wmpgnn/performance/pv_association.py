@@ -18,13 +18,18 @@ def pv_asso(_df, b_lvl=False):
               "npvs": dict(zip(keys, counts))}
 
     if b_lvl:  # Looking at a B as a whole
+        pv_selbool = _df['true_pv_b_lvl'] != -1  # B true PV is not recobled
+        _df = _df[pv_selbool]
         true_pv = _df["true_pv_b_lvl"].values
         pred_pv, min_ip_pv = _df["pred_pv_b_lvl"].values, _df["minIP_pv_b_lvl"].values
         for pv in keys:
-            selbool = npvs == pv
-            pv_log["pv_corr_ml"][pv] = np.sum(pred_pv[selbool] == true_pv[selbool])
-            pv_log["pv_corr_ip"][pv] = np.sum(min_ip_pv[selbool] == true_pv[selbool])
-            pv_log["pv_total"][pv] = np.sum(selbool)
+            selbool = npvs[pv_selbool] == pv
+            try:
+                pv_log["pv_corr_ml"][pv] = np.sum(pred_pv[selbool] == true_pv[selbool])
+                pv_log["pv_corr_ip"][pv] = np.sum(min_ip_pv[selbool] == true_pv[selbool])
+                pv_log["pv_total"][pv] = np.sum(selbool)
+            except IndexError:
+                import pdb; pdb.set_trace()
     else:  # On track level
         true_pv = _df["true_pv"].values
         pred_pv, min_ip_pv = _df["pred_pv"].values, _df["minIP_pv"].values
@@ -104,6 +109,7 @@ def plot_pv_missasso(log, version, channel, label=None, log_dir='lightning_logs'
     ax.set(ylabel="PV miss-association rate [%]", xlabel="# PVs [a.u.]",
            ylim=[0, 30], xlim=[0, 16])
     ax.legend()
+    hep.label.exp_label(exp="LHCb", llabel="Simulation", loc=0, rlabel="", fontsize=18)
 
     outdir = f"{log_dir}/DFEI/version_{version}/plots_{channel}/pv/pv_miss_asso"
     os.makedirs(outdir, exist_ok=True)
