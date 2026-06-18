@@ -17,6 +17,7 @@ from wmpgnn.calibration.calibration import *
 class IFTLightningModule(L.LightningModule):
     def __init__(self, model, dfei_model, optimizer_class, optimizer_params, configs, pos_weights):
         super().__init__()
+        self.strict_loading = False
         if "model" in configs["settings"]:
             self.version = configs["settings"]["model"]
         else:
@@ -110,6 +111,21 @@ class IFTLightningModule(L.LightningModule):
     def test_step(self, batch, batch_idx):
         org_x = batch["tracks"].x.clone()
         org_pid = batch["tracks"].pid.clone()
+
+        # Zero out SS/OS tracks based on mask_mode config
+        mask_mode = self.configs.get("mask_mode", "none")
+        if mask_mode != "none" and hasattr(batch["tracks"], "origin_flag"):
+            origin_flag = batch["tracks"].origin_flag
+            if mask_mode == "mask_ss":
+                mask = (origin_flag == 1)
+            elif mask_mode == "mask_os":
+                mask = torch.isin(origin_flag, torch.tensor([2, 3, 4], device=origin_flag.device))
+            elif mask_mode == "mask_both":
+                mask = torch.isin(origin_flag, torch.tensor([1, 2, 3, 4], device=origin_flag.device))
+            else:
+                mask = torch.zeros(origin_flag.shape[0], dtype=torch.bool, device=origin_flag.device)
+            batch["tracks"].x = batch["tracks"].x.clone()
+            batch["tracks"].x[mask] = 0.0
 
         # Forward pass
         outputs_ft = self.forward(batch)
