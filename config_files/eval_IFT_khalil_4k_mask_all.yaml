@@ -1,0 +1,24 @@
+settings:
+  model_arch: IFT
+  model: 1
+  model_name: /eos/user/k/khhamdao/scalable_mtl_hgnn_workshop/wmpgnn/analysis/LHCb_logs/IFT/version_0/checkpoints/best-epoch=59-adapted.ckpt
+  data_dir: /eos/user/k/khhamdao/dfei_preprocessing_output/MC_normed/
+  ncpu: 8
+  calibration: false
+  dfei_model: None
+  dfei_model_name: None
+  norm: None
+  calibrate_mode: [BsToJpsiPhi]
+  pv_model: true
+
+inference:
+  FT: true
+  FT_weights: false
+  frag: true
+  frag_weights: true
+  mask_mode: mask_all
+
+evaluate:
+  sample: [ift_run3_BsToJpsiPhi]
+  nfiles: [4000]
+  over_write: with_origin_flag_mask_all

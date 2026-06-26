@@ -122,6 +122,8 @@ class IFTLightningModule(L.LightningModule):
                 mask = torch.isin(origin_flag, torch.tensor([2, 3, 4], device=origin_flag.device))
             elif mask_mode == "mask_both":
                 mask = torch.isin(origin_flag, torch.tensor([1, 2, 3, 4], device=origin_flag.device))
+            elif mask_mode == "mask_all":
+                mask = origin_flag >= 0
             else:
                 mask = torch.zeros(origin_flag.shape[0], dtype=torch.bool, device=origin_flag.device)
             batch["tracks"].x = batch["tracks"].x.clone()
