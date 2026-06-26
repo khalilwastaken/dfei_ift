@@ -142,7 +142,8 @@ class TaggingPowerAnalyzer:
 
             # Get the true tag of the classified events and predicted tag
             true_tag = np.sign(bin_df[classified_mask]["B_id"])
-            predicted_tag = np.argmax(bin_df[classified_mask][["ft_b_score", "ft_bbar_score"]], axis=1) * 2 - 1
+            b_id_sign = np.sign(bin_df[classified_mask]["B_id"].values)
+            predicted_tag = b_id_sign * (np.argmax(bin_df[classified_mask][["ft_b_score", "ft_bbar_score"]], axis=1) * 2 - 1)
 
             num_right.append(np.sum(true_tag == predicted_tag))
             num_wrong.append(np.sum(true_tag != predicted_tag))

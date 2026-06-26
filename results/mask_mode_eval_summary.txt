@@ -1,0 +1,91 @@
+IFT Evaluation Results - Mask Mode Comparison
+==============================================
+Model   : scalable_mtl_hgnn_workshop epoch=59-adapted (dfei_ift version_1 arch)
+Dataset : ift_run3 AP, Bs->J/psi phi, Run3 2024 MagDown (prod 00397391)
+Sample  : 4000 files (~400k events), 31863 signal sub-graphs after MC truth PV decomposition
+PV asso : pv_model=true (MC truth)
+Sign fix: tagging_power_classes.py corrected 2026-06-22 (B_id sign applied to predicted_tag)
+
+Mask modes zero track input features (x) for tracks with the given origin_flag values:
+  baseline  : no masking
+  mask_ss   : zeros origin_flag == 1 (SS tracks)
+  mask_os   : zeros origin_flag in {2,3,4} (OS tracks)
+  mask_both : zeros origin_flag in {1,2,3,4} (SS+OS)
+  mask_all  : zeros origin_flag >= 0 (all valid-flag tracks; only MISSING_FLAG=-1 tracks remain)
+
+----------------------------------------------
+GLOBAL (all events, N=31863)
+----------------------------------------------
+Condition    |  TP (%)  |  WF (%)  |  eps (%)
+-------------|----------|----------|----------
+baseline     |  11.48   |  33.06   |  99.99
+mask_ss      |   9.26   |  34.78   |  99.99
+mask_os      |   7.11   |  36.67   |  99.98
+mask_both    |   5.96   |  37.79   |  99.98
+mask_all     | anti-tag |  85.66   | 100.00
+
+----------------------------------------------
+SINGLE-B EVENTS (1 B candidate, N~14336)
+----------------------------------------------
+Condition    |  TP (%)  |  WF (%)  |  eps (%)
+-------------|----------|----------|----------
+baseline     |  25.92   |  24.54   |  99.99
+mask_ss      |  21.66   |  26.73   |  99.99
+mask_os      |  24.27   |  25.36   |  99.99
+mask_both    |  19.84   |  27.73   |  99.98
+mask_all     | anti-tag |  84.76   | 100.00
+
+----------------------------------------------
+DOUBLE-B EVENTS (2 B candidates, N~17160)
+----------------------------------------------
+Condition    |  TP (%)  |  WF (%)  |  eps (%)
+-------------|----------|----------|----------
+baseline     |   3.88   |  40.15   |  99.99
+mask_ss      |   2.87   |  41.52   |  99.99
+mask_os      |   0.60   |  46.14   |  99.98
+mask_both    |   0.57   |  46.23   |  99.98
+mask_all     | anti-tag |  86.50   | 100.00
+
+----------------------------------------------
+POSITIVE B (Bs0, B_id>0) SINGLE-B
+----------------------------------------------
+Condition    |  TP (%)  |  WF (%)
+-------------|----------|----------
+baseline     |  24.97   |  25.01
+mask_ss      |  21.91   |  26.60
+mask_os      |  23.60   |  25.71
+mask_both    |  19.89   |  27.70
+mask_all     | anti-tag |  85.13
+
+----------------------------------------------
+NEGATIVE B (Bsbar0, B_id<0) SINGLE-B
+----------------------------------------------
+Condition    |  TP (%)  |  WF (%)
+-------------|----------|----------
+baseline     |  26.88   |  24.08
+mask_ss      |  21.43   |  26.86
+mask_os      |  24.95   |  25.02
+mask_both    |  19.79   |  27.75
+mask_all     | anti-tag |  84.39
+
+----------------------------------------------
+KEY FINDINGS
+----------------------------------------------
+1. OS tracks drive double-B TP: mask_os collapses double-B from 3.88% to 0.60%,
+   identical to mask_both. Removing SS alone (mask_ss) barely changes it (2.87%).
+
+2. Single-B is more balanced: SS slightly more important than OS for single-B,
+   but both contribute. TP degrades gradually from 25.9% to 19.8% through masking.
+
+3. ~20% residual single-B TP in mask_both comes from origin_flag not in {1,2,3,4}
+   (flags 0, 5, 100 and MISSING_FLAG=-1). Confirmed by mask_all: zeroing those
+   tracks flips the model into anti-tagging (WF~85%), meaning flag {0,5,100}
+   tracks carry real flavour information in the correct direction.
+
+4. mask_all anti-tagging: with only MISSING_FLAG tracks active, the model
+   systematically predicts the wrong flavour. Those tracks either carry inverted
+   signal or the model is driven by graph structure alone.
+
+Note: mask_all TP reported as "anti-tag" because WF>50% makes the TP formula
+value (epsilon*(1-2*WF)^2 ~ 50%) physically meaningless -- the model is
+consistently wrong, not correctly tagging.

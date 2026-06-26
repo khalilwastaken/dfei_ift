@@ -43,6 +43,7 @@ if __name__ == "__main__":
     # Creating loss plots and acc evaluation
     version = configs[configs["model"]]["cpt"]
     metric_path = f"{configs['log_dir']}/{configs['model']}/version_{version}/metrics.csv"
-    metrics_eval(metric_path, configs, version)
+    if os.path.exists(metric_path):
+        metrics_eval(metric_path, configs, version)
     print("Done")
     print("=" * 45)
