@@ -5,10 +5,6 @@ settings:
   data_dir: "/eos/user/k/khhamdao/dfei_preprocessing_output/MC_normed/"
   ncpu: 8
   calibration: true
-  dfei_model: "None"
-  dfei_model_name: "None"
-  norm: "None"
-  calibrate_mode: ["BsToJpsiPhi"]
   pv_model: "true"
 
 inference:

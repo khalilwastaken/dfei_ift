@@ -1,0 +1,115 @@
+# Global settings
+settings:
+  data_dir: "/eos/user/k/khhamdao/dfei_preprocessing_output/MC_normed/"
+  sample: ["ift_run3_BsToJpsiPhi_train"]
+  nfiles: [3200]
+  # Training settings
+  batch_size: 256
+  lr: 1e-3
+  weight_decay: 1e-5
+  epochs: 100
+  gacc: 1
+  ngpu: 1
+  ncpu: 8
+  norm: "None"
+  # Preselection filters
+  graph_mode: "None"
+  node_sel: "true"
+  # PV association: "true" = MC truth PV, no DFEI model
+  pv_model: "true"
+  pv_model_name: "None"
+  # Calibration
+  calibration: false
+  calibrate_mode: ["BsToJpsiPhi"]
+  to_whiten: ["Charge", "Prob_k", "Prob_e", "Prob_mu", "Prob_p", "Prob_pi"]
+
+inference:
+  FT: true
+  FT_weights: false
+  frag: false
+  frag_weights: false
+  edge_prune_thr: 0.1
+  node_prune_thr: 0.1
+
+evaluate:
+  sample: ["ift_run3_BsToJpsiPhi_train"]
+  nfiles: [400]
+  over_write: ""
+
+IFT:
+  dfei_model: "None"
+  dfei_model_name: "None"
+  use_pid: true
+  cpt: "None"
+  cpt_name: "None"
+  node_types: ["tracks", "pvs"]
+  edge_types: ["tracks_tracks", "tracks_pvs"]
+  encoder:
+    usage: True
+    global:
+      layers: [-1, 128, 128, 16]
+      norm: ["graph_norm", "graph_norm"]
+      dropout: 0.01
+    tracks:
+      layers: [-1, 128, 128, 16]
+      norm: ["graph_norm", "graph_norm"]
+      dropout: 0.01
+    pvs:
+      layers: [-1, 128, 128, 16]
+      norm: ["graph_norm", "graph_norm"]
+      dropout: 0.01
+    tracks_tracks:
+      layers: [-1, 128, 128, 16]
+      norm: ["graph_norm", "graph_norm"]
+      dropout: 0.01
+    tracks_pvs:
+      layers: [-1, 128, 128, 16]
+      norm: ["graph_norm", "graph_norm"]
+      dropout: 0.01
+  GNblocks:
+    nBlocks: 2
+    use_globals: True
+    use_node_weights: True
+    use_edge_weights: True
+    weighted_pass: True
+    MLP_forward:
+      layers: [-1, 128, 128, 16]
+      norm: "graph_norm"
+      dropout: 0.01
+    MLP_infer:
+      layers: [-1, 16, 16, 16, 1]
+      norm: "graph_norm"
+      dropout: 0.01
+  decoder:
+    usage: True
+    global:
+      layers: [-1, 128, 128, 16]
+      norm: ["graph_norm", "graph_norm"]
+      dropout: 0.01
+    tracks:
+      layers: [-1, 128, 128, 16]
+      norm: ["graph_norm", "graph_norm"]
+      dropout: 0.01
+    pvs:
+      layers: [-1, 128, 128, 16]
+      norm: ["graph_norm", "graph_norm"]
+      dropout: 0.01
+    tracks_tracks:
+      layers: [-1, 128, 128, 16]
+      norm: ["graph_norm", "graph_norm"]
+      dropout: 0.01
+    tracks_pvs:
+      layers: [-1, 128, 128, 16]
+      norm: ["graph_norm", "graph_norm"]
+      dropout: 0.01
+  op_trafo:
+    usage: True
+    tr_tr: None
+    tr_pv: None
+    tr: 3
+    pv: None
+    global: None
+    MLP:
+      layers: [-1, -1]
+      norm: "graph_norm"
+      dropout: 0.01
